@@ -1,4 +1,4 @@
-package com.evolveum.polygon;
+package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;

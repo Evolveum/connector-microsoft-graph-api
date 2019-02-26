@@ -1,5 +1,6 @@
-package com.evolveum.polygon;
+package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.ObjectProcessing;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;

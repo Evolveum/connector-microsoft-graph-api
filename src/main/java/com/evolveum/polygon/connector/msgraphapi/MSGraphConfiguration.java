@@ -1,5 +1,5 @@
 
-package com.evolveum.polygon;
+package com.evolveum.polygon.connector.msgraphapi;
 
 import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.logging.Log;

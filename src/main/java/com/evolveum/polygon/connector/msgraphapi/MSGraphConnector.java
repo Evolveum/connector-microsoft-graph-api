@@ -1,6 +1,6 @@
 
 
-package com.evolveum.polygon;
+package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.identityconnectors.common.CollectionUtil;
