@@ -1,6 +1,5 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
-import com.evolveum.polygon.connector.msgraphapi.ObjectProcessing;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
@@ -16,11 +15,12 @@ import org.json.JSONObject;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class GroupProcessing extends ObjectProcessing {
 
-    private final static String API_ENDPOINT = "graph.microsoft.com/v1.0";
     private final static String GROUPS = "/groups";
 
     private static final String ATTR_ALLOWEXTERNALSENDERS = "allowExternalSenders";
@@ -45,15 +45,17 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_MEMBERS = "members";
     private static final String ATTR_OWNERS = "owners";
 
-
     public GroupProcessing(MSGraphConfiguration configuration, MSGraphConnector connector) {
-        super(configuration, connector);
+        super(configuration, ICFPostMapper.builder().build());
     }
 
 
     public void buildGroupObjectClass(SchemaBuilder schemaBuilder) {
+        schemaBuilder.defineObjectClass(objectClassInfo());
+    }
 
-
+    @Override
+    protected ObjectClassInfo objectClassInfo() {
         ObjectClassInfoBuilder groupObjClassBuilder = new ObjectClassInfoBuilder();
 
         groupObjClassBuilder.setType(ObjectClass.GROUP_NAME);
@@ -162,11 +164,8 @@ public class GroupProcessing extends ObjectProcessing {
         groupObjClassBuilder.addAttributeInfo(attrOwners.build());
 
 
-        schemaBuilder.defineObjectClass(groupObjClassBuilder.build());
-
-
+        return groupObjClassBuilder.build();
     }
-
 
     protected Uid createOrUpdateGroup(Uid uid, Set<Attribute> attributes) {
         LOG.info("Start createOrUpdateGroup, Uid: {0}, attributes: {1}", uid, attributes);
@@ -177,7 +176,8 @@ public class GroupProcessing extends ObjectProcessing {
         }
 
         Boolean create = uid == null;
-        URIBuilder uriBuilder = new URIBuilder().setScheme("https").setHost(API_ENDPOINT);
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final URIBuilder uriBuilder = endpoint.createURIBuilder();
 
         HttpEntityEnclosingRequestBase request = null;
         URI uri = null;
@@ -198,23 +198,23 @@ public class GroupProcessing extends ObjectProcessing {
                 throw new InvalidAttributeValueException();
             }
             uriBuilder.setPath(GROUPS);
-            uri = getUri(uriBuilder);
+            uri = endpoint.getUri(uriBuilder);
             LOG.info("Uid == null -> create group");
             LOG.info("Path: {0}", uri);
             request = new HttpPost(uri);
             JSONObject jsonObject1 = buildLayeredAttributeJSON(attributes);
-            jsonAnswer = callRequest(request, jsonObject1, true);
+            jsonAnswer = endpoint.callRequest(request, jsonObject1, true);
 
 
         } else {
             // update
             uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
-            uri = getUri(uriBuilder);
+            uri = endpoint.getUri(uriBuilder);
             LOG.info("Uid != null -> update group");
             LOG.info("Path: {0}", uri);
             request = new HttpPatch(uri);
             List<Object> attributeList = buildLayeredAtrribute(attributes);
-            callRequestNoContentNoJson(request, attributeList);
+            endpoint.callRequestNoContentNoJson(request, attributeList);
         }
 
 
@@ -231,16 +231,6 @@ public class GroupProcessing extends ObjectProcessing {
         return new Uid(newUid);
     }
 
-    private URI getUri(URIBuilder uriBuilder) {
-        URI uri;
-        try {
-            uri = uriBuilder.build();
-        } catch (URISyntaxException e) {
-            throw new ConnectorException("It is not possible to create URI" + e.getLocalizedMessage(), e);
-        }
-        return uri;
-    }
-
     protected void delete(Uid uid) {
         if (uid == null) {
             throw new InvalidAttributeValueException("uid not provided");
@@ -248,12 +238,13 @@ public class GroupProcessing extends ObjectProcessing {
         HttpDelete request;
         URI uri = null;
 
-        URIBuilder uriBuilder = new URIBuilder().setScheme("https").setHost(API_ENDPOINT);
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final URIBuilder uriBuilder = endpoint.createURIBuilder();
         uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
-        uri = getUri(uriBuilder);
+        uri = endpoint.getUri(uriBuilder);
         LOG.info("Path: {0}", uri);
         request = new HttpDelete(uri);
-        if (callRequest(request, false) == null) {
+        if (endpoint.callRequest(request, false) == null) {
             LOG.info("Deleted group with Uid {0}", uid.getUidValue());
         }
 
@@ -420,19 +411,9 @@ public class GroupProcessing extends ObjectProcessing {
 
     private void postRequestNoContent(String path, JSONObject json) {
         LOG.info("path: {0} , json {1}, ", path, json);
-        URIBuilder uriBuilder = getURIBuilder();
-        URI uri;
-        uriBuilder.setPath(path);
-        LOG.info("uriBuilder.setpath(path) {0}", uriBuilder);
-        try {
-            uri = uriBuilder.build();
-            LOG.info("uriBuilder.build");
-        } catch (URISyntaxException e) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("It was not possible create URI from UriBuider:").append(uriBuilder).append("; ")
-                    .append(e.getLocalizedMessage());
-            throw new ConnectorException(sb.toString(), e);
-        }
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(path);
+        final URI uri = endpoint.getUri(uriBuilder);
         LOG.info("uri {0}", uri);
 
 
@@ -441,8 +422,7 @@ public class GroupProcessing extends ObjectProcessing {
 
         request = new HttpPost(uri);
         LOG.info("create true - HTTP POST {0}", uri);
-        callRequestNoContent(request, null, json);
-
+        endpoint.callRequestNoContent(request, null, json);
     }
 
 
@@ -462,32 +442,21 @@ public class GroupProcessing extends ObjectProcessing {
     private void executeDeleteOperation(Uid uid, String path) {
         LOG.info("Delete object, Uid: {0}, Path: {1}", uid, path);
 
-        URIBuilder uriBuilder = getURIBuilder();
-        URI uri;
-
-        // create URI for request
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final URIBuilder uriBuilder = endpoint.createURIBuilder();
         uriBuilder.setPath(path + "/" + uid.getUidValue() + "/$ref");
 
         LOG.info("Uri for delete: {0}", uriBuilder);
-        try {
-            uri = uriBuilder.build();
 
-            HttpRequestBase request;
-            request = new HttpDelete(uri);
-
-            callRequest(request, false);
-
-        } catch (URISyntaxException e) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("It was not possible create URI from UriBuider:").append(uriBuilder).append(";")
-                    .append(e.getLocalizedMessage());
-            throw new ConnectorException(sb.toString(), e);
-        }
+        final URI uri = endpoint.getUri(uriBuilder);
+        final HttpRequestBase request = new HttpDelete(uri);
+        endpoint.callRequest(request, false);
     }
 
 
     public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForGroup()");
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
         if (query instanceof EqualsFilter) {
             LOG.info("query instanceof EqualsFilter");
             if (((EqualsFilter) query).getAttribute() instanceof Uid) {
@@ -502,21 +471,21 @@ public class GroupProcessing extends ObjectProcessing {
                 //get information about group
                 sbPath.append(GROUPS).append("/").append(uid.getUidValue());
                 LOG.info("sbPath: {0}", sbPath);
-                JSONObject group = executeGetRequest(sbPath.toString(), null, options, false);
+                JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
                 LOG.info("JSONObject group {0}", group.toString());
                 processingGroupObjectFromGET(group, handler);
 
                 //get list of group members
                 StringBuilder sbPathForMembers = new StringBuilder();
                 sbPathForMembers.append(GROUPS).append("/").append(uid.getUidValue()).append("/").append("members");
-                JSONObject groupMembers = executeGetRequest(sbPathForMembers.toString(), null, options, true);
+                JSONObject groupMembers = endpoint.executeGetRequest(sbPathForMembers.toString(), null, options, true);
                 LOG.info("JSONObject group {0}", groupMembers.toString());
                 processingMultipleObjectFromGET(groupMembers, handler);
 
                 //get list of group owners
                 StringBuilder sbPathForOwners = new StringBuilder();
                 sbPathForOwners.append(GROUPS).append("/").append(uid.getUidValue()).append("/").append("members");
-                JSONObject groupOwners = executeGetRequest(sbPathForOwners.toString(), null, options, true);
+                JSONObject groupOwners = endpoint.executeGetRequest(sbPathForOwners.toString(), null, options, true);
                 LOG.info("JSONObject group {0}", groupOwners.toString());
                 processingMultipleObjectFromGET(groupOwners, handler);
 
@@ -532,7 +501,7 @@ public class GroupProcessing extends ObjectProcessing {
                 String attributeValue = allValues.get(0).toString();
                 LOG.info("value {0}", attributeValue);
                 String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + attributeValue + "'";
-                JSONObject groups = executeGetRequest(GROUPS, customQuery, options, true);
+                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", groups.toString());
                 processingMultipleObjectFromGET(groups, handler);
             } else if (((EqualsFilter) query).getAttribute().getName().equals(ATTR_MAILNICKNAME)) {
@@ -546,7 +515,7 @@ public class GroupProcessing extends ObjectProcessing {
                 String attributeValue = allValues.get(0).toString();
                 LOG.info("value {0}", attributeValue);
                 String customQuery = "$filter=" + ATTR_MAILNICKNAME + " eq '" + attributeValue + "'";
-                JSONObject groups = executeGetRequest(GROUPS, customQuery, options, true);
+                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", groups.toString());
                 processingMultipleObjectFromGET(groups, handler);
             }
@@ -562,7 +531,7 @@ public class GroupProcessing extends ObjectProcessing {
                 String attributeValue = allValues.get(0).toString();
                 LOG.info("value {0}", attributeValue);
                 String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_DISPLAYNAME + ",'" + attributeValue + "')";
-                JSONObject groups = executeGetRequest(GROUPS, customQuery, options, true);
+                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", groups.toString());
                 processingMultipleObjectFromGET(groups, handler);
             } else if (((ContainsFilter) query).getAttribute().getName().equals(ATTR_MAIL)) {
@@ -576,7 +545,7 @@ public class GroupProcessing extends ObjectProcessing {
                 String attributeValue = allValues.get(0).toString();
                 LOG.info("value {0}", attributeValue);
                 String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_MAIL + ",'" + attributeValue + "')";
-                JSONObject groups = executeGetRequest(GROUPS, customQuery, options, true);
+                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", groups.toString());
                 processingMultipleObjectFromGET(groups, handler);
             } else if (((ContainsFilter) query).getAttribute().getName().equals(ATTR_MAILNICKNAME)) {
@@ -590,14 +559,14 @@ public class GroupProcessing extends ObjectProcessing {
                 String attributeValue = allValues.get(0).toString();
                 LOG.info("value {0}", attributeValue);
                 String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_MAILNICKNAME + ",'" + attributeValue + "')";
-                JSONObject groups = executeGetRequest(GROUPS, customQuery, options, true);
+                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", groups.toString());
                 processingMultipleObjectFromGET(groups, handler);
             }
 
         } else if (query == null) {
             LOG.info("query==null");
-            JSONObject groups = executeGetRequest(GROUPS, null, options, true);
+            JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
             //  LOG.info("JSONObject group {0}", groups.toString());
             processingMultipleObjectFromGET(groups, handler);
 

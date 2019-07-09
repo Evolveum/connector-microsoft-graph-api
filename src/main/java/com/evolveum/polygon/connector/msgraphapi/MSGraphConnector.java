@@ -2,9 +2,12 @@
 
 package com.evolveum.polygon.connector.msgraphapi;
 
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.Filter;
@@ -14,6 +17,8 @@ import org.identityconnectors.framework.spi.Connector;
 import org.identityconnectors.framework.spi.ConnectorClass;
 import org.identityconnectors.framework.spi.operations.*;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -119,10 +124,13 @@ public class MSGraphConnector implements Connector,
         if (this.schema == null) {
             SchemaBuilder schemaBuilder = new SchemaBuilder(MSGraphConnector.class);
             UserProcessing userProcessing = new UserProcessing(configuration, this);
-            GroupProcessing group = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+
+            schemaBuilder.defineObjectClass(userProcessing.objectClassInfo());
+            schemaBuilder.defineObjectClass(groupProcessing.objectClassInfo());
 
             userProcessing.buildUserObjectClass(schemaBuilder);
-            group.buildGroupObjectClass(schemaBuilder);
+            groupProcessing.buildGroupObjectClass(schemaBuilder);
 
             return schemaBuilder.build();
         }
@@ -176,8 +184,19 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public void test() {
-        ObjectProcessing objectProcessing = new ObjectProcessing(configuration, this);
-        objectProcessing.test();
+        final GraphEndpoint endpoint = new GraphEndpoint(configuration);
+        LOG.info("Start test.");
+        final URIBuilder uriBuilder = endpoint.createURIBuilder();
+        uriBuilder.setPath(USERS);
+        LOG.info("path: {0}", uriBuilder);
+        final URI uri;
+        try {
+            uri = uriBuilder.build();
+        } catch (URISyntaxException e) {
+            throw new ConnectorException("It is not possible to create URI" + e.getLocalizedMessage(), e);
+        }
+        HttpGet request = new HttpGet(uri);
+        new GraphEndpoint(configuration).callRequest(request, false);
     }
 
 
@@ -319,21 +338,6 @@ public class MSGraphConnector implements Connector,
             groupProcessing.createOrUpdateGroup(uid, attributes);
         }
         return uid;
-    }
-
-    public boolean isAttributeMultiValues(String objectClass, String attrName) {
-
-        Schema schema = this.schema();
-        ObjectClassInfo oci = schema.findObjectClassInfo(objectClass);
-        for (AttributeInfo ai : oci.getAttributeInfo()) {
-            if (ai.getName().equals(attrName)) {
-                if (ai.isMultiValued()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
 }

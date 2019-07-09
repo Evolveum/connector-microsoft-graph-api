@@ -22,7 +22,7 @@
     <parent>
         <artifactId>connector-parent</artifactId>
         <groupId>com.evolveum.polygon</groupId>
-        <version>1.4.3.0</version>
+        <version>1.4.3.47</version>
         <relativePath></relativePath>
     </parent>
 
@@ -115,17 +115,17 @@
         <dependency>
             <artifactId>connector-rest</artifactId>
             <groupId>com.evolveum.polygon</groupId>
-            <version>1.4.2.15</version>
+            <version>1.4.2.35</version>
         </dependency>
         <dependency>
             <groupId>net.tirasa.connid</groupId>
             <artifactId>connector-framework</artifactId>
-            <version>1.4.3.0</version>
+            <version>1.4.3.47</version>
         </dependency>
         <dependency>
             <groupId>com.evolveum.polygon</groupId>
             <artifactId>connector-common</artifactId>
-            <version>1.4.3.0</version>
+            <version>1.4.3.47</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
