@@ -4,3 +4,4 @@ This is midPoint/ConnId connector for Microsoft Graph API. It is meant to manage
 
 This connector is **EXPERIMENTAL**. Connector is under development and it is not yet fully supported. Users interested in using this connectors should contact Evolveum to gain information about status and availability of support for this connector.
 
+See https://wiki.evolveum.com/display/midPoint/Microsoft+Graph+API+Connector
