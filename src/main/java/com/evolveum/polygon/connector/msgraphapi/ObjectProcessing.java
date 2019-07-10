@@ -1,9 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
-import com.evolveum.polygon.common.GuardedStringAccessor;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.identityconnectors.common.logging.Log;
-import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.Filter;
@@ -12,7 +10,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.*;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 abstract class ObjectProcessing {

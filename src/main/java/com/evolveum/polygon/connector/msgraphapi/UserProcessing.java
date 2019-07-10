@@ -489,21 +489,10 @@ public class UserProcessing extends ObjectProcessing {
 
         Boolean create = uid == null;
         if (create) {
-
-            int mandatoryAttributes = 0;
-            for (Attribute attribute : attributes) {
-                if ((attribute.getName().equals("accountEnabled") ||
-                        attribute.getName().equals("displayName") ||
-                        attribute.getName().equals("userPrincipalName") ||
-                        attribute.getName().equals("passwordProfile.forceChangePasswordNextSignIn") ||
-                        attribute.getName().equals("__PASSWORD__")) &&
-                        !attribute.getValue().isEmpty()) {
-                    mandatoryAttributes++;
-                }
-            }
-            if (mandatoryAttributes < 5) {
-                throw new InvalidAttributeValueException();
-            }
+            AttributesValidator.builder()
+                    .withNonEmptyAttributes(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME, ATTR_USERPRINCIPALNAME, ATTR_ICF_PASSWORD)
+                    .build()
+                    .validate(attributes);
 
             final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
             final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS);

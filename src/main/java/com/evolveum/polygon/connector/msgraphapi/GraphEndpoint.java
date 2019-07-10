@@ -6,6 +6,7 @@ import com.microsoft.aad.adal4j.AuthenticationException;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
@@ -22,6 +23,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -52,7 +54,11 @@ public class GraphEndpoint {
         this.uriBuilder = createURIBuilder();
     }
 
-    private static AuthenticationResult getAccessTokenFromUserCredentials(MSGraphConfiguration configuration) {
+    private Proxy createProxy() {
+        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    }
+
+    private AuthenticationResult getAccessTokenFromUserCredentials() {
         AuthenticationContext context = null;
         AuthenticationResult result = null;
         ExecutorService service = null;
@@ -66,6 +72,10 @@ public class GraphEndpoint {
             ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
             context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
                     + "/oauth2/authorize", false, service);
+            if (configuration.hasProxy()) {
+                LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
+                context.setProxy(createProxy());
+            }
             Future<AuthenticationResult> future = context.acquireToken(
                     RESOURCE,
                     credential,
@@ -104,15 +114,19 @@ public class GraphEndpoint {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided");
         }
-        request.setHeader("Authorization", getAccessTokenFromUserCredentials(configuration).getAccessToken());
+        request.setHeader("Authorization", getAccessTokenFromUserCredentials().getAccessToken());
         request.setHeader("Content-Type", "application/json");
         LOG.info("HtttpUriRequest: {0}", request);
         LOG.info(request.toString());
-        CloseableHttpClient client = HttpClientBuilder.create().build();
-        CloseableHttpResponse response = null;
-
-        String responseXml = Arrays.toString(request.getAllHeaders());
-
+        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        if (configuration.hasProxy()) {
+            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
+            clientBuilder.setProxy(
+                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
+            );
+        }
+        CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response;
 
         try {
             response = client.execute(request);

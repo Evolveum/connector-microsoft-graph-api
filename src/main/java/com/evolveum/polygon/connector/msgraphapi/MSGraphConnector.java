@@ -126,9 +126,6 @@ public class MSGraphConnector implements Connector,
             UserProcessing userProcessing = new UserProcessing(configuration, this);
             GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
 
-            schemaBuilder.defineObjectClass(userProcessing.objectClassInfo());
-            schemaBuilder.defineObjectClass(groupProcessing.objectClassInfo());
-
             userProcessing.buildUserObjectClass(schemaBuilder);
             groupProcessing.buildGroupObjectClass(schemaBuilder);
 
