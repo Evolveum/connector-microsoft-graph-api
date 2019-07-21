@@ -69,7 +69,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "testing"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing"));
-        attributesAccount.add(AttributeBuilder.build("__NAME__", "testing@TENANT.onmicrosoft.com"));
+        attributesAccount.add(AttributeBuilder.build("__NAME__", "testing@TENANTID"));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
         try {
@@ -95,7 +95,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "testing"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing"));
-        attributesAccount.add(AttributeBuilder.build("__NAME__", "testing@TENANT.onmicrosoft.com"));
+        attributesAccount.add(AttributeBuilder.build("__NAME__", "testing@TENANTID"));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
@@ -148,7 +148,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "testing"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing"));
-        attributesAccount.add(AttributeBuilder.build("__NAME__", "testing@TENANT.onmicrosoft.com"));
+        attributesAccount.add(AttributeBuilder.build("__NAME__", "testing@TENANTID"));
         GuardedString pass = new GuardedString("passw".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;

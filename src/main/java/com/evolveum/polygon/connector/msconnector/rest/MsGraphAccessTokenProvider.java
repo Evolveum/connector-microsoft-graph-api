@@ -1,3 +1,8 @@
+/*
+ * @author Dave Moten
+ *
+ */
+
 package com.evolveum.polygon.connector.msconnector.rest;
 
 import com.google.gson.JsonObject;

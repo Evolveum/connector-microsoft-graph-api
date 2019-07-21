@@ -45,7 +45,7 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
             attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
             attributesAccount.add(AttributeBuilder.build("displayName", "Yellow" + i));
             attributesAccount.add(AttributeBuilder.build("mailNickname", "Yellow" + i));
-            attributesAccount.add(AttributeBuilder.build("__NAME__", "Yellowq1" + i + "@TENANT.onmicrosoft.com"));
+            attributesAccount.add(AttributeBuilder.build("__NAME__", "Yellowq1" + i + "@TENANTID"));
             GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
             attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
             msGraphConnector.init(conf);

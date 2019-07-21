@@ -91,7 +91,7 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "Yellow"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Yellow"));
-        attributesAccount.add(AttributeBuilder.build("__NAME__", "Yellow@TENANT.onmicrosoft.com"));
+        attributesAccount.add(AttributeBuilder.build("__NAME__", "Yellow@TENANTID"));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
 
@@ -163,7 +163,7 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         attributesAccount3.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount3.add(AttributeBuilder.build("displayName", "Blue"));
         attributesAccount3.add(AttributeBuilder.build("mailNickname", "Blue"));
-        attributesAccount3.add(AttributeBuilder.build("__NAME__", "Blue@TENANT.onmicrosoft.com"));
+        attributesAccount3.add(AttributeBuilder.build("__NAME__", "Blue@TENANTID"));
         GuardedString pass3 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount3.add(AttributeBuilder.build("__PASSWORD__", pass3));
 
@@ -172,7 +172,7 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         attributesAccount1.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount1.add(AttributeBuilder.build("displayName", "Red"));
         attributesAccount1.add(AttributeBuilder.build("mailNickname", "Red"));
-        attributesAccount1.add(AttributeBuilder.build("__NAME__", "Red@TENANT.onmicrosoft.com"));
+        attributesAccount1.add(AttributeBuilder.build("__NAME__", "Red@TENANTID"));
         GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount1.add(AttributeBuilder.build("__PASSWORD__", pass1));
 
@@ -181,7 +181,7 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         attributesAccount2.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount2.add(AttributeBuilder.build("displayName", "Black"));
         attributesAccount2.add(AttributeBuilder.build("mailNickname", "Black"));
-        attributesAccount2.add(AttributeBuilder.build("__NAME__", "Black@TENANT.onmicrosoft.com"));
+        attributesAccount2.add(AttributeBuilder.build("__NAME__", "Black@TENANTID"));
         GuardedString pass2 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount2.add(AttributeBuilder.build("__PASSWORD__", pass2));
 

@@ -34,7 +34,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "Pink Panda"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "PinkBear"));
-        attributesAccount.add(AttributeBuilder.build("__NAME__", "Pinkes@TENANT.onmicrosoft.com"));
+        attributesAccount.add(AttributeBuilder.build("__NAME__", "Pinkes@TENANTID"));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         attributesAccount.add(AttributeBuilder.build("city", "New York"));
@@ -56,7 +56,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount1.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount1.add(AttributeBuilder.build("displayName", "PinkAndGreen"));
         attributesAccount1.add(AttributeBuilder.build("mailNickname", "PinkAndGreen"));
-        attributesAccount1.add(AttributeBuilder.build("__NAME__", "PinkAndGreen@TENANT.onmicrosoft.com"));
+        attributesAccount1.add(AttributeBuilder.build("__NAME__", "PinkAndGreen@TENANTID"));
         GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount1.add(AttributeBuilder.build("__PASSWORD__", pass1));
         attributesAccount1.add(AttributeBuilder.build("city", "New York"));
@@ -351,7 +351,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         }
 
         AttributeFilter equalsFilterName;
-        equalsFilterName = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("__NAME__", "PinkAndGreen@TENANT.onmicrosoft.com"));
+        equalsFilterName = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("__NAME__", "PinkAndGreen@TENANTID"));
         resultsAccount.clear();
         msGraphConnector.executeQuery(objectClassAccount, equalsFilterName, handlerAccount, options);
         ArrayList<Uid> listUidName = new ArrayList<>();
@@ -479,7 +479,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         }
 
         AttributeFilter equalsFilterMail;
-        equalsFilterMail = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("mail", "GroupYellow@TENANT.onmicrosoft.com"));
+        equalsFilterMail = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("mail", "GroupYellow@TENANTID"));
         resultsAccount.clear();
         msGraphConnector.executeQuery(objectClassGroup, equalsFilterMail, handlerAccount, options);
         ArrayList<Uid> listUidMail = new ArrayList<>();
@@ -520,7 +520,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         }
 
         AttributeFilter equalsFilterProxyAddresses;
-        equalsFilterProxyAddresses = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("proxyAddresses", "SMTP:GroupYellow@TENANT.onmicrosoft.com"));
+        equalsFilterProxyAddresses = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("proxyAddresses", "SMTP:GroupYellow@TENANTID"));
         resultsAccount.clear();
         msGraphConnector.executeQuery(objectClassGroup, equalsFilterProxyAddresses, handlerAccount, options);
         ArrayList<Uid> listUidProxyAddresses = new ArrayList<>();
@@ -581,7 +581,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "Pink"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink"));
-        attributesAccount.add(AttributeBuilder.build("__NAME__", "Pink@TENANT.onmicrosoft.com"));
+        attributesAccount.add(AttributeBuilder.build("__NAME__", "Pink@TENANTID"));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         attributesAccount.add(AttributeBuilder.build("city", "Senec"));
@@ -606,7 +606,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount1.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount1.add(AttributeBuilder.build("displayName", "Green"));
         attributesAccount1.add(AttributeBuilder.build("mailNickname", "Green"));
-        attributesAccount1.add(AttributeBuilder.build("__NAME__", "green@TENANT.onmicrosoft.com"));
+        attributesAccount1.add(AttributeBuilder.build("__NAME__", "green@TENANTID"));
         GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount1.add(AttributeBuilder.build("__PASSWORD__", pass1));
         attributesAccount1.add(AttributeBuilder.build("city", "Bratislava"));
