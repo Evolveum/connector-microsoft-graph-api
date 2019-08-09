@@ -9,6 +9,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
+import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
@@ -570,8 +571,9 @@ public class UserProcessing extends ObjectProcessing {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
         if (query instanceof EqualsFilter) {
+            final EqualsFilter equalsFilter = (EqualsFilter) query;
             LOG.info("query instanceof EqualsFilter");
-            if (((EqualsFilter) query).getAttribute() instanceof Uid) {
+            if (equalsFilter.getAttribute() instanceof Uid) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
 
                 Uid uid = (Uid) ((EqualsFilter) query).getAttribute();
@@ -600,68 +602,11 @@ public class UserProcessing extends ObjectProcessing {
                 LOG.info("JSONObject user {0}", user.toString());
                 processingObjectFromGET(user, handler);
 
-            } else if (((EqualsFilter) query).getAttribute().getName().equals("displayName")) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
-
-                List<Object> allValues = ((EqualsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue("Name", query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
-
-                LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + attributeValue + "'";
-
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-                LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
-
-            } else if (((EqualsFilter) query).getAttribute().getName().equals(ATTR_GIVENNAME)) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof givenName");
-
-                List<Object> allValues = ((EqualsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_GIVENNAME, query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
-                LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + ATTR_GIVENNAME + " eq '" + attributeValue + "'";
-
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-                LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
-
-            } else if (((EqualsFilter) query).getAttribute().getName().equals(ATTR_JOBTITLE)) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof jobTitle");
-
-                List<Object> allValues = ((EqualsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_JOBTITLE, query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
-
-                LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + ATTR_JOBTITLE + " eq '" + attributeValue + "'";
-
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-
-
-                LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
-
-            } else if (((EqualsFilter) query).getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
+            } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof userPrincipalName");
 
-                List<Object> allValues = ((EqualsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_USERPRINCIPALNAME, query);
-                }
-
+                final String attributeValue = getAttributeFirstValue(equalsFilter);
                 StringBuilder sbPath = new StringBuilder();
-                String attributeValue = allValues.get(0).toString();
                 sbPath.append(USERS).append("/").append(attributeValue);
 
                 LOG.info("value {0}", attributeValue);
@@ -670,69 +615,26 @@ public class UserProcessing extends ObjectProcessing {
                 LOG.info("JSONObject user {0}", user.toString());
                 processingObjectFromGET(user, handler);
 
+            } else if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
+                    .contains(equalsFilter.getAttribute().getName())
+            ) {
+                final String attributeValue = getAttributeFirstValue(equalsFilter);
+                String customQuery = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
+                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
+                processingMultipleObjectFromGET(users, handler);
             }
-
         } else if (query instanceof ContainsFilter) {
-            if (((ContainsFilter) query).getAttribute().getName().equals(ATTR_JOBTITLE)) {
-                LOG.info("((ContainsFilter) query).getAttribute() instanceof jobTitle");
-
-                List<Object> allValues = ((ContainsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_JOBTITLE, query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
+            final ContainsFilter containsFilter = (ContainsFilter) query;
+            if (Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
+                    .contains(containsFilter.getAttribute().getName())
+            ) {
+                final String attributeName = containsFilter.getAttribute().getName();
+                final String attributeValue = getAttributeFirstValue(containsFilter);
                 LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_JOBTITLE + ",'" + attributeValue + "')";
+                String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
                 JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
                 processingMultipleObjectFromGET(users, handler);
-
-            } else if (((ContainsFilter) query).getAttribute().getName().equals(ATTR_GIVENNAME)) {
-                LOG.info("((ContainsFilter) query).getAttribute() instanceof givenName");
-
-                List<Object> allValues = ((ContainsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_GIVENNAME, query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
-                LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_GIVENNAME + ",'" + attributeValue + "')";
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-                LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
-
-            } else if (((ContainsFilter) query).getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
-                LOG.info("((ContainsFilter) query).getAttribute() instanceof userPrincipialName");
-
-                List<Object> allValues = ((ContainsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_USERPRINCIPALNAME, query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
-                LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_USERPRINCIPALNAME + ",'" + attributeValue + "')";
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-                LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
-
-            } else if (((ContainsFilter) query).getAttribute().getName().equals(ATTR_DISPLAYNAME)) {
-                LOG.info("((ContainsFilter) query).getAttribute() instanceof displayName");
-
-                List<Object> allValues = ((ContainsFilter) query).getAttribute().getValue();
-                if (allValues == null || allValues.get(0) == null) {
-                    invalidAttributeValue(ATTR_DISPLAYNAME, query);
-                }
-
-                String attributeValue = allValues.get(0).toString();
-                LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + STARTSWITH + "(" + ATTR_DISPLAYNAME + ",'" + attributeValue + "')";
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-                LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
-
             }
         } else if (query == null) {
             LOG.info("query==null");
@@ -825,11 +727,5 @@ public class UserProcessing extends ObjectProcessing {
         return builder;
     }
 
-
-    protected void invalidAttributeValue(String attrName, Filter query) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Value of").append(attrName).append("attribute not provided for query: ").append(query);
-        throw new InvalidAttributeValueException(sb.toString());
-    }
 
 }

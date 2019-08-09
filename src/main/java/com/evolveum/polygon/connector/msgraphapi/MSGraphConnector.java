@@ -68,15 +68,11 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public Uid create(ObjectClass objectClass, Set<Attribute> attributes, OperationOptions operationOptions) {
-        if (objectClass == null) {
-            LOG.error("Attribute of type ObjectClass not provided.");
-            throw new InvalidAttributeValueException("Attribute of type ObjectClass not provided.");
-        }
+        validateObjectClass(objectClass);
         if (attributes == null) {
             LOG.error("Attribute of type Set<Attribute> not provided.");
             throw new InvalidAttributeValueException("Attribute of type Set<Attribute> not provided.");
         }
-
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) { // __ACCOUNT__
             UserProcessing userProcessing = new UserProcessing(configuration, this);
@@ -84,7 +80,7 @@ public class MSGraphConnector implements Connector,
 
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration);
             return groupProcessing.createOrUpdateGroup(null, attributes);
 
         } else {
@@ -113,7 +109,7 @@ public class MSGraphConnector implements Connector,
             user.delete(uid);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing group = new GroupProcessing(configuration, this);
+            GroupProcessing group = new GroupProcessing(configuration);
             group.delete(uid);
 
         }
@@ -124,7 +120,7 @@ public class MSGraphConnector implements Connector,
         if (this.schema == null) {
             SchemaBuilder schemaBuilder = new SchemaBuilder(MSGraphConnector.class);
             UserProcessing userProcessing = new UserProcessing(configuration, this);
-            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration);
 
             userProcessing.buildUserObjectClass(schemaBuilder);
             groupProcessing.buildGroupObjectClass(schemaBuilder);
@@ -146,7 +142,6 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public void executeQuery(ObjectClass objectClass, Filter query, ResultsHandler handler, OperationOptions options) {
-        LOG.info("Filter query {0}", query);
         if (objectClass == null) {
             LOG.error("Attribute of type ObjectClass not provided.");
             throw new InvalidAttributeValueException("Attribute of type ObjectClass is not provided.");
@@ -170,7 +165,7 @@ public class MSGraphConnector implements Connector,
             userProcessing.executeQueryForUser(query, handler, options);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration);
             groupProcessing.executeQueryForGroup(query, handler, options);
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");
@@ -199,15 +194,7 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public Set<AttributeDelta> updateDelta(ObjectClass objectClass, Uid uid, Set<AttributeDelta> attrsDelta, OperationOptions options) {
-        if (objectClass == null) {
-            LOG.error("Parameter of type ObjectClass not provided.");
-            throw new InvalidAttributeValueException("Parameter of type ObjectClass not provided.");
-        }
-
-        if (uid.getUidValue() == null || uid.getUidValue().isEmpty()) {
-            LOG.error("Parameter of type Uid not provided or is empty.");
-            throw new InvalidAttributeValueException("Parameter of type Uid not provided or is empty.");
-        }
+        validateObjectClassAndUID(objectClass, uid);
 
         if (attrsDelta == null) {
             LOG.error("Parameter of type Set<AttributeDelta> not provided.");
@@ -246,11 +233,11 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) { // __GROUP__
             Set<AttributeDelta> ret = new HashSet<>();
             if (!attributeReplace.isEmpty()) {
-                GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+                GroupProcessing groupProcessing = new GroupProcessing(configuration);
                 groupProcessing.createOrUpdateGroup(uid, attributeReplace);
             }
             if (!attrsDeltaMultivalue.isEmpty()) {
-                GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+                GroupProcessing groupProcessing = new GroupProcessing(configuration);
                 groupProcessing.updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
 
             }
@@ -264,21 +251,13 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public Uid addAttributeValues(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
-        if (objectClass == null) {
-            LOG.error("Parameter of type ObjectClass not provided.");
-            throw new InvalidAttributeValueException("Parameter of type ObjectClass not provided.");
-        }
-
-        if (uid.getUidValue() == null || uid.getUidValue().isEmpty()) {
-            LOG.error("Parameter of type Uid not provided or is empty.");
-            throw new InvalidAttributeValueException("Parameter of type Uid not provided or is empty.");
-        }
+        validateObjectClassAndUID(objectClass, uid);
         if (operationOptions == null) {
             LOG.error("Attribute of type OperationOptions not provided.");
         }
 
         if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration);
             groupProcessing.addToGroup(uid, attributes);
 
         }
@@ -302,7 +281,7 @@ public class MSGraphConnector implements Connector,
         }
 
         if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration);
             groupProcessing.removeFromGroup(uid, attributes);
         }
 
@@ -311,15 +290,7 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public Uid update(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
-        if (objectClass == null) {
-            LOG.error("Parameter of type ObjectClass not provided.");
-            throw new InvalidAttributeValueException("Parameter of type ObjectClass not provided.");
-        }
-
-        if (uid.getUidValue() == null || uid.getUidValue().isEmpty()) {
-            LOG.error("Parameter of type Uid not provided or is empty.");
-            throw new InvalidAttributeValueException("Parameter of type Uid not provided or is empty.");
-        }
+        validateObjectClassAndUID(objectClass, uid);
         if (operationOptions == null) {
             LOG.error("Attribute of type OperationOptions not provided.");
             throw new InvalidAttributeValueException("Attribute of type OperationOptions is not provided.");
@@ -331,10 +302,25 @@ public class MSGraphConnector implements Connector,
 
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration);
             groupProcessing.createOrUpdateGroup(uid, attributes);
         }
         return uid;
+    }
+
+    private void validateObjectClassAndUID(ObjectClass objectClass, Uid uid) throws InvalidAttributeValueException {
+        validateObjectClass(objectClass);
+        if (uid.getUidValue() == null || uid.getUidValue().isEmpty()) {
+            LOG.error("Parameter of type Uid not provided or is empty.");
+            throw new InvalidAttributeValueException("Parameter of type Uid not provided or is empty.");
+        }
+    }
+
+    private void validateObjectClass(ObjectClass objectClass) throws InvalidAttributeValueException {
+        if (objectClass == null) {
+            LOG.error("Parameter of type ObjectClass not provided.");
+            throw new InvalidAttributeValueException("Parameter of type ObjectClass not provided.");
+        }
     }
 
 }

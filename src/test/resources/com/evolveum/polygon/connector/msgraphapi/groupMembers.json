@@ -1,0 +1,15 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#directoryObjects(id,userPrincipalName)",
+  "value": [
+    {
+      "@odata.type": "#microsoft.graph.user",
+      "id": "9639bcbc-0089-4855-a793-44b940e52286",
+      "userPrincipalName": "mlizner@testzentiva.onmicrosoft.com"
+    },
+    {
+      "@odata.type": "#microsoft.graph.user",
+      "id": "f034f71e-22a8-489b-8492-f5f7133559c1",
+      "userPrincipalName": "rmacha@testzentiva.onmicrosoft.com"
+    }
+  ]
+}

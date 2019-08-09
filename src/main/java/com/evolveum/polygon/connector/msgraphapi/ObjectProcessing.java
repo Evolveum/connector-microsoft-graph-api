@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
+import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -129,6 +130,14 @@ abstract class ObjectProcessing {
         }
     }
 
+    protected String getAttributeFirstValue(AttributeFilter filter) {
+        final String attributeName = filter.getAttribute().getName();
+        final List<Object> allValues = filter.getAttribute().getValue();
+        if (allValues == null || allValues.get(0) == null) {
+            invalidAttributeValue(attributeName, filter);
+        }
+        return allValues.get(0).toString();
+    }
 
     protected void invalidAttributeValue(String attrName, Filter query) {
         StringBuilder sb = new StringBuilder();
