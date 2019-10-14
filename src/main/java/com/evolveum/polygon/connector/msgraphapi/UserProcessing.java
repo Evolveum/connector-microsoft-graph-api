@@ -9,12 +9,9 @@ import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
-import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -46,6 +43,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_PASSWORD = "password";
 
     private static final String ATTR_USERPRINCIPALNAME = "userPrincipalName";
+    private static final String ATTR_MEMBER_OF = "memberOf";
 
 
     //optional
@@ -191,6 +189,11 @@ public class UserProcessing extends ObjectProcessing {
 
 
         //read-only, not nullable
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF)
+                .setRequired(false).setType(String.class).setMultiValued(true)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .build());
+
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
                 ATTR_ASSIGNEDLICENSES + "." + ATTR_SKUID)
                 .setRequired(false)
@@ -600,7 +603,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), customQuery, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
-                processingObjectFromGET(user, handler);
+                handleJSONObject(user, handler);
 
             } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof userPrincipalName");
@@ -613,7 +616,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
-                processingObjectFromGET(user, handler);
+                handleJSONObject(user, handler);
 
             } else if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
                     .contains(equalsFilter.getAttribute().getName())
@@ -621,7 +624,7 @@ public class UserProcessing extends ObjectProcessing {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 String customQuery = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
                 JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
-                processingMultipleObjectFromGET(users, handler);
+                handleJSONArray(users, handler);
             }
         } else if (query instanceof ContainsFilter) {
             final ContainsFilter containsFilter = (ContainsFilter) query;
@@ -634,47 +637,34 @@ public class UserProcessing extends ObjectProcessing {
                 String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
                 JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
-                processingMultipleObjectFromGET(users, handler);
+                handleJSONArray(users, handler);
             }
         } else if (query == null) {
             LOG.info("query==null");
             JSONObject users = endpoint.executeGetRequest(USERS, null, options, true);
             LOG.info("JSONObject users {0}", users.toString());
-            processingMultipleObjectFromGET(users, handler);
+            handleJSONArray(users, handler);
         }
     }
 
-    private void processingObjectFromGET(JSONObject user, ResultsHandler handler) {
+    @Override
+    protected void handleJSONObject(JSONObject user, ResultsHandler handler) {
         LOG.info("processingObjectFromGET (Object)");
-        ConnectorObjectBuilder builder = convertUserJSONObjectToConnectorObject(user);
-        ConnectorObject connectorObject = builder.build();
+        ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(
+                saturateGroupMembership(user)
+        ).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         handler.handle(connectorObject);
     }
 
-    private void processingMultipleObjectFromGET(JSONObject users, ResultsHandler handler) {
-        LOG.info("processingMultipleObjectFromGET (Object)");
-
-        String jsonStr = users.toString();
-        JSONObject jsonObj = new JSONObject(jsonStr);
-
-        JSONArray value;
-        try {
-            value = jsonObj.getJSONArray("value");
-        } catch (JSONException e) {
-            LOG.info("not find anything");
-            return;
-        }
-        int length = value.length();
-        LOG.info("jsonObj length: {0}", length);
-
-        for (int i = 0; i < length; i++) {
-            JSONObject user = value.getJSONObject(i);
-            processingObjectFromGET(user, handler);
-
-        }
+    private JSONObject saturateGroupMembership(JSONObject user) {
+        final String uid = user.getString(ATTR_ID);
+        final JSONObject groups = new GraphEndpoint(getConfiguration()).executeGetRequest(
+                String.format("/users/%s/memberOf", uid), "$select=id", null, false
+        );
+        user.put(ATTR_MEMBER_OF, getJSONArray(groups, "id"));
+        return user;
     }
-
 
     private ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
@@ -682,7 +672,6 @@ public class UserProcessing extends ObjectProcessing {
         builder.setObjectClass(ObjectClass.ACCOUNT);
 
         getUIDIfExists(user, ATTR_ID, builder);
-
         getNAMEIfExists(user, ATTR_USERPRINCIPALNAME, builder);
 
         getIfExists(user, ATTR_ACCOUNTENABLED, Boolean.class, builder);
@@ -690,6 +679,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_ONPREMISESIMMUTABLEID, String.class, builder);
         getIfExists(user, ATTR_MAILNICKNAME, String.class, builder);
         getIfExists(user, ATTR_ABOUTME, String.class, builder);
+        getMultiIfExists(user, ATTR_MEMBER_OF, builder);
         getIfExists(user, ATTR_BIRTHDAY, String.class, builder);
         getIfExists(user, ATTR_CITY, String.class, builder);
         getIfExists(user, ATTR_COMPANYNAME, String.class, builder);

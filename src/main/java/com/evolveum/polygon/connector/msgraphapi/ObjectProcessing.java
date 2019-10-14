@@ -139,6 +139,11 @@ abstract class ObjectProcessing {
         return allValues.get(0).toString();
     }
 
+    protected final JSONArray getJSONArray(JSONObject objectCollection, String attribute) {
+        final JSONArray arr = objectCollection.getJSONArray("value");
+        return new JSONArray(arr.toList().stream().map(i -> ((Map) i).get(attribute)).collect(Collectors.toList()));
+    }
+
     protected void invalidAttributeValue(String attrName, Filter query) {
         StringBuilder sb = new StringBuilder();
         sb.append("Value of").append(attrName).append("attribute not provided for query: ").append(query);
@@ -324,6 +329,28 @@ abstract class ObjectProcessing {
         }
 
         return false;
+    }
+
+    protected abstract void handleJSONObject(JSONObject object, ResultsHandler handler);
+
+    protected void handleJSONArray(JSONObject users, ResultsHandler handler) {
+        String jsonStr = users.toString();
+        JSONObject jsonObj = new JSONObject(jsonStr);
+
+        JSONArray value;
+        try {
+            value = jsonObj.getJSONArray("value");
+        } catch (JSONException e) {
+            LOG.info("No objects in JSON Array");
+            return;
+        }
+        int length = value.length();
+        LOG.info("jsonObj length: {0}", length);
+
+        for (int i = 0; i < length; i++) {
+            JSONObject user = value.getJSONObject(i);
+            handleJSONObject(user, handler);
+        }
     }
 
 }
