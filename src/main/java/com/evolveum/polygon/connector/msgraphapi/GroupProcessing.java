@@ -7,12 +7,10 @@ import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class GroupProcessing extends ObjectProcessing {
 
@@ -178,7 +176,7 @@ public class GroupProcessing extends ObjectProcessing {
 
         if (create) {
             AttributesValidator.builder()
-                    .withNonEmptyAttributes(ATTR_DISPLAYNAME, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_SECURITYENABLED)
+                    .withNonEmpty(ATTR_DISPLAYNAME, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_SECURITYENABLED)
                     .build().validate(attributes);
 
             uriBuilder.setPath(GROUPS);

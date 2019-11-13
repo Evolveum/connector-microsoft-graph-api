@@ -22,7 +22,13 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private String proxyHost;
     private String proxyPort;
 
-    @ConfigurationProperty(order = 10, displayMessageKey = "ClientId", helpMessageKey = "The Application ID that the 'Application Registration Portal' (apps.dev.microsoft.com) assigned to your app.", required = true, confidential = false)
+    // invites
+    private boolean inviteGuests;
+    private boolean sendInviteMail;
+    private String inviteRedirectUrl;
+    private String inviteMessage;
+
+    @ConfigurationProperty(order = 10, displayMessageKey = "ClientId", helpMessageKey = "The Application ID that the 'Application Registration Portal' (apps.dev.microsoft.com) assigned to your app.", required = true)
 
     public String getClientId() {
         return clientId;
@@ -31,6 +37,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
     public void setClientId(String clientId) {
         this.clientId = clientId;
     }
+
 
     @ConfigurationProperty(order = 20, displayMessageKey = "ClientSecret", helpMessageKey = "The Application Secret that you generated for your app in the app registration portal.", required = true, confidential = true)
 
@@ -42,11 +49,12 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.clientSecret = clientSecret;
     }
 
+
     @ConfigurationProperty(order = 30, displayMessageKey = "TenantId",
             helpMessageKey = "Allows only users with work/school accounts from a particular Azure Active Directory tenant" +
                     " to sign into the application. Either the friendly domain name of the Azure AD tenant or the " +
                     "tenant's guid identifier can be used. Example: '8eaef023-2b34-4da1-9baa-8bc8c9d6a490' or 'contoso.onmicrosoft.com'",
-            required = true, confidential = false)
+            required = true)
 
     public String getTenantId() {
         return tenantId;
@@ -56,7 +64,9 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.tenantId = tenantId;
     }
 
+
     @ConfigurationProperty(order = 40, displayMessageKey = "ProxyHost", helpMessageKey = "Hostname of the HTTPS proxy to use to connect to cloud services. If used, ProxyPort needs to be configured as well.")
+
     public String getProxyHost() {
         return proxyHost;
     }
@@ -65,7 +75,9 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.proxyHost = proxyHost;
     }
 
+
     @ConfigurationProperty(order = 50, displayMessageKey = "ProxyPort", helpMessageKey = "Port number of the HTTPS proxy to use to connect to cloud services. For this setting to take any effect, ProxyHost needs to be configured as well.")
+
     public String getProxyPort() {
         return proxyPort;
     }
@@ -73,6 +85,52 @@ public class MSGraphConfiguration extends AbstractConfiguration
     public void setProxyPort(String proxyPort) {
         this.proxyPort = proxyPort;
     }
+
+
+    @ConfigurationProperty(order = 60, displayMessageKey = "InviteGuests", helpMessageKey = "Whether to allow creation of guest accounts by inviting users from outside the tenant (based on e-mail address only)")
+
+    public boolean isInviteGuests() {
+        return inviteGuests;
+    }
+
+    public void setInviteGuests(boolean inviteGuests) {
+        this.inviteGuests = inviteGuests;
+    }
+
+
+    @ConfigurationProperty(order = 70, displayMessageKey = "SendInviteMail", helpMessageKey = "Whether to send an email invitation to guest users.")
+
+    public boolean isSendInviteMail() {
+        return sendInviteMail;
+    }
+
+    public void setSendInviteMail(boolean sendInviteMail) {
+        this.sendInviteMail = sendInviteMail;
+    }
+
+
+    @ConfigurationProperty(order = 80, displayMessageKey = "InviteRedirectURL", helpMessageKey = "Specify a URL that an invited user should be redirected to once he claims his invitation. Mandatory if 'InviteGuests' is true")
+
+    public String getInviteRedirectUrl() {
+        return inviteRedirectUrl;
+    }
+
+    public void setInviteRedirectUrl(String inviteRedirectUrl) {
+        this.inviteRedirectUrl = inviteRedirectUrl;
+    }
+
+
+    @ConfigurationProperty(order = 90, displayMessageKey = "InviteMessage", helpMessageKey = "Custom message to send in an invite. Requires 'InviteRedirectURL'")
+
+    public String getInviteMessage() {
+        return inviteMessage;
+    }
+
+    public void setInviteMessage(String inviteMessage) {
+        this.inviteMessage = inviteMessage;
+    }
+
+
 
     @Override
     public void validate() {
@@ -90,7 +148,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
         }
 
         if (!StringUtil.isBlank(proxyHost)) {
-            if (proxyPort == null || "".equals(proxyPort)) throw new ConfigurationException("Proxy host is configured, but proxy port is not");
+            if (StringUtil.isBlank(proxyPort)) throw new ConfigurationException("Proxy host is configured, but proxy port is not");
             final Integer proxyPortNo;
             try {
                 proxyPortNo = Integer.parseInt(proxyPort);
@@ -98,6 +156,14 @@ public class MSGraphConfiguration extends AbstractConfiguration
                 throw new ConfigurationException("Proxy port is not a valid number", nfe);
             }
             if (proxyPortNo <= 0) throw new ConfigurationException("Proxy port value must be positive");
+        }
+
+        if (inviteGuests) {
+            if (StringUtil.isBlank(inviteRedirectUrl))
+                throw new ConfigurationException("InviteRedirectUrl is mandatory when InviteGuests is enabled");
+        } else {
+            if (StringUtil.isNotBlank(inviteRedirectUrl)) throw new ConfigurationException("InviteRedirectUrl is configured, but InviteGuests is disabled");
+            if (StringUtil.isNotBlank(inviteMessage)) throw new ConfigurationException("InviteMessage is configured, but InviteGuests is disabled");
         }
 
         LOG.info("Configuration valid");

@@ -48,6 +48,7 @@ public class AttributesValidator {
     public static class AttributesValidatorBuilder {
         final Map<String, Predicate<List<Object>>> validationRules = new TreeMap<>();
 
+        //region Validation rules
         /**
          * Creates an 'exists' validation rule on a set of mandatory attributes.
          * @param attributes Names of the attributes to consider as mandatory
@@ -55,10 +56,18 @@ public class AttributesValidator {
          */
         public AttributesValidatorBuilder withAttributes(String... attributes) {
             for (String an: attributes) {
-                final Predicate<List<Object>> existingRule = validationRules.get(an);
-                if (existingRule == null) validationRules.put(an, l -> !l.isEmpty());
-                else validationRules.put(an, l -> existingRule.test(l) && !l.isEmpty());
+                addRule(an, l -> !l.isEmpty());
             }
+            return this;
+        }
+
+        /**
+         * Creates a 'has exactly one value' validation rule on a set of mandatory attributes.
+         * @param attributes Names of the attributes to validate as compulsory and unique
+         * @return This validation builder
+         */
+        public AttributesValidatorBuilder withExactlyOne(String... attributes) {
+            for (String an: attributes) addRule(an, l -> l.size() == 1 && l.get(0) != null && !"".equals(l.get(0)));
             return this;
         }
 
@@ -67,25 +76,31 @@ public class AttributesValidator {
          * @param attributes Names of the attributes to consider as mandatory
          * @return This validation builder
          */
-        public AttributesValidatorBuilder withNonEmptyAttributes(String... attributes) {
-            for (String an: attributes) {
-                final Predicate<List<Object>> existingRule = validationRules.get(an);
-                final Predicate<List<Object>> newRule = l -> !l.isEmpty() && testAll(
-                        o -> o != null && !"".equals(String.valueOf(o))
-                ).test(l);
-                if (existingRule == null) validationRules.put(an, newRule);
-                else validationRules.put(an, l -> existingRule.test(l) && newRule.test(l));
-            }
+        public AttributesValidatorBuilder withNonEmpty(String... attributes) {
+            for (String an: attributes) addRule(an, l -> !l.isEmpty() && testAll(
+                    o -> o != null && !"".equals(String.valueOf(o))
+            ).test(l));
             return this;
         }
 
         /**
          * Creates a generic validation rule on an attribute
          * @param attributeName Name of the attribute
-         * @param validationRule Validation
+         * @param validationRule Validation rule for each of the attribute's values
          * @return This validation builder
          */
-        public AttributesValidatorBuilder with(String attributeName, Predicate<Object> validationRule) {
+        public AttributesValidatorBuilder withRule(String attributeName, Predicate<Object> validationRule) {
+            addRule(attributeName, testAll(validationRule));
+            return this;
+        }
+
+        /**
+         * Creates a generic validation rule on an attribute
+         * @param attributeName Name of the attribute
+         * @param validationRule Validation rule for all of the attribute's values
+         * @return This validation builder
+         */
+        public AttributesValidatorBuilder withMultivalueRule(String attributeName, Predicate<List<Object>> validationRule) {
             addRule(attributeName, validationRule);
             return this;
         }
@@ -97,13 +112,23 @@ public class AttributesValidator {
          * @return This validation builder
          */
         public AttributesValidatorBuilder withRegex(String attributeName, String regex) {
-            validationRules.put(attributeName, testAll(o -> {
+            addRule(attributeName, testAll(o -> {
                 if (!(o instanceof String)) return false;
                 return Pattern.compile(regex).matcher((String) o).matches();
             }));
             return this;
         }
+        //endregion
 
+        /**
+         * Build the attributes validator.
+         * @return Attributes validator.
+         */
+        public AttributesValidator build() {
+            return new AttributesValidator(validationRules);
+        }
+
+        //region Utility methods
         /**
          * Adds a validation rule for an attribute.
          * Stacks validation rules rather then overwriting them.
@@ -111,11 +136,11 @@ public class AttributesValidator {
          * @param attributeName Name of validated attribute
          * @param rule Validation rule to add
          */
-        private void addRule(String attributeName, Predicate<Object> rule) {
+        private void addRule(String attributeName, Predicate<List<Object>> rule) {
             if (rule == null) return;
             final Predicate<List<Object>> existingRule = validationRules.get(attributeName);
-            if (existingRule == null) validationRules.put(attributeName, testAll(rule));
-            else validationRules.put(attributeName, l -> existingRule.test(l) && testAll(rule).test(l));
+            if (existingRule == null) validationRules.put(attributeName, rule);
+            else validationRules.put(attributeName, l -> existingRule.test(l) && rule.test(l));
         }
 
         /**
@@ -129,13 +154,6 @@ public class AttributesValidator {
                 return true;
             };
         }
-
-        /**
-         * Build the attributes validator.
-         * @return Attributes validator.
-         */
-        public AttributesValidator build() {
-            return new AttributesValidator(validationRules);
-        }
+        //endregion
     }
 }

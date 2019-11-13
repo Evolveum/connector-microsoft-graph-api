@@ -20,8 +20,9 @@ import java.util.*;
 
 public class UserProcessing extends ObjectProcessing {
 
-    private final static String USERS = "/users";
+    private static final String USERS = "/users";
     private static final String MESSAGES = "messages";
+    private static final String INVITATIONS = "/invitations";
 
     private static final String SPACE = "%20";
     private static final String QUOTATION = "%22";
@@ -116,6 +117,15 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_USAGELOCATION = "usageLocation";
     private static final String ATTR_USERTYPE = "userType";
 
+    // INVITES
+    private static final String ATTR_INVITED_USER = "invitedUser";
+    private static final String ATTR_INVITED_USER_EMAIL = "invitedUserEmailAddress";
+    private static final String ATTR_INVITE_REDIRECT = "inviteRedirectUrl";
+    private static final String ATTR_INVITE_DISPNAME = "invitedUserDisplayName";
+    private static final String ATTR_INVITE_SEND_MESSAGE = "sendInvitationMessage";
+    private static final String ATTR_INVITE_MSG_INFO = "invitedUserMessageInfo";
+    private static final String ATTR_INVITED_USER_TYPE = "invitedUserType";
+
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
 
     public UserProcessing(MSGraphConfiguration configuration, MSGraphConnector connector) {
@@ -142,6 +152,16 @@ public class UserProcessing extends ObjectProcessing {
     protected ObjectClassInfo objectClassInfo() {
         ObjectClassInfoBuilder userObjClassBuilder = new ObjectClassInfoBuilder();
         userObjClassBuilder.setType(ObjectClass.ACCOUNT_NAME);
+
+        //Read-only,
+        AttributeInfoBuilder attrId = new AttributeInfoBuilder(ATTR_ID);
+        attrId.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrId.build());
+
+        // Supports $filter and $orderby.
+        AttributeInfoBuilder attrUserPrincipalName = new AttributeInfoBuilder(ATTR_USERPRINCIPALNAME);
+        attrUserPrincipalName.setRequired(true).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrUserPrincipalName.build());
 
         //required
 
@@ -170,11 +190,6 @@ public class UserProcessing extends ObjectProcessing {
 //        userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
 //                ATTR_PASSWORDPROFILE + "." + ATTR_PASSWORD)
 //                .setRequired(true).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).build());
-
-        // Supports $filter and $orderby.
-        AttributeInfoBuilder attrUserPrincipalName = new AttributeInfoBuilder(ATTR_USERPRINCIPALNAME);
-        attrUserPrincipalName.setRequired(true).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
-        userObjClassBuilder.addAttributeInfo(attrUserPrincipalName.build());
 
         //optional
 
@@ -280,11 +295,6 @@ public class UserProcessing extends ObjectProcessing {
         attrImAddresses.setMultiValued(true).setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrImAddresses.build());
 
-        //Read-only,
-        AttributeInfoBuilder attrId = new AttributeInfoBuilder(ATTR_ID);
-        attrId.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true);
-        userObjClassBuilder.addAttributeInfo(attrId.build());
-
         //multivalued
         AttributeInfoBuilder attrInterests = new AttributeInfoBuilder(ATTR_INTERESTS);
         attrInterests.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
@@ -298,7 +308,7 @@ public class UserProcessing extends ObjectProcessing {
 
         //Read-Only, Supports $filter
         AttributeInfoBuilder attrMail = new AttributeInfoBuilder(ATTR_MAIL);
-        attrMail.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true);
+        attrMail.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrMail.build());
 
         //get or update
@@ -491,37 +501,55 @@ public class UserProcessing extends ObjectProcessing {
             throw new InvalidAttributeValueException("attributes not provided or empty");
         }
 
-        Boolean create = uid == null;
-        if (create) {
+        if (uid != null) return uid;
+
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+
+        final String emailAddress = attributes.stream()
+                .filter(a -> a.is(ATTR_MAIL))
+                .map(a -> a.getValue().get(0).toString())
+                .findFirst().get();
+
+        final boolean hasUPN = attributes.stream()
+                .filter(a -> a.is(ATTR_USERPRINCIPALNAME))
+                .anyMatch(a -> !a.getValue().isEmpty());
+
+
+        final boolean invite = !emailAddress.split("@")[1].equals(getConfiguration().getTenantId()) &&
+                getConfiguration().isInviteGuests() &&
+                !hasUPN;
+
+        final String newUid;
+        if (invite) {
             AttributesValidator.builder()
-                    .withNonEmptyAttributes(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME, ATTR_USERPRINCIPALNAME, ATTR_ICF_PASSWORD)
+                    .withNonEmpty()
+                    .withExactlyOne(ATTR_MAIL)
                     .build()
                     .validate(attributes);
 
-            final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
-            final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS);
-
+            final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(INVITATIONS);
             final URI uri = endpoint.getUri(uriBuilder);
-            LOG.info("Uid == null -> create user");
-            LOG.info("Path: {0}", uri);
-            HttpEntityEnclosingRequestBase request = new HttpPost(uri);
-
-            JSONObject jsonObject1 = buildLayeredAttributeJSON(attributes);
-            JSONObject jsonRequest = endpoint.callRequest(request, jsonObject1, true);
-            if (jsonRequest == null) {
-                LOG.info("Returning original Uid- {0} ", uid);
-                return uid;
-            }
-            String newUid = jsonRequest.getString("id");
-            LOG.info("The new Uid is {0} ", newUid);
-
-
-            return new Uid(newUid);
+            final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
+            final JSONObject payload = buildInvitation(attributes);
+            final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
+            newUid = jsonRequest.getJSONObject(ATTR_INVITED_USER).getString(ATTR_ID);
         } else {
-            LOG.error("uid != null, return the old uid");
-            return uid;
+            AttributesValidator.builder()
+                    .withNonEmpty(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME, ATTR_ICF_PASSWORD)
+                    .withExactlyOne(ATTR_USERPRINCIPALNAME)
+                    .withRegex(ATTR_USERPRINCIPALNAME, "[^@]+@[^@]+")
+                    .build()
+                    .validate(attributes);
+
+            final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS);
+            final URI uri = endpoint.getUri(uriBuilder);
+            final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
+            final JSONObject payload = buildLayeredAttributeJSON(attributes);
+            final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
+            newUid = jsonRequest.getString(ATTR_ID);
         }
 
+        return new Uid(newUid);
     }
 
     public void delete(Uid uid) {
@@ -657,6 +685,30 @@ public class UserProcessing extends ObjectProcessing {
         handler.handle(connectorObject);
     }
 
+    private JSONObject buildInvitation(Set<Attribute> attributes) {
+        final String displayName = getStringValue(attributes, ATTR_DISPLAYNAME);
+        final String mail = getStringValue(attributes, ATTR_MAIL);
+        final String userType = getStringValue(attributes, ATTR_USERTYPE);
+
+        final JSONObject invitation = new JSONObject()
+                .put(ATTR_INVITE_SEND_MESSAGE, getConfiguration().isSendInviteMail())
+                .put(ATTR_INVITE_MSG_INFO, getConfiguration().getInviteMessage())
+                .put(ATTR_INVITE_REDIRECT, getConfiguration().getInviteRedirectUrl());
+
+        if (displayName != null) invitation.put(ATTR_INVITE_DISPNAME, displayName);
+        if (mail != null) invitation.put(ATTR_INVITED_USER_EMAIL, mail);
+        if (userType != null) invitation.put(ATTR_INVITED_USER_TYPE, userType);
+
+        return invitation;
+    }
+
+    private String getStringValue(Set<Attribute> attributes, String attributeName) {
+        final Optional<Attribute> ao = attributes.stream().filter(a -> a.is(attributeName)).findFirst();
+        if (!ao.isPresent()) return null;
+        final Optional<String> aov = ao.get().getValue().stream().map(v -> v.toString()).findFirst();
+        return aov.isPresent() ? aov.get() : null;
+    }
+
     private JSONObject saturateGroupMembership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
         final JSONObject groups = new GraphEndpoint(getConfiguration()).executeGetRequest(
@@ -674,6 +726,8 @@ public class UserProcessing extends ObjectProcessing {
         getUIDIfExists(user, ATTR_ID, builder);
         getNAMEIfExists(user, ATTR_USERPRINCIPALNAME, builder);
 
+        getIfExists(user, ATTR_ID, String.class, builder);
+        getIfExists(user, ATTR_USERPRINCIPALNAME, String.class, builder);
         getIfExists(user, ATTR_ACCOUNTENABLED, Boolean.class, builder);
         getIfExists(user, ATTR_DISPLAYNAME, String.class, builder);
         getIfExists(user, ATTR_ONPREMISESIMMUTABLEID, String.class, builder);

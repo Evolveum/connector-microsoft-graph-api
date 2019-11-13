@@ -172,7 +172,7 @@ public class GraphEndpoint {
             throw new UnknownUidException();
         }
         if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
-            throw new ConnectorIOException(message);
+            throw new InvalidAttributeValueException(message);
         }
         if (statusCode == 401 || statusCode == 402 || statusCode == 403 || statusCode == 407) {
             throw new PermissionDeniedException(message);
