@@ -2,6 +2,7 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
@@ -10,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -361,6 +363,20 @@ abstract class ObjectProcessing {
             JSONObject user = value.getJSONObject(i);
             handleJSONObject(user, handler);
         }
+    }
+
+    /**
+     * Create a selector clause for GraphAPI attributes to list (from field names)
+     * @param fields Names of fields to query
+     * @return Selector clause
+     */
+    protected static String selector(String... fields) {
+        if ( fields == null || fields.length <= 0)
+            throw new ConfigurationException("Connector selector query is badly configured. This is likely a programming error.");
+        if (Arrays.stream(fields).anyMatch(f ->
+                f == null || "".equals(f) || f.contains("&") || f.contains("?") || f.contains("$") || f.contains("=")
+        )) throw new ConfigurationException("Connector selector fields contain invalid characters. This is likely a programming error.");
+        return "$select=" + Arrays.stream(fields).collect(Collectors.joining(","));
     }
 
 }

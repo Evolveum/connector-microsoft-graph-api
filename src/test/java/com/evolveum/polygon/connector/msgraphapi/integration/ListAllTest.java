@@ -1,5 +1,7 @@
-package com.evolveum.polygon.connector.msgraphapi;
+package com.evolveum.polygon.connector.msgraphapi.integration;
 
+import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
+import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.spi.SearchResultsHandler;

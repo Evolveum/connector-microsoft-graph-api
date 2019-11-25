@@ -1,4 +1,4 @@
-package com.evolveum.polygon.connector.msgraphapi;
+package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;

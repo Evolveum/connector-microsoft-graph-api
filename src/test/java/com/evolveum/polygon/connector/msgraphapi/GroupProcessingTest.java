@@ -1,10 +1,12 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.GroupProcessing;
+import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.Test;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +15,7 @@ import java.util.List;
 /**
  * Test case for {@link GroupProcessing}
  */
+@Test(groups = "unit")
 public class GroupProcessingTest {
 
     private JSONObject parseResource(String fileName) throws IOException  {

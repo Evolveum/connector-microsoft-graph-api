@@ -611,17 +611,31 @@ public class UserProcessing extends ObjectProcessing {
     public void executeQueryForUser(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
-        final String selector = "$select=" + ATTR_ACCOUNTENABLED + "," + ATTR_DISPLAYNAME + "," +
-                ATTR_ONPREMISESIMMUTABLEID + "," + ATTR_MAILNICKNAME + "," + ATTR_USERPRINCIPALNAME + "," + ATTR_ABOUTME + "," +
-                ATTR_BIRTHDAY + "," + ATTR_CITY + "," + ATTR_COMPANYNAME + "," + ATTR_COUNTRY + "," + ATTR_DEPARTMENT + "," +
-                ATTR_GIVENNAME + "," + ATTR_HIREDATE + "," + ATTR_IMADDRESSES + "," + ATTR_ID + "," + ATTR_INTERESTS + "," +
-                ATTR_JOBTITLE + "," + ATTR_MAIL + "," + ATTR_MOBILEPHONE + "," + ATTR_MYSITE + "," + ATTR_OFFICELOCATION + "," +
-                ATTR_ONPREMISESLASTSYNCDATETIME + "," + ATTR_ONPREMISESSECURITYIDENTIFIER + "," +
-                ATTR_ONPREMISESSYNCENABLED + "," + ATTR_PASSWORDPOLICIES + "," + ATTR_PASTPROJECTS + "," +
-                ATTR_POSTALCODE + "," + ATTR_PREFERREDLANGUAGE + "," + ATTR_PREFERREDNAME + "," +
-                ATTR_PROXYADDRESSES + "," + ATTR_RESPONSIBILITIES + "," + ATTR_SCHOOLS + "," +
-                ATTR_SKILLS + "," + ATTR_STATE + "," + ATTR_STREETADDRESS + "," + ATTR_SURNAME + "," +
-                ATTR_USAGELOCATION + "," + ATTR_USERTYPE;
+        final String selectorSingle = selector(
+                ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+                        ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
+                        ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                        ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
+                        ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
+                        ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                        ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
+                        ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
+                        ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
+                        ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                        ATTR_USAGELOCATION, ATTR_USERTYPE);
+
+        final String selectorList = selector(
+                ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
+                ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
+                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
+                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES,
+                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
+                ATTR_PROXYADDRESSES,
+                ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                ATTR_USAGELOCATION, ATTR_USERTYPE);
 
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
@@ -639,7 +653,7 @@ public class UserProcessing extends ObjectProcessing {
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selector, options, false);
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(user, handler);
 
@@ -652,7 +666,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 LOG.info("value {0}", attributeValue);
 
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selector, options, false);
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(user, handler);
 
@@ -661,7 +675,7 @@ public class UserProcessing extends ObjectProcessing {
             ) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String filter = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
-                JSONObject users = endpoint.executeGetRequest(USERS, selector + '&' + filter, options, true);
+                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
                 handleJSONArray(users, handler);
             }
         } else if (query instanceof ContainsFilter) {
@@ -673,13 +687,13 @@ public class UserProcessing extends ObjectProcessing {
                 final String attributeValue = getAttributeFirstValue(containsFilter);
                 LOG.info("value {0}", attributeValue);
                 final String filter = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-                JSONObject users = endpoint.executeGetRequest(USERS, selector + '&' + filter, options, true);
+                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
                 handleJSONArray(users, handler);
             }
         } else if (query == null) {
             LOG.info("query==null");
-            JSONObject users = endpoint.executeGetRequest(USERS, selector, options, true);
+            JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
             LOG.info("JSONObject users {0}", users.toString());
             handleJSONArray(users, handler);
         }
