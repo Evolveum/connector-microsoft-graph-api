@@ -41,7 +41,6 @@ public class UserProcessing extends ObjectProcessing {
     //passwordprofile
     private static final String ATTR_PASSWORDPROFILE = "passwordProfile";
     private static final String ATTR_FORCECHANGEPASSWORDNEXTSIGNIN = "forceChangePasswordNextSignIn";
-    private static final String ATTR_PASSWORD = "password";
 
     private static final String ATTR_USERPRINCIPALNAME = "userPrincipalName";
     private static final String ATTR_MEMBER_OF = "memberOf";
@@ -127,6 +126,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_INVITED_USER_TYPE = "invitedUserType";
 
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
+    private static final String ATTR_ICF_ENABLED = "__ENABLE__";
 
     public UserProcessing(MSGraphConfiguration configuration, MSGraphConnector connector) {
         super(configuration, ICFPostMapper.builder()
@@ -139,6 +139,7 @@ public class UserProcessing extends ObjectProcessing {
                     rv.add(accessor.getClearString());
                     return rv;
                 })
+                .remap(ATTR_ICF_ENABLED, ATTR_ACCOUNTENABLED)
                 .build()
         );
     }
@@ -152,6 +153,9 @@ public class UserProcessing extends ObjectProcessing {
     protected ObjectClassInfo objectClassInfo() {
         ObjectClassInfoBuilder userObjClassBuilder = new ObjectClassInfoBuilder();
         userObjClassBuilder.setType(ObjectClass.ACCOUNT_NAME);
+
+        userObjClassBuilder.addAttributeInfo(OperationalAttributeInfos.ENABLE);
+        userObjClassBuilder.addAttributeInfo(OperationalAttributeInfos.PASSWORD);
 
         //Read-only,
         AttributeInfoBuilder attrId = new AttributeInfoBuilder(ATTR_ID);
@@ -183,8 +187,6 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
                 ATTR_PASSWORDPROFILE + "." + ATTR_FORCECHANGEPASSWORDNEXTSIGNIN)
                 .setRequired(true).setType(Boolean.class).setCreateable(true).setUpdateable(true).setReadable(true).build());
-
-        userObjClassBuilder.addAttributeInfo(OperationalAttributeInfos.PASSWORD);
 
 
 //        userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
@@ -268,7 +270,7 @@ public class UserProcessing extends ObjectProcessing {
 
         //readonly
         AttributeInfoBuilder attrCompanyName = new AttributeInfoBuilder(ATTR_COMPANYNAME);
-        attrCompanyName.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true);
+        attrCompanyName.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrCompanyName.build());
 
         //supports $filter
