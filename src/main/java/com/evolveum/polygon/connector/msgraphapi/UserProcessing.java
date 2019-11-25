@@ -12,10 +12,12 @@ import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class UserProcessing extends ObjectProcessing {
@@ -43,7 +45,8 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_FORCECHANGEPASSWORDNEXTSIGNIN = "forceChangePasswordNextSignIn";
 
     private static final String ATTR_USERPRINCIPALNAME = "userPrincipalName";
-    private static final String ATTR_MEMBER_OF = "memberOf";
+    private static final String ATTR_MEMBER_OF_GROUP = "memberOfGroup";
+    //private static final String ATTR_MEMBER_OF_ROLE= "memberOfRole";
 
 
     //optional
@@ -128,6 +131,11 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
 
+
+    // technical constants
+    private static final String TYPE = "@odata.type";
+    private static final String TYPE_GROUP = "#microsoft.graph.group";
+
     public UserProcessing(MSGraphConfiguration configuration, MSGraphConnector connector) {
         super(configuration, ICFPostMapper.builder()
                 .remap(ATTR_ICF_PASSWORD, "passwordProfile.password")
@@ -206,7 +214,7 @@ public class UserProcessing extends ObjectProcessing {
 
 
         //read-only, not nullable
-        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF)
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
                 .setRequired(false).setType(String.class).setMultiValued(true)
                 .setCreateable(false).setUpdateable(false).setReadable(true)
                 .build());
@@ -603,6 +611,18 @@ public class UserProcessing extends ObjectProcessing {
     public void executeQueryForUser(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final String selector = "$select=" + ATTR_ACCOUNTENABLED + "," + ATTR_DISPLAYNAME + "," +
+                ATTR_ONPREMISESIMMUTABLEID + "," + ATTR_MAILNICKNAME + "," + ATTR_USERPRINCIPALNAME + "," + ATTR_ABOUTME + "," +
+                ATTR_BIRTHDAY + "," + ATTR_CITY + "," + ATTR_COMPANYNAME + "," + ATTR_COUNTRY + "," + ATTR_DEPARTMENT + "," +
+                ATTR_GIVENNAME + "," + ATTR_HIREDATE + "," + ATTR_IMADDRESSES + "," + ATTR_ID + "," + ATTR_INTERESTS + "," +
+                ATTR_JOBTITLE + "," + ATTR_MAIL + "," + ATTR_MOBILEPHONE + "," + ATTR_MYSITE + "," + ATTR_OFFICELOCATION + "," +
+                ATTR_ONPREMISESLASTSYNCDATETIME + "," + ATTR_ONPREMISESSECURITYIDENTIFIER + "," +
+                ATTR_ONPREMISESSYNCENABLED + "," + ATTR_PASSWORDPOLICIES + "," + ATTR_PASTPROJECTS + "," +
+                ATTR_POSTALCODE + "," + ATTR_PREFERREDLANGUAGE + "," + ATTR_PREFERREDNAME + "," +
+                ATTR_PROXYADDRESSES + "," + ATTR_RESPONSIBILITIES + "," + ATTR_SCHOOLS + "," +
+                ATTR_SKILLS + "," + ATTR_STATE + "," + ATTR_STREETADDRESS + "," + ATTR_SURNAME + "," +
+                ATTR_USAGELOCATION + "," + ATTR_USERTYPE;
+
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
             LOG.info("query instanceof EqualsFilter");
@@ -618,20 +638,8 @@ public class UserProcessing extends ObjectProcessing {
                 LOG.info("sbPath: {0}", sbPath);
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
-                String customQuery = "$select=" + ATTR_ACCOUNTENABLED + "," + ATTR_DISPLAYNAME + "," +
-                        ATTR_ONPREMISESIMMUTABLEID + "," + ATTR_MAILNICKNAME + "," + ATTR_USERPRINCIPALNAME + "," + ATTR_ABOUTME + "," +
-                        ATTR_BIRTHDAY + "," + ATTR_CITY + "," + ATTR_COMPANYNAME + "," + ATTR_COUNTRY + "," + ATTR_DEPARTMENT + "," +
-                        ATTR_GIVENNAME + "," + ATTR_HIREDATE + "," + ATTR_IMADDRESSES + "," + ATTR_ID + "," + ATTR_INTERESTS + "," +
-                        ATTR_JOBTITLE + "," + ATTR_MAIL + "," + ATTR_MOBILEPHONE + "," + ATTR_MYSITE + "," + ATTR_OFFICELOCATION + "," +
-                        ATTR_ONPREMISESLASTSYNCDATETIME + "," + ATTR_ONPREMISESSECURITYIDENTIFIER + "," +
-                        ATTR_ONPREMISESSYNCENABLED + "," + ATTR_PASSWORDPOLICIES + "," + ATTR_PASTPROJECTS + "," +
-                        ATTR_POSTALCODE + "," + ATTR_PREFERREDLANGUAGE + "," + ATTR_PREFERREDNAME + "," +
-                        ATTR_PROXYADDRESSES + "," + ATTR_RESPONSIBILITIES + "," + ATTR_SCHOOLS + "," +
-                        ATTR_SKILLS + "," + ATTR_STATE + "," + ATTR_STREETADDRESS + "," + ATTR_SURNAME + "," +
-                        ATTR_USAGELOCATION + "," + ATTR_USERTYPE;
 
-
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), customQuery, options, false);
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selector, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(user, handler);
 
@@ -644,7 +652,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 LOG.info("value {0}", attributeValue);
 
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selector, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(user, handler);
 
@@ -652,8 +660,8 @@ public class UserProcessing extends ObjectProcessing {
                     .contains(equalsFilter.getAttribute().getName())
             ) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
-                String customQuery = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
+                final String filter = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
+                JSONObject users = endpoint.executeGetRequest(USERS, selector + '&' + filter, options, true);
                 handleJSONArray(users, handler);
             }
         } else if (query instanceof ContainsFilter) {
@@ -664,14 +672,14 @@ public class UserProcessing extends ObjectProcessing {
                 final String attributeName = containsFilter.getAttribute().getName();
                 final String attributeValue = getAttributeFirstValue(containsFilter);
                 LOG.info("value {0}", attributeValue);
-                String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-                JSONObject users = endpoint.executeGetRequest(USERS, customQuery, options, true);
+                final String filter = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
+                JSONObject users = endpoint.executeGetRequest(USERS, selector + '&' + filter, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
                 handleJSONArray(users, handler);
             }
         } else if (query == null) {
             LOG.info("query==null");
-            JSONObject users = endpoint.executeGetRequest(USERS, null, options, true);
+            JSONObject users = endpoint.executeGetRequest(USERS, selector, options, true);
             LOG.info("JSONObject users {0}", users.toString());
             handleJSONArray(users, handler);
         }
@@ -713,10 +721,13 @@ public class UserProcessing extends ObjectProcessing {
 
     private JSONObject saturateGroupMembership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
-        final JSONObject groups = new GraphEndpoint(getConfiguration()).executeGetRequest(
+        final List<String> groups = new GraphEndpoint(getConfiguration()).executeGetRequest(
                 String.format("/users/%s/memberOf", uid), "$select=id", null, false
-        );
-        user.put(ATTR_MEMBER_OF, getJSONArray(groups, "id"));
+        ).getJSONArray("value").toList().stream()
+                .filter(o -> TYPE_GROUP.equals(((Map)o).get(TYPE)))
+                .map(o -> (String)((Map)o).get(ATTR_ID))
+                .collect(Collectors.toList());
+        user.put(ATTR_MEMBER_OF_GROUP, new JSONArray(groups));
         return user;
     }
 
@@ -727,7 +738,9 @@ public class UserProcessing extends ObjectProcessing {
 
         getUIDIfExists(user, ATTR_ID, builder);
         getNAMEIfExists(user, ATTR_USERPRINCIPALNAME, builder);
+        getAndRenameIfExists(user, ATTR_ACCOUNTENABLED, Boolean.class, ATTR_ICF_ENABLED, builder);
 
+        getIfExists(user, ATTR_ACCOUNTENABLED, Boolean.class, builder);
         getIfExists(user, ATTR_ID, String.class, builder);
         getIfExists(user, ATTR_USERPRINCIPALNAME, String.class, builder);
         getIfExists(user, ATTR_ACCOUNTENABLED, Boolean.class, builder);
@@ -735,7 +748,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_ONPREMISESIMMUTABLEID, String.class, builder);
         getIfExists(user, ATTR_MAILNICKNAME, String.class, builder);
         getIfExists(user, ATTR_ABOUTME, String.class, builder);
-        getMultiIfExists(user, ATTR_MEMBER_OF, builder);
+        getMultiIfExists(user, ATTR_MEMBER_OF_GROUP, builder);
         getIfExists(user, ATTR_BIRTHDAY, String.class, builder);
         getIfExists(user, ATTR_CITY, String.class, builder);
         getIfExists(user, ATTR_COMPANYNAME, String.class, builder);

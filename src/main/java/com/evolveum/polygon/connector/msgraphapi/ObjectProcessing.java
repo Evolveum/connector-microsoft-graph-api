@@ -54,6 +54,16 @@ abstract class ObjectProcessing {
         }
     }
 
+    protected void getAndRenameIfExists(JSONObject object, String jsonAttrName, Class<?> type, String icfAttrName, ConnectorObjectBuilder builder) {
+        if (object.has(jsonAttrName) && object.get(jsonAttrName) != null && !JSONObject.NULL.equals(object.get(jsonAttrName)) && !String.valueOf(object.get(jsonAttrName)).isEmpty()) {
+            if (type.equals(String.class)) {
+                addAttr(builder, icfAttrName, String.valueOf(object.get(jsonAttrName)));
+            } else {
+                addAttr(builder, icfAttrName, object.get(jsonAttrName));
+            }
+        }
+    }
+
     protected void getMultiIfExists(JSONObject object, String attrName, ConnectorObjectBuilder builder) {
         if (object.has(attrName)) {
             Object valueObject = object.get(attrName);
