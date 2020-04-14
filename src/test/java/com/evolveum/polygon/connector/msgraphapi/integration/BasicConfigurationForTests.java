@@ -1,4 +1,6 @@
-package com.evolveum.polygon.connector.msgraphapi;
+package com.evolveum.polygon.connector.msgraphapi.integration;
+
+import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 
 public class BasicConfigurationForTests {
 

@@ -2,6 +2,7 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
@@ -10,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,6 +52,16 @@ abstract class ObjectProcessing {
                 addAttr(builder, attrName, String.valueOf(object.get(attrName)));
             } else {
                 addAttr(builder, attrName, object.get(attrName));
+            }
+        }
+    }
+
+    protected void getAndRenameIfExists(JSONObject object, String jsonAttrName, Class<?> type, String icfAttrName, ConnectorObjectBuilder builder) {
+        if (object.has(jsonAttrName) && object.get(jsonAttrName) != null && !JSONObject.NULL.equals(object.get(jsonAttrName)) && !String.valueOf(object.get(jsonAttrName)).isEmpty()) {
+            if (type.equals(String.class)) {
+                addAttr(builder, icfAttrName, String.valueOf(object.get(jsonAttrName)));
+            } else {
+                addAttr(builder, icfAttrName, object.get(jsonAttrName));
             }
         }
     }
@@ -137,6 +149,11 @@ abstract class ObjectProcessing {
             invalidAttributeValue(attributeName, filter);
         }
         return allValues.get(0).toString();
+    }
+
+    protected final JSONArray getJSONArray(JSONObject objectCollection, String attribute) {
+        final JSONArray arr = objectCollection.getJSONArray("value");
+        return new JSONArray(arr.toList().stream().map(i -> ((Map) i).get(attribute)).collect(Collectors.toList()));
     }
 
     protected void invalidAttributeValue(String attrName, Filter query) {
@@ -324,6 +341,42 @@ abstract class ObjectProcessing {
         }
 
         return false;
+    }
+
+    protected abstract void handleJSONObject(JSONObject object, ResultsHandler handler);
+
+    protected void handleJSONArray(JSONObject users, ResultsHandler handler) {
+        String jsonStr = users.toString();
+        JSONObject jsonObj = new JSONObject(jsonStr);
+
+        JSONArray value;
+        try {
+            value = jsonObj.getJSONArray("value");
+        } catch (JSONException e) {
+            LOG.info("No objects in JSON Array");
+            return;
+        }
+        int length = value.length();
+        LOG.info("jsonObj length: {0}", length);
+
+        for (int i = 0; i < length; i++) {
+            JSONObject user = value.getJSONObject(i);
+            handleJSONObject(user, handler);
+        }
+    }
+
+    /**
+     * Create a selector clause for GraphAPI attributes to list (from field names)
+     * @param fields Names of fields to query
+     * @return Selector clause
+     */
+    protected static String selector(String... fields) {
+        if ( fields == null || fields.length <= 0)
+            throw new ConfigurationException("Connector selector query is badly configured. This is likely a programming error.");
+        if (Arrays.stream(fields).anyMatch(f ->
+                f == null || "".equals(f) || f.contains("&") || f.contains("?") || f.contains("$") || f.contains("=")
+        )) throw new ConfigurationException("Connector selector fields contain invalid characters. This is likely a programming error.");
+        return "$select=" + Arrays.stream(fields).collect(Collectors.joining(","));
     }
 
 }

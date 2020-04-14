@@ -2,21 +2,15 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
-import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
-import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.reflect.Array;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class GroupProcessing extends ObjectProcessing {
 
@@ -168,8 +162,6 @@ public class GroupProcessing extends ObjectProcessing {
 
     protected Uid createOrUpdateGroup(Uid uid, Set<Attribute> attributes) {
         LOG.info("Start createOrUpdateGroup, Uid: {0}, attributes: {1}", uid, attributes);
-
-
         if (attributes == null || attributes.isEmpty()) {
             throw new InvalidAttributeValueException("attributes not provided or empty");
         }
@@ -184,7 +176,7 @@ public class GroupProcessing extends ObjectProcessing {
 
         if (create) {
             AttributesValidator.builder()
-                    .withNonEmptyAttributes(ATTR_DISPLAYNAME, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_SECURITYENABLED)
+                    .withNonEmpty(ATTR_DISPLAYNAME, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_SECURITYENABLED)
                     .build().validate(attributes);
 
             uriBuilder.setPath(GROUPS);
@@ -266,9 +258,10 @@ public class GroupProcessing extends ObjectProcessing {
 
         LOG.info("path: {0}", sbPath);
 
-        List<Object> addValues = attrDelta.getValuesToAdd();
         List<Object> removeValues = attrDelta.getValuesToRemove();
+        groupProcessRemove(sbPath, removeValues);
 
+        List<Object> addValues = attrDelta.getValuesToAdd();
         if (addValues != null && !addValues.isEmpty()) {
             sbPath.append("/").append("$ref");
             for (Object addValue : addValues) {
@@ -286,8 +279,6 @@ public class GroupProcessing extends ObjectProcessing {
                 }
             }
         }
-
-        groupProcessRemove(sbPath, removeValues);
     }
 
     protected void addToGroup(Uid uid, Set<Attribute> attributes) {
@@ -318,8 +309,6 @@ public class GroupProcessing extends ObjectProcessing {
         json.put("@odata.id", addToJson);
         LOG.ok("json: {0}", json.toString());
         postRequestNoContent(sbPath.toString(), json);
-
-
     }
 
     private void addOwnerToGroup(Uid uid, Attribute attribute) {
@@ -329,13 +318,12 @@ public class GroupProcessing extends ObjectProcessing {
         sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_OWNERS);
         sbPath.append("/").append("$ref");
         LOG.info("path: {0}", sbPath);
+
         JSONObject json = new JSONObject();
         String addToJson = "https://graph.microsoft.com/v1.0/users/" + AttributeUtil.getAsStringValue(attribute);
         json.put("@odata.id", addToJson);
         LOG.ok("json: {0}", json.toString());
         postRequestNoContent(sbPath.toString(), json);
-
-
     }
 
     protected void removeFromGroup(Uid uid, Set<Attribute> attributes) {
@@ -458,31 +446,15 @@ public class GroupProcessing extends ObjectProcessing {
                     invalidAttributeValue("Uid", query);
                 }
                 StringBuilder sbPath = new StringBuilder();
-
-                //get information about group
                 sbPath.append(GROUPS).append("/").append(uid.getUidValue());
+
                 JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
-
-                //get list of group members
-                final String memberQuery = new StringBuilder()
-                        .append(GROUPS).append("/").append(uid.getUidValue()).append("/")
-                        .append(ATTR_MEMBERS).toString();
-                final JSONObject groupMembers = endpoint.executeGetRequest(memberQuery, "$select=id,userPrincipalName", options, true);
-
-                //get list of group owners
-                final String ownerQuery = new StringBuilder()
-                        .append(GROUPS).append("/").append(uid.getUidValue()).append("/")
-                        .append(ATTR_OWNERS).toString();
-                final JSONObject groupOwners = endpoint.executeGetRequest(ownerQuery, "$select=id,userPrincipalName", options, true);
-
-                group.put(ATTR_MEMBERS, getJSONArray(groupMembers, "id"));
-                group.put(ATTR_OWNERS, getJSONArray(groupOwners, "id"));
-                processingGroupObjectFromGET(group, handler);
+                handleJSONObject(group, handler);
             } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
                 final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                processingMultipleObjectFromGET(groups, handler);
+                handleJSONArray(groups, handler);
             }
         } else if (query instanceof ContainsFilter) {
             final ContainsFilter containsFilter = (ContainsFilter) query;
@@ -491,49 +463,51 @@ public class GroupProcessing extends ObjectProcessing {
             if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_MAIL, ATTR_MAILNICKNAME).contains(attributeName)) {
                 String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
                 JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                processingMultipleObjectFromGET(groups, handler);
+                handleJSONArray(groups, handler);
             }
         } else if (query == null) {
             JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
-            processingMultipleObjectFromGET(groups, handler);
+            handleJSONArray(groups, handler);
         }
     }
 
-    final JSONArray getJSONArray(JSONObject objectCollection, String attribute) {
-        final JSONArray arr = objectCollection.getJSONArray("value");
-        return new JSONArray(arr.toList().stream().map(i -> ((Map) i).get(attribute)).collect(Collectors.toList()));
+    /**
+     * Query a group's members and owners, add them to the group's JSON attributes (multivalue)
+     *
+     * @param endpoint Graph endpoint to use for querying
+     * @param group Group to query for (JSON object resulting from previous API call)
+     *
+     * @return Original JSON, enriched with member/owner information
+     */
+    private JSONObject saturateGroupMembership(JSONObject group) {
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final String uid = group.getString(ATTR_ID);
+        //get list of group members
+        final String memberQuery = new StringBuilder()
+                .append(GROUPS).append("/").append(uid).append("/")
+                .append(ATTR_MEMBERS).toString();
+        final JSONObject groupMembers = endpoint.executeGetRequest(memberQuery, "$select=id,userPrincipalName", null, false);
+
+        //get list of group owners
+        final String ownerQuery = new StringBuilder()
+                .append(GROUPS).append("/").append(uid).append("/")
+                .append(ATTR_OWNERS).toString();
+        final JSONObject groupOwners = endpoint.executeGetRequest(ownerQuery, "$select=id,userPrincipalName", null, false);
+
+        group.put(ATTR_MEMBERS, getJSONArray(groupMembers, "id"));
+        group.put(ATTR_OWNERS, getJSONArray(groupOwners, "id"));
+
+        return group;
     }
 
-    private void processingGroupObjectFromGET(JSONObject group, ResultsHandler handler) {
+    @Override
+    protected void handleJSONObject(JSONObject group, ResultsHandler handler) {
         LOG.info("processingObjectFromGET (Object)");
-        ConnectorObjectBuilder builder = convertGroupJSONObjectToConnectorObject(group);
-        ConnectorObject connectorObject = builder.build();
+        final ConnectorObject connectorObject = convertGroupJSONObjectToConnectorObject(
+                saturateGroupMembership(group)
+        ).build();
         LOG.info("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
         handler.handle(connectorObject);
-    }
-
-
-    private void processingMultipleObjectFromGET(JSONObject group, ResultsHandler handler) {
-        LOG.info("processingMultipleObjectFromGET ");
-        if (group == null) return;
-        String jsonStr = group.toString();
-        JSONObject jsonObj = new JSONObject(jsonStr);
-
-        JSONArray value;
-        try {
-            value = jsonObj.getJSONArray("value");
-        } catch (JSONException e) {
-            LOG.info("not find anything");
-            return;
-        }
-        int length = value.length();
-        LOG.info("jsonObj length: {0}", length);
-
-        for (int i = 0; i < length; i++) {
-            JSONObject user = value.getJSONObject(i);
-            processingGroupObjectFromGET(user, handler);
-
-        }
     }
 
     private ConnectorObjectBuilder convertGroupJSONObjectToConnectorObject(JSONObject group) {

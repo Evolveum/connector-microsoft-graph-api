@@ -229,17 +229,12 @@ public class MSGraphConnector implements Connector,
                 userProcessing.updateDeltaMultiValues(uid, attrsDeltaMultivalue, options);
 
             }
-
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) { // __GROUP__
-            Set<AttributeDelta> ret = new HashSet<>();
             if (!attributeReplace.isEmpty()) {
-                GroupProcessing groupProcessing = new GroupProcessing(configuration);
-                groupProcessing.createOrUpdateGroup(uid, attributeReplace);
+                new GroupProcessing(configuration).createOrUpdateGroup(uid, attributeReplace);
             }
             if (!attrsDeltaMultivalue.isEmpty()) {
-                GroupProcessing groupProcessing = new GroupProcessing(configuration);
-                groupProcessing.updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
-
+                new GroupProcessing(configuration).updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
             }
         } else {
             LOG.error("The value of the ObjectClass parameter is unsupported.");

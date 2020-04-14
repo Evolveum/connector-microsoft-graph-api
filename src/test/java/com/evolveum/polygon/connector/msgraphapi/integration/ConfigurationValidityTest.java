@@ -1,5 +1,7 @@
-package com.evolveum.polygon.connector.msgraphapi;
+package com.evolveum.polygon.connector.msgraphapi.integration;
 
+import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
+import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.testng.annotations.Test;
 
