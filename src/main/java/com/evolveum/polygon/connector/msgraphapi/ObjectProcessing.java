@@ -188,7 +188,7 @@ abstract class ObjectProcessing {
         @Override
         public String toString() {
             if (isMultiValue) return value;
-            else return "\"" + value + "\"";
+            else return value == null ? null : "\"" + value + "\"";
         }
     }
 
@@ -226,7 +226,8 @@ abstract class ObjectProcessing {
                 multiValue.append("]");
                 leaf.value = multiValue.toString().replace("\"\"", "\",\"");
             } else {
-                leaf.value = postMapper.getSingleValue(attribute).toString();
+                Object value = postMapper.getSingleValue(attribute);
+                leaf.value = value == null ? null : value.toString();
             }
 
 
@@ -282,7 +283,8 @@ abstract class ObjectProcessing {
                 multiValue.append("]");
                 leaf.value = multiValue.toString().replace("\"\"", "\",\"");
             } else {
-                leaf.value = postMapper.getSingleValue(attribute).toString();
+                Object value = postMapper.getSingleValue(attribute);
+                leaf.value = value == null ? null : value.toString();
             }
 
             currentNode.keyValueMap.put(attributePath[attributePath.length - 1], leaf);
