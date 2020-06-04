@@ -33,8 +33,9 @@ public class DeleteActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "testing"));
+        attributesAccount.add(AttributeBuilder.build("mail", "testing@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing@TENANTID"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing@" + tenantId));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;

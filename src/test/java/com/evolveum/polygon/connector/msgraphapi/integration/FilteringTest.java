@@ -37,8 +37,9 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "Pink"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink@TENANTID"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink@" + tenantId));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
 
@@ -48,8 +49,9 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount1.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount1.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount1.add(AttributeBuilder.build("displayName", "PinkAndGreen"));
+        attributesAccount1.add(AttributeBuilder.build("mail", "PinkAndGreen@example.com"));
         attributesAccount1.add(AttributeBuilder.build("mailNickname", "PinkAndGreen"));
-        attributesAccount1.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen@TENANTID"));
+        attributesAccount1.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen@" + tenantId));
         GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount1.add(AttributeBuilder.build("__PASSWORD__", pass1));
 
@@ -90,7 +92,7 @@ public class FilteringTest extends BasicConfigurationForTests {
 
 
         AttributeFilter equalsFilterAccount1;
-        equalsFilterAccount1 = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("userPrincipalName", "Pink@TENANTID"));
+        equalsFilterAccount1 = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("userPrincipalName", "Pink@" + tenantId));
         resultsAccount.clear();
         msGraphConnector.executeQuery(objectClassAccount, equalsFilterAccount1, handlerAccount, options);
         try {

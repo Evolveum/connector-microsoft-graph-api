@@ -68,8 +68,9 @@ public class UpdateTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "testing1"));
+        attributesAccount.add(AttributeBuilder.build("mail", "testing1@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing1"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "tes1tin1g991@TENANTID"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "tes1tin1g991@" + tenantId));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
