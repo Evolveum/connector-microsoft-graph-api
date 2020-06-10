@@ -92,6 +92,37 @@ abstract class ObjectProcessing {
         }
     }
 
+    private Object getValueFromItem(JSONObject object, String attrName, Class<?> type) {
+        if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
+            if (type.equals(String.class))
+                return String.valueOf(object.get(attrName));
+            else
+                return object.get(attrName);
+        } else {
+            return null;
+        }
+    }
+
+    protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONArray) {
+                    JSONArray objectArray = (JSONArray)valueObject;
+                    List<Object> values = new ArrayList<>();
+                    objectArray.forEach(it -> {
+                        if (it instanceof JSONObject) {
+                            Object subValue = getValueFromItem((JSONObject)it, subAttrName, type);
+                            if (subValue != null)
+                                values.add(subValue);
+                        }
+                    });
+                    builder.addAttribute(attrName + "." + subAttrName, values.toArray());
+                }
+            }
+        }
+    }
+
     protected <T> T addAttr(ConnectorObjectBuilder builder, String attrName, T attrVal) {
         if (attrVal != null) {
             if (attrVal instanceof String) {

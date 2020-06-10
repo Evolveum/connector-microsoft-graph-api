@@ -1,11 +1,13 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
+import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
@@ -25,6 +27,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String USERS = "/users";
     private static final String MESSAGES = "messages";
     private static final String INVITATIONS = "/invitations";
+    private static final String ASSIGN_LICENSES = "/assignLicense";
 
     private static final String SPACE = "%20";
     private static final String QUOTATION = "%22";
@@ -56,6 +59,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_ASSIGNEDLICENSES = "assignedLicenses";
     private static final String ATTR_SKUID = "skuId";
     private static final String ATTR_DISABLEDPLANS = "disabledPlans";
+    private static final String ATTR_ASSIGNEDLICENSES__SKUID = ATTR_ASSIGNEDLICENSES + "." + ATTR_SKUID;
 
     //ASSIGNEDPLAN
     private static final String ATTR_ASSIGNEDPLANS = "assignedPlans";
@@ -220,10 +224,10 @@ public class UserProcessing extends ObjectProcessing {
                 .build());
 
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDLICENSES + "." + ATTR_SKUID)
+                ATTR_ASSIGNEDLICENSES__SKUID)
                 .setRequired(false)
                 //.setType(GUID.class)
-                .setCreateable(false).setUpdateable(false).setReadable(true).build());
+                .setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
@@ -492,6 +496,90 @@ public class UserProcessing extends ObjectProcessing {
         return userObjClassBuilder.build();
     }
 
+    private Set<Attribute> prepareAttributes(Uid uid, Set<Attribute> replaceAttributes, Set<AttributeDelta> deltas, boolean create) {
+        AttributeDeltaBuilder delta = new AttributeDeltaBuilder();
+        delta.setName(ATTR_ASSIGNEDLICENSES__SKUID);
+        List<Object> addLicenses = new ArrayList<>();
+        // filter out the assignedLicense.skuId attribute, which must be handled separately
+        Set<Attribute> preparedAttributes = replaceAttributes.stream()
+            .filter(it -> {
+                if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
+                    if (it.getValue() != null)
+                        addLicenses.addAll(it.getValue());
+                    return false;
+                } else
+                    return true;
+            })
+            .collect(Collectors.toSet());
+        delta.addValueToAdd(addLicenses);
+        // read and fill-out the old values
+        if (!create) {
+            LOG.info("Read old licenses, Uid {0}", uid);
+            final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+            final String selectorLicenses = selector(ATTR_ID, ATTR_USERPRINCIPALNAME, ATTR_ASSIGNEDLICENSES);
+            final OperationOptions options = new OperationOptions(new HashMap<>());
+
+            JSONObject user = endpoint.executeGetRequest(USERS + "/" + uid.getUidValue() + "/", selectorLicenses, options, false);
+            ConnectorObject co = convertUserJSONObjectToConnectorObject(user).build();
+            //LOG.info("License: fetched user {0}", co);
+            Attribute attrLicense = co.getAttributeByName(ATTR_ASSIGNEDLICENSES__SKUID);
+            if (attrLicense != null && attrLicense.getValue() != null) {
+                // the assigned licenses (=added or replaced value) should not be removed
+                List<Object> removeLicenses = CollectionUtil.newList(attrLicense.getValue());
+                removeLicenses.removeAll(addLicenses);
+                delta.addValueToRemove(removeLicenses);
+            }
+        }
+        deltas.add(delta.build());
+        return preparedAttributes;
+    }
+
+    private JSONArray buildLicensesJSON(Collection<Object> licenses) {
+        if (licenses == null)
+            return new JSONArray();
+
+        Map<String,List<String>> disabledPlansMap = new HashMap<>();
+        for (String licensePlans : getConfiguration().getDisabledPlans()) {
+            String a[] = licensePlans.split(":", 2);
+            if (a.length != 2)
+                continue;
+            String skuId = a[0];
+            String disabledPlans[] = a[1].split(",");
+            if (disabledPlans.length >= 1)
+                disabledPlansMap.put(skuId, Arrays.asList(disabledPlans));
+        }
+
+        JSONArray json = new JSONArray();
+        licenses.forEach(it -> {
+            JSONObject jo = new JSONObject();
+            String skuId = (String)it;
+            jo.put(ATTR_SKUID, skuId);
+            if (disabledPlansMap.containsKey(skuId))
+                jo.put(ATTR_DISABLEDPLANS, new JSONArray(disabledPlansMap.get(skuId)));
+            json.put(jo);
+        });
+        return json;
+    }
+
+    private void assignLicenses(Uid uid, AttributeDelta deltaLicense) {
+        final List<Object> addLicenses = deltaLicense.getValuesToAdd();
+        final List<Object> removeLicenses = deltaLicense.getValuesToRemove();
+        if ((addLicenses == null || addLicenses.isEmpty()) && (removeLicenses == null || removeLicenses.isEmpty()))
+            return;
+
+        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + ASSIGN_LICENSES);
+        HttpEntityEnclosingRequestBase request = null;
+        URI uri = endpoint.getUri(uriBuilder);
+        request = new HttpPost(uri);
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("addLicenses", buildLicensesJSON(addLicenses));
+        jsonObject.put("removeLicenses", removeLicenses == null ? new JSONArray() : new JSONArray(removeLicenses));
+
+        endpoint.callRequestNoContent(request, null, jsonObject);
+    }
+
     public void updateUser(Uid uid, Set<Attribute> attributes) {
         final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
@@ -500,8 +588,12 @@ public class UserProcessing extends ObjectProcessing {
         LOG.info("update user, PATCH");
         LOG.info("Path: {0}", uri);
         request = new HttpPatch(uri);
-        List<Object> jsonObjectaccount = buildLayeredAtrribute(attributes);
+        final Set<AttributeDelta> deltas = new HashSet<>();
+        Set<Attribute> updateAttributes = prepareAttributes(uid, attributes, deltas, false);
+
+        List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
+        assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
     }
 
     public Uid createUser(Uid uid, Set<Attribute> attributes) {
@@ -529,18 +621,21 @@ public class UserProcessing extends ObjectProcessing {
                 getConfiguration().isInviteGuests() &&
                 !hasUPN;
 
+        final Set<AttributeDelta> deltas = new HashSet<>();
+        Set<Attribute> createAttributes = prepareAttributes(uid, attributes, deltas, true);
+
         final String newUid;
         if (invite) {
             AttributesValidator.builder()
                     .withNonEmpty()
                     .withExactlyOne(ATTR_MAIL)
                     .build()
-                    .validate(attributes);
+                    .validate(createAttributes);
 
             final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(INVITATIONS);
             final URI uri = endpoint.getUri(uriBuilder);
             final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
-            final JSONObject payload = buildInvitation(attributes);
+            final JSONObject payload = buildInvitation(createAttributes);
             final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
             newUid = jsonRequest.getJSONObject(ATTR_INVITED_USER).getString(ATTR_ID);
         } else {
@@ -549,15 +644,17 @@ public class UserProcessing extends ObjectProcessing {
                     .withExactlyOne(ATTR_USERPRINCIPALNAME)
                     .withRegex(ATTR_USERPRINCIPALNAME, "[^@]+@[^@]+")
                     .build()
-                    .validate(attributes);
+                    .validate(createAttributes);
 
             final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS);
             final URI uri = endpoint.getUri(uriBuilder);
             final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
-            final JSONObject payload = buildLayeredAttributeJSON(attributes);
+            final JSONObject payload = buildLayeredAttributeJSON(createAttributes);
             final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
             newUid = jsonRequest.getString(ATTR_ID);
         }
+
+        assignLicenses(new Uid(newUid), AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
 
         return new Uid(newUid);
     }
@@ -584,9 +681,11 @@ public class UserProcessing extends ObjectProcessing {
 
 
         for (AttributeDelta attrDelta : attributesDelta) {
-            if (ATTR_BUSINESSPHONES.equals(attrDelta.getName())) {
-                List<Object> addValues = attrDelta.getValuesToAdd();
-                List<Object> removeValues = attrDelta.getValuesToRemove();
+            List<Object> addValues = attrDelta.getValuesToAdd();
+            List<Object> removeValues = attrDelta.getValuesToRemove();
+
+            switch(attrDelta.getName()) {
+            case ATTR_BUSINESSPHONES:
                 if (removeValues != null && !removeValues.isEmpty()) {
                     for (Object removeValue : removeValues) {
                         Set<Attribute> attributeReplace = new HashSet<>();
@@ -595,7 +694,6 @@ public class UserProcessing extends ObjectProcessing {
                     }
                 }
                 if (addValues != null && !addValues.isEmpty()) {
-
                     for (Object addValue : addValues) {
                         LOG.info("addValue {0}", addValue);
                         Set<Attribute> attributeReplace = new HashSet<>();
@@ -603,6 +701,10 @@ public class UserProcessing extends ObjectProcessing {
                         updateUser(uid, attributeReplace);
                     }
                 }
+                break;
+            case ATTR_ASSIGNEDLICENSES__SKUID:
+                assignLicenses(uid, attrDelta);
+                break;
             }
         }
     }
@@ -622,7 +724,7 @@ public class UserProcessing extends ObjectProcessing {
                         ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
                         ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
                         ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                        ATTR_USAGELOCATION, ATTR_USERTYPE);
+                        ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES);
 
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
@@ -635,7 +737,7 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
                 ATTR_PROXYADDRESSES,
                 ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE);
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES);
 
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
@@ -797,6 +899,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_USERTYPE, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
+        getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
         return builder;
     }
 

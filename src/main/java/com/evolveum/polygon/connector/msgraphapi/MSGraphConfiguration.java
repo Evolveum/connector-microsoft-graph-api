@@ -21,6 +21,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private String tenantId = null;
     private String proxyHost;
     private String proxyPort;
+    private String[] disabledPlans = {};
 
     // invites
     private boolean inviteGuests;
@@ -86,6 +87,15 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.proxyPort = proxyPort;
     }
 
+    @ConfigurationProperty(order = 55, displayMessageKey = "DisabledPlans", helpMessageKey = "List of the SkuId:ServicePlanId,[ServicePlanId2...]. These service plan will be disabled during assignment of the each license. Friendly names are not supported. Default: (empty)")
+
+    public String[] getDisabledPlans() {
+        return disabledPlans;
+    }
+
+    public void setDisabledPlans(String[] disabledPlans) {
+        this.disabledPlans = disabledPlans;
+    }
 
     @ConfigurationProperty(order = 60, displayMessageKey = "InviteGuests", helpMessageKey = "Whether to allow creation of guest accounts by inviting users from outside the tenant (based on e-mail address only)")
 
@@ -157,6 +167,9 @@ public class MSGraphConfiguration extends AbstractConfiguration
             }
             if (proxyPortNo <= 0) throw new ConfigurationException("Proxy port value must be positive");
         }
+
+        if (disabledPlans == null)
+            throw new ConfigurationException("Disabled plans array can't be null");
 
         if (inviteGuests) {
             if (StringUtil.isBlank(inviteRedirectUrl))
