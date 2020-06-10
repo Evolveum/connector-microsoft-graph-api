@@ -103,6 +103,16 @@ abstract class ObjectProcessing {
         }
     }
 
+    protected void getFromItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null) {
+                Object subValue = getValueFromItem((JSONObject)valueObject, subAttrName, type);
+                builder.addAttribute(attrName + "." + subAttrName, subValue);
+            }
+        }
+    }
+
     protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
         if (object.has(attrName)) {
             Object valueObject = object.get(attrName);

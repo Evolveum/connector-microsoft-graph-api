@@ -121,9 +121,11 @@ public class MSGraphConnector implements Connector,
             SchemaBuilder schemaBuilder = new SchemaBuilder(MSGraphConnector.class);
             UserProcessing userProcessing = new UserProcessing(configuration, this);
             GroupProcessing groupProcessing = new GroupProcessing(configuration);
+            LicenseProcessing licenseProcessing = new LicenseProcessing(configuration);
 
             userProcessing.buildUserObjectClass(schemaBuilder);
             groupProcessing.buildGroupObjectClass(schemaBuilder);
+            licenseProcessing.buildLicenseObjectClass(schemaBuilder);
 
             return schemaBuilder.build();
         }
@@ -167,6 +169,9 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
             GroupProcessing groupProcessing = new GroupProcessing(configuration);
             groupProcessing.executeQueryForGroup(query, handler, options);
+        } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
+            LicenseProcessing licenseProcessing = new LicenseProcessing(configuration);
+            licenseProcessing.executeQueryForLicense(query, handler, options);
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported.");

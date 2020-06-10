@@ -14,7 +14,9 @@ import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeDelta;
 import org.identityconnectors.framework.common.objects.AttributeDeltaBuilder;
+import org.identityconnectors.framework.common.objects.AttributeUtil;
 import org.identityconnectors.framework.common.objects.ConnectorObject;
+import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.Uid;
@@ -29,6 +31,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.evolveum.polygon.connector.msgraphapi.LicenseProcessing;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 
@@ -105,6 +108,31 @@ public class LicenseTest extends BasicConfigurationForTests {
             assertTrue(found, "License " + skuId + " should be there");
         else
             assertFalse(found, "License " + skuId + " should not be there");
+    }
+
+    @Test
+    public void listAllTest() {
+        LOG.info("==== listAllTest ==== ");
+
+        ToListResultsHandler handler = new ToListResultsHandler();
+        Map<String,Object> options = new HashMap<>();
+        conn.executeQuery(LicenseProcessing.OBJECT_CLASS, null, handler, new OperationOptions(options));
+
+        Set<String> remains = CollectionUtil.newSet(licenses);
+        if (handler.getObjects() != null) {
+            for (ConnectorObject co : handler.getObjects()) {
+                assertNotNull(co.getUid(), Uid.NAME);
+                assertNotNull(co.getName(), Name.NAME);
+                Attribute attrSkuId = co.getAttributeByName(LicenseProcessing.ATTR_SKUID);
+                String skuId = attrSkuId == null ? null : AttributeUtil.getAsStringValue(attrSkuId);
+                LOG.info("License: skuId {0}, skuPartNumber {1}", skuId, co.getName().getNameValue());
+                if (skuId != null)
+                    remains.remove(skuId);
+            }
+        }
+        if (!remains.isEmpty())
+            LOG.error("Following licenses not found: {0}", remains);
+        assertTrue(remains.isEmpty(), "All licenses found");
     }
 
     @Test
