@@ -345,9 +345,9 @@ abstract class ObjectProcessing {
         return false;
     }
 
-    protected abstract void handleJSONObject(JSONObject object, ResultsHandler handler);
+    protected abstract boolean handleJSONObject(JSONObject object, ResultsHandler handler);
 
-    protected void handleJSONArray(JSONObject users, ResultsHandler handler) {
+    protected boolean handleJSONArray(JSONObject users, ResultsHandler handler) {
         String jsonStr = users.toString();
         JSONObject jsonObj = new JSONObject(jsonStr);
 
@@ -356,15 +356,17 @@ abstract class ObjectProcessing {
             value = jsonObj.getJSONArray("value");
         } catch (JSONException e) {
             LOG.info("No objects in JSON Array");
-            return;
+            return false;
         }
         int length = value.length();
         LOG.info("jsonObj length: {0}", length);
 
         for (int i = 0; i < length; i++) {
             JSONObject user = value.getJSONObject(i);
-            handleJSONObject(user, handler);
+            if (!handleJSONObject(user, handler))
+                return false;
         }
+        return true;
     }
 
     /**

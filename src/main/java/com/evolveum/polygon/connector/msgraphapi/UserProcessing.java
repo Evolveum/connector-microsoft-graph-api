@@ -700,13 +700,13 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     @Override
-    protected void handleJSONObject(JSONObject user, ResultsHandler handler) {
+    protected boolean handleJSONObject(JSONObject user, ResultsHandler handler) {
         LOG.info("processingObjectFromGET (Object)");
         ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(
                 saturateGroupMembership(user)
         ).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
-        handler.handle(connectorObject);
+        return handler.handle(connectorObject);
     }
 
     private JSONObject buildInvitation(Set<Attribute> attributes) {
