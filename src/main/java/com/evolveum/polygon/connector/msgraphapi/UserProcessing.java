@@ -573,11 +573,24 @@ public class UserProcessing extends ObjectProcessing {
         URI uri = endpoint.getUri(uriBuilder);
         request = new HttpPost(uri);
 
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("addLicenses", buildLicensesJSON(addLicenses));
-        jsonObject.put("removeLicenses", removeLicenses == null ? new JSONArray() : new JSONArray(removeLicenses));
-
-        endpoint.callRequestNoContent(request, null, jsonObject);
+        // Office365 removes licenses automatically on user disable:
+        // ==> ignore problems when unassigning licenses + separate call for it
+        if (removeLicenses != null && !removeLicenses.isEmpty()) {
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("addLicenses", new JSONArray());
+            jsonObject.put("removeLicenses", removeLicenses == null ? new JSONArray() : new JSONArray(removeLicenses));
+            try {
+                endpoint.callRequestNoContent(request, null, jsonObject);
+            } catch (InvalidAttributeValueException ex) {
+                LOG.warn(ex, "Problem when unassiging licenses {0}, ignoring", removeLicenses);
+            }
+        }
+        if (addLicenses != null && !addLicenses.isEmpty()) {
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("addLicenses", buildLicensesJSON(addLicenses));
+            jsonObject.put("removeLicenses", new JSONArray());
+            endpoint.callRequestNoContent(request, null, jsonObject);
+        }
     }
 
     public void updateUser(Uid uid, Set<Attribute> attributes) {
