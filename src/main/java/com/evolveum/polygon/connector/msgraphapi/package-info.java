@@ -1,1 +1,1 @@
-package com.evolveum.polygon;
+package com.evolveum.polygon.connector.msgraphapi;

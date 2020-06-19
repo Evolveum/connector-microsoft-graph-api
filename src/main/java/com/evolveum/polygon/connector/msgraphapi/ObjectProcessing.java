@@ -92,6 +92,47 @@ abstract class ObjectProcessing {
         }
     }
 
+    private Object getValueFromItem(JSONObject object, String attrName, Class<?> type) {
+        if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
+            if (type.equals(String.class))
+                return String.valueOf(object.get(attrName));
+            else
+                return object.get(attrName);
+        } else {
+            return null;
+        }
+    }
+
+    protected void getFromItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null) {
+                Object subValue = getValueFromItem((JSONObject)valueObject, subAttrName, type);
+                builder.addAttribute(attrName + "." + subAttrName, subValue);
+            }
+        }
+    }
+
+    protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONArray) {
+                    JSONArray objectArray = (JSONArray)valueObject;
+                    List<Object> values = new ArrayList<>();
+                    objectArray.forEach(it -> {
+                        if (it instanceof JSONObject) {
+                            Object subValue = getValueFromItem((JSONObject)it, subAttrName, type);
+                            if (subValue != null)
+                                values.add(subValue);
+                        }
+                    });
+                    builder.addAttribute(attrName + "." + subAttrName, values.toArray());
+                }
+            }
+        }
+    }
+
     protected <T> T addAttr(ConnectorObjectBuilder builder, String attrName, T attrVal) {
         if (attrVal != null) {
             if (attrVal instanceof String) {
@@ -345,9 +386,9 @@ abstract class ObjectProcessing {
         return false;
     }
 
-    protected abstract void handleJSONObject(JSONObject object, ResultsHandler handler);
+    protected abstract boolean handleJSONObject(JSONObject object, ResultsHandler handler);
 
-    protected void handleJSONArray(JSONObject users, ResultsHandler handler) {
+    protected boolean handleJSONArray(JSONObject users, ResultsHandler handler) {
         String jsonStr = users.toString();
         JSONObject jsonObj = new JSONObject(jsonStr);
 
@@ -356,15 +397,17 @@ abstract class ObjectProcessing {
             value = jsonObj.getJSONArray("value");
         } catch (JSONException e) {
             LOG.info("No objects in JSON Array");
-            return;
+            return false;
         }
         int length = value.length();
         LOG.info("jsonObj length: {0}", length);
 
         for (int i = 0; i < length; i++) {
             JSONObject user = value.getJSONObject(i);
-            handleJSONObject(user, handler);
+            if (!handleJSONObject(user, handler))
+                return false;
         }
+        return true;
     }
 
     /**

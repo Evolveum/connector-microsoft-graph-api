@@ -8,7 +8,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 
 public class PropertiesParser {
@@ -19,6 +22,9 @@ public class PropertiesParser {
     private final String CLIENT_SECRET = "clientSecret";
     private final String CLIENT_ID = "clientID";
     private final String TENANT_ID = "tenantID";
+    private final String LICENSES = "licenses";
+    private final String LICENSES2 = "licenses2";
+    private final String DISABLED_PLANS = "disabledPlans";
 
 
     public PropertiesParser() {
@@ -50,5 +56,27 @@ public class PropertiesParser {
         return new GuardedString(((String) properties.get(CLIENT_SECRET)).toCharArray());
     }
 
+    private Set<String> getValues(String name) {
+        Set<String> values = new HashSet<>();
+        if (properties.containsKey(name)) {
+            String value = (String)properties.get(name);
+            values.addAll(Arrays.asList(value.split(",")));
+        }
+        return values;
+    }
 
+    public Set<String> getLicenses() {
+        return getValues(LICENSES);
+    }
+
+    public Set<String> getLicenses2() {
+        return getValues(LICENSES2);
+    }
+
+    public String[] getDisabledPlans() {
+        if (properties.containsKey(DISABLED_PLANS))
+            return new String[] {(String)properties.get(DISABLED_PLANS)};
+        else
+            return new String[0];
+    }
 }

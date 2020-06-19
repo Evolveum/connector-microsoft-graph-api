@@ -501,13 +501,13 @@ public class GroupProcessing extends ObjectProcessing {
     }
 
     @Override
-    protected void handleJSONObject(JSONObject group, ResultsHandler handler) {
+    protected boolean handleJSONObject(JSONObject group, ResultsHandler handler) {
         LOG.info("processingObjectFromGET (Object)");
         final ConnectorObject connectorObject = convertGroupJSONObjectToConnectorObject(
                 saturateGroupMembership(group)
         ).build();
         LOG.info("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
-        handler.handle(connectorObject);
+        return handler.handle(connectorObject);
     }
 
     private ConnectorObjectBuilder convertGroupJSONObjectToConnectorObject(JSONObject group) {
