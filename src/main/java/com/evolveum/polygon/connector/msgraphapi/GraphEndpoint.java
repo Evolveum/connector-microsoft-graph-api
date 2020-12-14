@@ -19,6 +19,7 @@ import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -298,7 +299,12 @@ public class GraphEndpoint {
         final URIBuilder uribuilder = createURIBuilder().clearParameters();
 
         if (customQuery != null && options != null && paging) {
-            Integer perPage = options.getPageSize();
+            /*Integer perPage = options.getPageSize();
+            if (perPage == null) {
+               LOG.info("perPage found null, but paging set to: {0}", paging);
+               perPage = 100;
+            }*/
+            String perPage = configuration.getPageSize();
             if (perPage != null) {
                 uribuilder.setCustomQuery(customQuery + "&" + TOP + "=" + perPage.toString());
                 LOG.info("setCustomQuery {0} ", uribuilder.toString());
@@ -328,13 +334,16 @@ public class GraphEndpoint {
 
             //call skipToken for paging
             if (options != null && paging) {
-                Integer page = options.getPagedResultsOffset();
+                /*Integer page = options.getPagedResultsOffset();
+                LOG.info("Paging enabled, and this page is: {0} ", page);
                 if (page != null) {
                     if (page == 0 || page == 1) {
+                        LOG.info("Inside returning firstCall");
                         return firstCall; // no need for skipToken actually returned the first page
                     } else {
                         String nextLink;
                         try {
+                            LOG.info("About to try getting the odata.nextLink");
                             nextLink = firstCall.getString("@odata.nextLink");
                         } catch (JSONException e) {
                             LOG.info("all data returned from the first call, no more data remain to return");
@@ -358,7 +367,55 @@ public class GraphEndpoint {
 
                     }
                 }
-                return firstCall;
+                return firstCall;*/
+                JSONArray value = new JSONArray();
+                String nextLink = new String();
+                JSONObject values = new JSONObject();
+                boolean morePages = false;
+                if (firstCall.has("@odata.nextLink") && firstCall.getString("@odata.nextLink") != null && !firstCall.getString("@odata.nextLink").isEmpty() ) {
+                   morePages = true;
+                   nextLink = firstCall.getString("@odata.nextLink");
+                   LOG.info("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
+                }
+                else {
+                   morePages = false;
+                   LOG.info("No nextLink defined, final page was firstCall");
+                }
+                if ( firstCall.has("value") && firstCall.get("value") != null  ) {
+                   //value.addAll(firstCall.getJSONArray("value"));
+                   for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
+                      value.put(firstCall.getJSONArray("value").get(i));
+                   }
+                   LOG.info("firstCall: {0} ", firstCall);
+                } else {
+                   LOG.info("firstCall contained no value object or the object was null");
+                }
+                while (morePages == true) {
+                   JSONObject nextLinkJson = new JSONObject();
+                   HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
+                   LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
+                   nextLinkJson = callRequest(nextLinkUriRequest, true);
+                   if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null && !nextLinkJson.getString("@odata.nextLink").isEmpty() ) {
+                      morePages = true;
+                      nextLink = nextLinkJson.getString("@odata.nextLink");
+                      LOG.info("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
+                   }
+                   else {
+                      morePages = false;
+                      LOG.info("No nextLink defined, final page");
+                   }
+                   if ( nextLinkJson.has("value") && nextLinkJson.get("value") != null  ) {
+                      //value.addAll(nextLinkJson.getJSONArray("value"));
+                      for (int i = 0; i < nextLinkJson.getJSONArray("value").length(); i++) {
+                         value.put(nextLinkJson.getJSONArray("value").get(i));
+                      }
+                      LOG.info("nextLinkJson: {0} ", nextLinkJson);
+                   } else {
+                      LOG.info("nextLinkJson contained no value object or the object was null");
+                   }
+                }
+                values.put("value",value);
+                return values;
             } else return firstCall;
 
 
