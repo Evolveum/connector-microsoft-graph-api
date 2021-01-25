@@ -22,6 +22,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private String proxyHost;
     private String proxyPort;
     private String[] disabledPlans = {};
+    private String pageSize = "100";
 
     // invites
     private boolean inviteGuests;
@@ -76,6 +77,16 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.proxyHost = proxyHost;
     }
 
+
+    @ConfigurationProperty(order = 100, displayMessageKey = "PageSize", helpMessageKey = "The number of entries to bring back per page in the call to the Graph API")
+
+    public String getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(String pageSize) {
+        this.pageSize = pageSize;
+    }
 
     @ConfigurationProperty(order = 50, displayMessageKey = "ProxyPort", helpMessageKey = "Port number of the HTTPS proxy to use to connect to cloud services. For this setting to take any effect, ProxyHost needs to be configured as well.")
 
