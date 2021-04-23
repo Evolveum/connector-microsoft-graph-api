@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<role xmlns="http://midpoint.evolveum.com/xml/ns/public/common/common-3" xmlns:c="http://midpoint.evolveum.com/xml/ns/public/common/common-3" xmlns:icfs="http://midpoint.evolveum.com/xml/ns/public/connector/icf-1/resource-schema-3" xmlns:org="http://midpoint.evolveum.com/xml/ns/public/common/org-3" xmlns:q="http://prism.evolveum.com/xml/ns/public/query-3" xmlns:ri="http://midpoint.evolveum.com/xml/ns/public/resource/instance-3" xmlns:t="http://prism.evolveum.com/xml/ns/public/types-3" oid="fbf0229f-f19f-4f3f-8bcf-dd840671485e" version="2">
+    <name>AAD:Metarole for Security groups</name>
+    <inducement>
+        <construction>
+        	<kind>entitlement</kind>
+        	<intent>group</intent>
+            <resourceRef oid="4652d074-3c1f-48c5-b711-b7a79774c09c" relation="org:default" type="c:ResourceType"/>
+			<attribute>
+				<ref>ri:mailEnabled</ref>
+				<outbound>
+					<strength>strong</strength>
+					<expression>
+						<value>false</value>
+					</expression>
+				</outbound>
+			</attribute>
+			<attribute>
+				<ref>ri:securityEnabled</ref>
+				<outbound>
+					<strength>strong</strength>
+					<expression>
+						<value>true</value>
+					</expression>
+				</outbound>
+			</attribute>
+        </construction>
+    </inducement>
+    
+  	<inducement>
+		<construction>
+			<resourceRef oid="4652d074-3c1f-48c5-b711-b7a79774c09c" type="c:ResourceType" />
+			<kind>account</kind>
+			<intent>default</intent>
+			<association>
+				<ref>ri:group</ref>
+				<outbound>
+					<strength>strong</strength>
+					<expression>
+						<associationFromLink>
+							<projectionDiscriminator>
+								<kind>entitlement</kind>
+								<intent>group</intent>
+							</projectionDiscriminator>
+						</associationFromLink>
+					</expression>
+				</outbound>
+			</association>
+			<strength>weak</strength><!-- XXX Do not create account just because it has role assigned -->
+		</construction>
+		<focusType>c:UserType</focusType>
+		<order>2</order>
+	</inducement>
+	    
+    <requestable>false</requestable>
+</role>
