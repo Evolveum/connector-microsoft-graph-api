@@ -856,11 +856,12 @@ public class UserProcessing extends ObjectProcessing {
                 .filter(o -> TYPE_GROUP.equals(((Map)o).get(TYPE)))
                 .map(o -> (String)((Map)o).get(ATTR_ID))
                 .collect(Collectors.toList());
-        user.put(ATTR_MEMBER_OF_GROUP, new JSONArray(groups));
+        user.put(ATTR_MEMBER_OF_GROUP, new JSONArray(groups)); 
+        //user.put(ATTR_MEMBER_OF_GROUP, new JSONArray()); //Comment this line out after putting back in above
         return user;
     }
 
-    private ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
+    public ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(ObjectClass.ACCOUNT);
