@@ -7,6 +7,7 @@ import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
+import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -15,6 +16,7 @@ import java.util.*;
 public class GroupProcessing extends ObjectProcessing {
 
     private final static String GROUPS = "/groups";
+    private final static String USERS = "/users";
 
     private static final String ATTR_ALLOWEXTERNALSENDERS = "allowExternalSenders";
     private static final String ATTR_AUTOSUBSCRIBENEWMEMBERS = "autoSubscribeNewMembers";
@@ -433,11 +435,12 @@ public class GroupProcessing extends ObjectProcessing {
 
 
     public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
-        LOG.info("executeQueryForGroup()");
+        LOG.info("executeQueryForGroup() Query: {0}", query);
         final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
             final String attributeName = equalsFilter.getAttribute().getName();
+            LOG.info("Query is instance of EqualsFilter: {0}", query);
             if (equalsFilter.getAttribute() instanceof Uid) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
 
@@ -457,6 +460,7 @@ public class GroupProcessing extends ObjectProcessing {
                 handleJSONArray(groups, handler);
             }
         } else if (query instanceof ContainsFilter) {
+            LOG.info("Query is instance of ContainsFilter: {0}", query);
             final ContainsFilter containsFilter = (ContainsFilter) query;
             final String attributeName = containsFilter.getAttribute().getName();
             final String attributeValue = getAttributeFirstValue(containsFilter);
@@ -465,7 +469,18 @@ public class GroupProcessing extends ObjectProcessing {
                 JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
                 handleJSONArray(groups, handler);
             }
+        } else if (query instanceof ContainsAllValuesFilter) {
+           LOG.info("Query is instance of ContainsAllValuesFilter: {0}", query);
+           final ContainsAllValuesFilter containsAllValuesFilter = (ContainsAllValuesFilter) query;
+           final String attributeName = containsAllValuesFilter.getAttribute().getName();
+           final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
+           LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
+           String getPath = USERS + "/" + attributeValue + "/memberOf/microsoft.graph.group";
+           String customQuery = "$filter=startswith(displayName,'unc:app:aad')&$count=true";
+           JSONObject groups = endpoint.executeGetRequest(getPath, customQuery,options,false);
+           handleJSONArray(groups, handler); 
         } else if (query == null) {
+           LOG.info("Query is null");
             JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
             handleJSONArray(groups, handler);
         }
