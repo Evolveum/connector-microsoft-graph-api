@@ -2,7 +2,6 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
 import com.microsoft.aad.adal4j.AuthenticationContext;
-import com.microsoft.aad.adal4j.AuthenticationException;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
 import org.apache.http.HttpEntity;
@@ -86,7 +85,7 @@ public class GraphEndpoint {
         GuardedString clientSecret = configuration.getClientSecret();
         GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
         clientSecret.access(accessorSecret);
-        LOG.info("getAccessTokenFromUserCredentials");
+        LOG.info("authenticate");
 
         try {
             service = Executors.newFixedThreadPool(1);
@@ -103,7 +102,7 @@ public class GraphEndpoint {
                     null);
             result = future.get();
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            throw new ConnectionFailedException(e);
         } catch (MalformedURLException e) {
             LOG.error(e.toString());
         } finally {
@@ -111,7 +110,7 @@ public class GraphEndpoint {
         }
 
         if (result == null) {
-            throw new AuthenticationException("authentication result was null");
+            throw new ConnectionFailedException("Failed to authenticate GitHub API");
         }
 
         this.authenticateResult = result;
@@ -121,7 +120,7 @@ public class GraphEndpoint {
         return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
     }
 
-    private AuthenticationResult getAccessTokenFromUserCredentials() {
+    private AuthenticationResult getAccessToken() {
         if (authenticateResult.getExpiresOnDate().getTime() - SKEW < new Date().getTime()) {
             // Expired, re-authenticate
             authenticate();
@@ -184,7 +183,7 @@ public class GraphEndpoint {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided");
         }
-        request.setHeader("Authorization", getAccessTokenFromUserCredentials().getAccessToken());
+        request.setHeader("Authorization", getAccessToken().getAccessToken());
         request.setHeader("Content-Type", "application/json");
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.info("HtttpUriRequest: {0}", request);
@@ -260,6 +259,9 @@ public class GraphEndpoint {
         }
         if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
             throw new InvalidAttributeValueException(message);
+        }
+        if (statusCode == 401 && message.contains("Access token has expired")) {
+            throw new ConnectionFailedException(message);
         }
         if (statusCode == 401 || statusCode == 402 || statusCode == 403 || statusCode == 407) {
             throw new PermissionDeniedException(message);
