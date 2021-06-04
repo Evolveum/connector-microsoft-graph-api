@@ -13,6 +13,7 @@ import org.apache.http.client.methods.HttpRequestBase;
 //import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 //import org.apache.http.client.*;
 //import org.apache.http.impl.client.*;
+import org.identityconnectors.framework.spi.PoolableConnector;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import org.identityconnectors.common.CollectionUtil;
@@ -36,6 +37,7 @@ import java.util.Set;
 
 @ConnectorClass(displayNameKey = "msgraphconnector.connector.display", configurationClass = MSGraphConfiguration.class)
 public class MSGraphConnector implements Connector,
+        PoolableConnector,
         CreateOp,
         DeleteOp,
         SearchOp<Filter>,
@@ -53,7 +55,7 @@ public class MSGraphConnector implements Connector,
     private static final String USERS = "/users";
     private static final String GROUPS = "/groups";
 
-    private Schema schema = null;
+    private SchemaTranslator schemaTranslator = null;
     private CloseableHttpClient httpclient;
 
 
@@ -75,6 +77,7 @@ public class MSGraphConnector implements Connector,
         LOG.info("Dispose");
 
         configuration = null;
+        schemaTranslator = null;
     }
 
     @Override
@@ -86,12 +89,12 @@ public class MSGraphConnector implements Connector,
         }
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) { // __ACCOUNT__
-            UserProcessing userProcessing = new UserProcessing(configuration, this);
+            UserProcessing userProcessing = new UserProcessing(configuration, getSchemaTranslator());
             return userProcessing.createUser(null, attributes);
 
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration, getSchemaTranslator());
             return groupProcessing.createOrUpdateGroup(null, attributes);
 
         } else {
@@ -116,31 +119,28 @@ public class MSGraphConnector implements Connector,
         LOG.info("DELETE METHOD OBJECTCLASS VALUE: {0}", objectClass);
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
-            UserProcessing user = new UserProcessing(configuration, this);
+            UserProcessing user = new UserProcessing(configuration, getSchemaTranslator());
             user.delete(uid);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing group = new GroupProcessing(configuration);
+            GroupProcessing group = new GroupProcessing(configuration, getSchemaTranslator());
             group.delete(uid);
 
         }
     }
 
+    protected SchemaTranslator getSchemaTranslator() {
+        if (schemaTranslator == null) {
+            // Cache
+            schemaTranslator = new SchemaTranslator(configuration);
+        }
+        return schemaTranslator;
+    }
+
     @Override
     public Schema schema() {
-        if (this.schema == null) {
-            SchemaBuilder schemaBuilder = new SchemaBuilder(MSGraphConnector.class);
-            UserProcessing userProcessing = new UserProcessing(configuration, this);
-            GroupProcessing groupProcessing = new GroupProcessing(configuration);
-            LicenseProcessing licenseProcessing = new LicenseProcessing(configuration);
-
-            userProcessing.buildUserObjectClass(schemaBuilder);
-            groupProcessing.buildGroupObjectClass(schemaBuilder);
-            licenseProcessing.buildLicenseObjectClass(schemaBuilder);
-
-            return schemaBuilder.build();
-        }
-        return this.schema;
+        // always fresh schema when this method is called
+        return getSchemaTranslator().getConnIdSchema();
     }
 
     @Override
@@ -194,7 +194,7 @@ public class MSGraphConnector implements Connector,
           LOG.info("sync ObjectClass is " + objectClass.getObjectClassValue() + "--");
           LOG.info("fromToken value is " + fromToken);
           GraphEndpoint endpoint = new GraphEndpoint(configuration);
-          UserProcessing userProcessor = new UserProcessing(configuration, this);
+          UserProcessing userProcessor = new UserProcessing(configuration, getSchemaTranslator());
           String nextDeltaLink = new String();
           HttpRequestBase request = new HttpGet((String)fromToken.getValue());
             //request.setRetryHandler(new StandardHttpRequestRetryHandler(5, true));
@@ -292,15 +292,15 @@ public class MSGraphConnector implements Connector,
         LOG.info("executeQuery on {0}, filter: {1}, options: {2}", objectClass, query, options);
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
-            UserProcessing userProcessing = new UserProcessing(configuration, this);
+            UserProcessing userProcessing = new UserProcessing(configuration, getSchemaTranslator());
 
             userProcessing.executeQueryForUser(query, handler, options);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration, getSchemaTranslator());
             groupProcessing.executeQueryForGroup(query, handler, options);
         } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
-            LicenseProcessing licenseProcessing = new LicenseProcessing(configuration);
+            LicenseProcessing licenseProcessing = new LicenseProcessing(configuration, getSchemaTranslator());
             licenseProcessing.executeQueryForLicense(query, handler, options);
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");
@@ -356,20 +356,20 @@ public class MSGraphConnector implements Connector,
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) { // __ACCOUNT__
             if (!attributeReplace.isEmpty()) {
-                UserProcessing userProcessing = new UserProcessing(configuration, this);
+                UserProcessing userProcessing = new UserProcessing(configuration, getSchemaTranslator());
                 userProcessing.updateUser(uid, attributeReplace);
             }
             if (!attrsDeltaMultivalue.isEmpty()) {
-                UserProcessing userProcessing = new UserProcessing(configuration, this);
+                UserProcessing userProcessing = new UserProcessing(configuration, getSchemaTranslator());
                 userProcessing.updateDeltaMultiValues(uid, attrsDeltaMultivalue, options);
 
             }
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) { // __GROUP__
             if (!attributeReplace.isEmpty()) {
-                new GroupProcessing(configuration).createOrUpdateGroup(uid, attributeReplace);
+                new GroupProcessing(configuration, getSchemaTranslator()).createOrUpdateGroup(uid, attributeReplace);
             }
             if (!attrsDeltaMultivalue.isEmpty()) {
-                new GroupProcessing(configuration).updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
+                new GroupProcessing(configuration, getSchemaTranslator()).updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
             }
         } else {
             LOG.error("The value of the ObjectClass parameter is unsupported.");
@@ -387,7 +387,7 @@ public class MSGraphConnector implements Connector,
         }
 
         if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration, getSchemaTranslator());
             groupProcessing.addToGroup(uid, attributes);
 
         }
@@ -411,7 +411,7 @@ public class MSGraphConnector implements Connector,
         }
 
         if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration, getSchemaTranslator());
             groupProcessing.removeFromGroup(uid, attributes);
         }
 
@@ -427,12 +427,12 @@ public class MSGraphConnector implements Connector,
         }
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
-            UserProcessing userProcessing = new UserProcessing(configuration, this);
+            UserProcessing userProcessing = new UserProcessing(configuration, getSchemaTranslator());
             userProcessing.updateUser(uid, attributes);
 
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(configuration);
+            GroupProcessing groupProcessing = new GroupProcessing(configuration, getSchemaTranslator());
             groupProcessing.createOrUpdateGroup(uid, attributes);
         }
         return uid;
@@ -453,4 +453,8 @@ public class MSGraphConnector implements Connector,
         }
     }
 
+    @Override
+    public void checkAlive() {
+        // do nothing here
+    }
 }

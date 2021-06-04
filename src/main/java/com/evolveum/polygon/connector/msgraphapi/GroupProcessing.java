@@ -40,8 +40,8 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_MEMBERS = "members";
     private static final String ATTR_OWNERS = "owners";
 
-    public GroupProcessing(MSGraphConfiguration configuration) {
-        super(configuration, ICFPostMapper.builder().build());
+    public GroupProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator) {
+        super(configuration, schemaTranslator, ICFPostMapper.builder().build());
     }
 
 

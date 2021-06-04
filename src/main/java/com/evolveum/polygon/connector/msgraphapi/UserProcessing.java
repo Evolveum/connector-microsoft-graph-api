@@ -1,7 +1,6 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
-
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpPatch;
@@ -20,6 +19,7 @@ import org.json.JSONObject;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public class UserProcessing extends ObjectProcessing {
@@ -53,7 +53,7 @@ public class UserProcessing extends ObjectProcessing {
 
 
     //optional
-    private static final String ATTR_ABOUTME = "aboutMe";
+    private static final String ATTR_ABOUTME = "aboutMe"; // Need SPO license
 
     //ASSIGNEDLICENSES
     private static final String ATTR_ASSIGNEDLICENSES = "assignedLicenses";
@@ -68,17 +68,17 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_SERVICE = "service";
     private static final String ATTR_SERVICEPLANID = "servicePlanId";
 
-    private static final String ATTR_BIRTHDAY = "birthday";
+    private static final String ATTR_BIRTHDAY = "birthday"; // Need SPO license
     private static final String ATTR_BUSINESSPHONES = "businessPhones";
     private static final String ATTR_CITY = "city";
     private static final String ATTR_COMPANYNAME = "companyName";
     private static final String ATTR_COUNTRY = "country";
     private static final String ATTR_DEPARTMENT = "department";
     private static final String ATTR_GIVENNAME = "givenName";
-    private static final String ATTR_HIREDATE = "hireDate";
+    private static final String ATTR_HIREDATE = "hireDate"; // Need SPO license
     private static final String ATTR_ID = "id";
     private static final String ATTR_IMADDRESSES = "imAddresses";
-    private static final String ATTR_INTERESTS = "interests";
+    private static final String ATTR_INTERESTS = "interests"; // Need SPO license
     private static final String ATTR_JOBTITLE = "jobTitle";
     private static final String ATTR_MAIL = "mail";
 
@@ -98,25 +98,25 @@ public class UserProcessing extends ObjectProcessing {
 
 
     private static final String ATTR_MOBILEPHONE = "mobilePhone";
-    private static final String ATTR_MYSITE = "mySite";
+    private static final String ATTR_MYSITE = "mySite"; // Need SPO license
     private static final String ATTR_OFFICELOCATION = "officeLocation";
     private static final String ATTR_ONPREMISESLASTSYNCDATETIME = "onPremisesLastSyncDateTime";
     private static final String ATTR_ONPREMISESSECURITYIDENTIFIER = "onPremisesSecurityIdentifier";
     private static final String ATTR_ONPREMISESSYNCENABLED = "onPremisesSyncEnabled";
     private static final String ATTR_PASSWORDPOLICIES = "passwordPolicies";
-    private static final String ATTR_PASTPROJECTS = "pastProjects";
+    private static final String ATTR_PASTPROJECTS = "pastProjects"; // Need SPO license
     private static final String ATTR_POSTALCODE = "postalCode";
     private static final String ATTR_PREFERREDLANGUAGE = "preferredLanguage";
-    private static final String ATTR_PREFERREDNAME = "preferredName";
+    private static final String ATTR_PREFERREDNAME = "preferredName"; // Need SPO license
 
     //provisionplans
     private static final String ATTR_PROVISIONEDPLANS = "provisionedPlans";
     private static final String ATTR_PROVISIONINGSTATUS = "provisioningStatus";
 
     private static final String ATTR_PROXYADDRESSES = "proxyAddresses";
-    private static final String ATTR_RESPONSIBILITIES = "responsibilities";
-    private static final String ATTR_SCHOOLS = "schools";
-    private static final String ATTR_SKILLS = "skills";
+    private static final String ATTR_RESPONSIBILITIES = "responsibilities"; // Need SPO license
+    private static final String ATTR_SCHOOLS = "schools"; // Need SPO license
+    private static final String ATTR_SKILLS = "skills"; // Need SPO license
     private static final String ATTR_STATE = "state";
     private static final String ATTR_STREETADDRESS = "streetAddress";
     private static final String ATTR_SURNAME = "surname";
@@ -140,8 +140,21 @@ public class UserProcessing extends ObjectProcessing {
     private static final String TYPE = "@odata.type";
     private static final String TYPE_GROUP = "#microsoft.graph.group";
 
-    public UserProcessing(MSGraphConfiguration configuration, MSGraphConnector connector) {
-        super(configuration, ICFPostMapper.builder()
+    private static final Set<String> OPTIONAL_ATTRS = Stream.of(
+            ATTR_ABOUTME,
+            ATTR_BIRTHDAY,
+            ATTR_HIREDATE,
+            ATTR_INTERESTS,
+            ATTR_MYSITE,
+            ATTR_PASTPROJECTS,
+            ATTR_PREFERREDNAME,
+            ATTR_RESPONSIBILITIES,
+            ATTR_SCHOOLS,
+            ATTR_SKILLS
+    ).collect(Collectors.toSet());
+
+    public UserProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator) {
+        super(configuration, schemaTranslator, ICFPostMapper.builder()
                 .remap(ATTR_ICF_PASSWORD, "passwordProfile.password")
                 .postProcess(ATTR_ICF_PASSWORD, pwAttr -> {
                     GuardedString guardedString = (GuardedString) AttributeUtil.getSingleValue(pwAttr);
@@ -213,7 +226,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrOnPremisesImmutableId.build());
 
         AttributeInfoBuilder attrAboutMe = new AttributeInfoBuilder(ATTR_ABOUTME);
-        attrAboutMe.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrAboutMe.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrAboutMe.build());
 
 
@@ -265,7 +278,8 @@ public class UserProcessing extends ObjectProcessing {
         AttributeInfoBuilder attrBirthday = new AttributeInfoBuilder(ATTR_BIRTHDAY);
         attrBirthday.setRequired(false)
                 .setType(String.class)
-                .setCreateable(false).setUpdateable(true).setReadable(true);
+                .setCreateable(false).setUpdateable(true).setReadable(true)
+                .setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrBirthday.build());
 
         //multivalued but only one number can be set for this property
@@ -301,7 +315,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrGivenName.build());
 
         AttributeInfoBuilder attrHireDate = new AttributeInfoBuilder(ATTR_HIREDATE);
-        attrHireDate.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrHireDate.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrHireDate.build());
 
         //Read-only, not nullable
@@ -311,7 +325,7 @@ public class UserProcessing extends ObjectProcessing {
 
         //multivalued
         AttributeInfoBuilder attrInterests = new AttributeInfoBuilder(ATTR_INTERESTS);
-        attrInterests.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrInterests.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
 
@@ -386,7 +400,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrMobilePhone.build());
 
         AttributeInfoBuilder attrMySite = new AttributeInfoBuilder(ATTR_MYSITE);
-        attrMySite.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrMySite.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrMySite.build());
 
         AttributeInfoBuilder attrOfficeLocation = new AttributeInfoBuilder(ATTR_OFFICELOCATION);
@@ -416,7 +430,7 @@ public class UserProcessing extends ObjectProcessing {
 
         //multivalued
         AttributeInfoBuilder attrPastProjects = new AttributeInfoBuilder(ATTR_PASTPROJECTS);
-        attrPastProjects.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrPastProjects.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrPastProjects.build());
 
         AttributeInfoBuilder attrPostalCode = new AttributeInfoBuilder(ATTR_POSTALCODE);
@@ -428,7 +442,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrPreferredLanguage.build());
 
         AttributeInfoBuilder attrPreferredName = new AttributeInfoBuilder(ATTR_PREFERREDNAME);
-        attrPreferredName.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrPreferredName.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrPreferredName.build());
 
 
@@ -455,17 +469,17 @@ public class UserProcessing extends ObjectProcessing {
 
         //multivalued
         AttributeInfoBuilder attrResponsibilities = new AttributeInfoBuilder(ATTR_RESPONSIBILITIES);
-        attrResponsibilities.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrResponsibilities.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrResponsibilities.build());
 
         //multivalued
         AttributeInfoBuilder attrSchools = new AttributeInfoBuilder(ATTR_SCHOOLS);
-        attrSchools.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrSchools.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrSchools.build());
 
         //multivalued
         AttributeInfoBuilder attrSkills = new AttributeInfoBuilder(ATTR_SKILLS);
-        attrSkills.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true);
+        attrSkills.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
         userObjClassBuilder.addAttributeInfo(attrSkills.build());
 
         //supports $filter
@@ -726,18 +740,18 @@ public class UserProcessing extends ObjectProcessing {
     public void executeQueryForUser(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
-        final String selectorSingle = selector(
+        final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                        ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                        ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                        ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
-                        ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
-                        ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                        ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
-                        ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
-                        ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
-                        ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                        ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES);
+                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
+                ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
+                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
+                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
+                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
+                ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
+                ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES));
 
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,

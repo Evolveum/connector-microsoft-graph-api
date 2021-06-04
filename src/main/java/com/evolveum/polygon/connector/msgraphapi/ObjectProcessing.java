@@ -11,7 +11,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,9 +31,11 @@ abstract class ObjectProcessing {
 
     private ICFPostMapper postMapper;
     private MSGraphConfiguration configuration;
+    private SchemaTranslator schemaTranslator;
 
-    protected ObjectProcessing(MSGraphConfiguration configuration, ICFPostMapper postMapper) {
+    protected ObjectProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator, ICFPostMapper postMapper) {
         this.configuration = configuration;
+        this.schemaTranslator = schemaTranslator;
         this.postMapper = postMapper;
     }
 
@@ -44,6 +45,10 @@ abstract class ObjectProcessing {
 
     public MSGraphConfiguration getConfiguration() {
         return configuration;
+    }
+
+    public SchemaTranslator getSchemaTranslator() {
+        return schemaTranslator;
     }
 
     protected void getIfExists(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {
@@ -412,6 +417,7 @@ abstract class ObjectProcessing {
 
     /**
      * Create a selector clause for GraphAPI attributes to list (from field names)
+     *
      * @param fields Names of fields to query
      * @return Selector clause
      */

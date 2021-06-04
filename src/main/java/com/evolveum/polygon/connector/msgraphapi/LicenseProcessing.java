@@ -62,8 +62,8 @@ public class LicenseProcessing extends ObjectProcessing {
             ATTR_CONSUMEDUNITS
     );
 
-    public LicenseProcessing(MSGraphConfiguration configuration) {
-        super(configuration, ICFPostMapper.builder().build());
+    public LicenseProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator) {
+        super(configuration, schemaTranslator, ICFPostMapper.builder().build());
     }
 
     public void buildLicenseObjectClass(SchemaBuilder schemaBuilder) {

@@ -24,7 +24,7 @@ public class GroupProcessingTest {
         }
     }
 
-    final GroupProcessing groupProcessing = new GroupProcessing(new MSGraphConfiguration());
+    final GroupProcessing groupProcessing = new GroupProcessing(new MSGraphConfiguration(), new SchemaTranslator(new MSGraphConfiguration()));
 
     @Test
     public void testParseGroupMembers() throws Exception {
