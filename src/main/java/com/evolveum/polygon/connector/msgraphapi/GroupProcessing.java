@@ -40,8 +40,8 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_MEMBERS = "members";
     private static final String ATTR_OWNERS = "owners";
 
-    public GroupProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator) {
-        super(configuration, schemaTranslator, ICFPostMapper.builder().build());
+    public GroupProcessing(GraphEndpoint graphEndpoint) {
+        super(graphEndpoint, ICFPostMapper.builder().build());
     }
 
 
@@ -169,7 +169,7 @@ public class GroupProcessing extends ObjectProcessing {
         }
 
         Boolean create = uid == null;
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
 
         HttpEntityEnclosingRequestBase request = null;
@@ -222,7 +222,7 @@ public class GroupProcessing extends ObjectProcessing {
         HttpDelete request;
         URI uri = null;
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
         uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
         uri = endpoint.getUri(uriBuilder);
@@ -391,7 +391,7 @@ public class GroupProcessing extends ObjectProcessing {
 
     private void postRequestNoContent(String path, JSONObject json) {
         LOG.info("path: {0} , json {1}, ", path, json);
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(path);
         final URI uri = endpoint.getUri(uriBuilder);
         LOG.info("uri {0}", uri);
@@ -422,7 +422,7 @@ public class GroupProcessing extends ObjectProcessing {
     private void executeDeleteOperation(Uid uid, String path) {
         LOG.info("Delete object, Uid: {0}, Path: {1}", uid, path);
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
         uriBuilder.setPath(path + "/" + uid.getUidValue() + "/$ref");
 
@@ -436,7 +436,7 @@ public class GroupProcessing extends ObjectProcessing {
 
     public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForGroup() Query: {0}", query);
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
             final String attributeName = equalsFilter.getAttribute().getName();
@@ -489,13 +489,12 @@ public class GroupProcessing extends ObjectProcessing {
     /**
      * Query a group's members and owners, add them to the group's JSON attributes (multivalue)
      *
-     * @param endpoint Graph endpoint to use for querying
      * @param group Group to query for (JSON object resulting from previous API call)
      *
      * @return Original JSON, enriched with member/owner information
      */
     private JSONObject saturateGroupMembership(JSONObject group) {
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final String uid = group.getString(ATTR_ID);
         //get list of group members
         final String memberQuery = new StringBuilder()

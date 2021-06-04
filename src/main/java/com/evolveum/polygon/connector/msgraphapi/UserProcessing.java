@@ -153,8 +153,8 @@ public class UserProcessing extends ObjectProcessing {
             ATTR_SKILLS
     ).collect(Collectors.toSet());
 
-    public UserProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator) {
-        super(configuration, schemaTranslator, ICFPostMapper.builder()
+    public UserProcessing(GraphEndpoint graphEndpoint, SchemaTranslator schemaTranslator) {
+        super(graphEndpoint, ICFPostMapper.builder()
                 .remap(ATTR_ICF_PASSWORD, "passwordProfile.password")
                 .postProcess(ATTR_ICF_PASSWORD, pwAttr -> {
                     GuardedString guardedString = (GuardedString) AttributeUtil.getSingleValue(pwAttr);
@@ -529,7 +529,7 @@ public class UserProcessing extends ObjectProcessing {
         // read and fill-out the old values
         if (!create) {
             LOG.info("Read old licenses, Uid {0}", uid);
-            final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+            final GraphEndpoint endpoint = getGraphEndpoint();
             final String selectorLicenses = selector(ATTR_ID, ATTR_USERPRINCIPALNAME, ATTR_ASSIGNEDLICENSES);
             final OperationOptions options = new OperationOptions(new HashMap<>());
 
@@ -581,7 +581,7 @@ public class UserProcessing extends ObjectProcessing {
         if ((addLicenses == null || addLicenses.isEmpty()) && (removeLicenses == null || removeLicenses.isEmpty()))
             return;
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + ASSIGN_LICENSES);
         HttpEntityEnclosingRequestBase request = null;
         URI uri = endpoint.getUri(uriBuilder);
@@ -608,7 +608,7 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     public void updateUser(Uid uid, Set<Attribute> attributes) {
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
         HttpEntityEnclosingRequestBase request = null;
         URI uri = endpoint.getUri(uriBuilder);
@@ -632,7 +632,7 @@ public class UserProcessing extends ObjectProcessing {
 
         if (uid != null) return uid;
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
 
         final String emailAddress = attributes.stream()
                 .filter(a -> a.is(ATTR_MAIL))
@@ -692,7 +692,7 @@ public class UserProcessing extends ObjectProcessing {
         }
         HttpDelete request;
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
         URI uri = endpoint.getUri(uriBuilder);
         LOG.info("Delete: {0}", uri);
@@ -739,7 +739,7 @@ public class UserProcessing extends ObjectProcessing {
 
     public void executeQueryForUser(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForUser()");
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                 ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
@@ -864,7 +864,7 @@ public class UserProcessing extends ObjectProcessing {
 
     private JSONObject saturateGroupMembership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
-        final List<String> groups = new GraphEndpoint(getConfiguration()).executeGetRequest(
+        final List<String> groups = getGraphEndpoint().executeGetRequest(
                 String.format("/users/%s/memberOf", uid), "$select=id", null, false
         ).getJSONArray("value").toList().stream()
                 .filter(o -> TYPE_GROUP.equals(((Map)o).get(TYPE)))

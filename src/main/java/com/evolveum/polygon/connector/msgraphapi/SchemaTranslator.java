@@ -12,11 +12,11 @@ public class SchemaTranslator {
     private final Schema rawConnIdSchema;
     private final Map<String, Map<String, AttributeInfo>> connIdSchema;
 
-    public SchemaTranslator(MSGraphConfiguration configuration) {
+    public SchemaTranslator(GraphEndpoint graphEndpoint) {
         SchemaBuilder schemaBuilder = new SchemaBuilder(MSGraphConnector.class);
-        UserProcessing userProcessing = new UserProcessing(configuration, this);
-        GroupProcessing groupProcessing = new GroupProcessing(configuration, this);
-        LicenseProcessing licenseProcessing = new LicenseProcessing(configuration, this);
+        UserProcessing userProcessing = new UserProcessing(graphEndpoint, this);
+        GroupProcessing groupProcessing = new GroupProcessing(graphEndpoint);
+        LicenseProcessing licenseProcessing = new LicenseProcessing(graphEndpoint, this);
 
         userProcessing.buildUserObjectClass(schemaBuilder);
         groupProcessing.buildGroupObjectClass(schemaBuilder);

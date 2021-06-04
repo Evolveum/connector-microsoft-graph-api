@@ -30,12 +30,10 @@ abstract class ObjectProcessing {
     protected static final String STARTSWITH = "startswith";
 
     private ICFPostMapper postMapper;
-    private MSGraphConfiguration configuration;
-    private SchemaTranslator schemaTranslator;
+    private GraphEndpoint graphEndpoint;
 
-    protected ObjectProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator, ICFPostMapper postMapper) {
-        this.configuration = configuration;
-        this.schemaTranslator = schemaTranslator;
+    protected ObjectProcessing(GraphEndpoint graphEndpoint, ICFPostMapper postMapper) {
+        this.graphEndpoint = graphEndpoint;
         this.postMapper = postMapper;
     }
 
@@ -43,12 +41,16 @@ abstract class ObjectProcessing {
 
     protected static final Log LOG = Log.getLog(MSGraphConnector.class);
 
-    public MSGraphConfiguration getConfiguration() {
-        return configuration;
+    public GraphEndpoint getGraphEndpoint() {
+        return graphEndpoint;
     }
 
     public SchemaTranslator getSchemaTranslator() {
-        return schemaTranslator;
+        return graphEndpoint.getSchemaTranslator();
+    }
+
+    public MSGraphConfiguration getConfiguration() {
+        return graphEndpoint.getConfiguration();
     }
 
     protected void getIfExists(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {

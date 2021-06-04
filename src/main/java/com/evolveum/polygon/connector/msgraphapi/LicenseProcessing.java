@@ -62,8 +62,8 @@ public class LicenseProcessing extends ObjectProcessing {
             ATTR_CONSUMEDUNITS
     );
 
-    public LicenseProcessing(MSGraphConfiguration configuration, SchemaTranslator schemaTranslator) {
-        super(configuration, schemaTranslator, ICFPostMapper.builder().build());
+    public LicenseProcessing(GraphEndpoint graphEndpoint, SchemaTranslator schemaTranslator) {
+        super(graphEndpoint, ICFPostMapper.builder().build());
     }
 
     public void buildLicenseObjectClass(SchemaBuilder schemaBuilder) {
@@ -116,14 +116,14 @@ public class LicenseProcessing extends ObjectProcessing {
     }
 
     private void get(ResultsHandler handler, String skuId, OperationOptions options) {
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS + "/" + skuId, SELECTOR_FULL, options, false);
         LOG.info("JSONObject license {0}", json.toString());
         handleJSONObject(json, handler);
     }
 
     private void list(ResultsHandler handler, OperationOptions options) {
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         String selector = SELECTOR_FULL;
         if (options != null && options.getAllowPartialAttributeValues() != null && options.getAllowPartialAttributeValues())
             selector = SELECTOR_PARTIAL;

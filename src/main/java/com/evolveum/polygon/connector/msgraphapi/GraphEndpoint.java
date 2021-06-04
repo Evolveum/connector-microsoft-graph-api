@@ -12,10 +12,7 @@ import org.apache.http.*;
 import org.apache.http.protocol.*;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.methods.*;
-import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 import org.apache.http.client.*;
-import org.apache.http.impl.client.*;
-//import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -25,7 +22,6 @@ import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
 
@@ -36,13 +32,14 @@ import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
@@ -57,19 +54,33 @@ public class GraphEndpoint {
     private final static String RESOURCE = "https://graph.microsoft.com";
 
     private final MSGraphConfiguration configuration;
-    private URIBuilder uriBuilder;
+    private final URIBuilder uriBuilder;
+    private AuthenticationResult authenticateResult;
+    private SchemaTranslator schemaTranslator;
+
+    private final long SKEW = TimeUnit.MINUTES.toMillis(5);
 
     GraphEndpoint(MSGraphConfiguration configuration) {
         this.configuration = configuration;
         this.uriBuilder = createURIBuilder();
+
+        authenticate();
+        initSchema();
     }
 
-    private Proxy createProxy() {
-        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    public MSGraphConfiguration getConfiguration() {
+        return configuration;
     }
 
-    private AuthenticationResult getAccessTokenFromUserCredentials() {
-        AuthenticationContext context = null;
+    public SchemaTranslator getSchemaTranslator() {
+        return schemaTranslator;
+    }
+
+    private void initSchema() {
+        schemaTranslator = new SchemaTranslator(this);
+    }
+
+    private void authenticate() {
         AuthenticationResult result = null;
         ExecutorService service = null;
         GuardedString clientSecret = configuration.getClientSecret();
@@ -80,7 +91,7 @@ public class GraphEndpoint {
         try {
             service = Executors.newFixedThreadPool(1);
             ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
-            context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
+            AuthenticationContext context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
                     + "/oauth2/authorize", false, service);
             if (configuration.hasProxy()) {
                 LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
@@ -103,7 +114,19 @@ public class GraphEndpoint {
             throw new AuthenticationException("authentication result was null");
         }
 
-        return result;
+        this.authenticateResult = result;
+    }
+
+    private Proxy createProxy() {
+        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    }
+
+    private AuthenticationResult getAccessTokenFromUserCredentials() {
+        if (authenticateResult.getExpiresOnDate().getTime() - SKEW < new Date().getTime()) {
+            // Expired, re-authenticate
+            authenticate();
+        }
+        return authenticateResult;
     }
 
     public URIBuilder createURIBuilder() {
