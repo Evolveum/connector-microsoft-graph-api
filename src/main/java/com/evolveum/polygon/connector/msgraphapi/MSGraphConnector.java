@@ -82,6 +82,8 @@ public class MSGraphConnector implements Connector,
         LOG.info("Dispose");
 
         configuration = null;
+
+        graphEndpoint.close();
         graphEndpoint = null;
     }
 

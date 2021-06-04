@@ -4,25 +4,23 @@ import com.evolveum.polygon.common.GuardedStringAccessor;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
-import org.apache.http.HttpEntity;
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
 import org.apache.http.*;
-import org.apache.http.protocol.*;
-import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.HttpRequestRetryHandler;
+import org.apache.http.client.ServiceUnavailableRetryStrategy;
 import org.apache.http.client.methods.*;
-import org.apache.http.client.*;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.json.JSONObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -34,11 +32,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
@@ -56,6 +50,7 @@ public class GraphEndpoint {
     private final URIBuilder uriBuilder;
     private AuthenticationResult authenticateResult;
     private SchemaTranslator schemaTranslator;
+    private CloseableHttpClient httpClient;
 
     private final long SKEW = TimeUnit.MINUTES.toMillis(5);
 
@@ -65,6 +60,7 @@ public class GraphEndpoint {
 
         authenticate();
         initSchema();
+        initHttpClient();
     }
 
     public MSGraphConfiguration getConfiguration() {
@@ -73,10 +69,6 @@ public class GraphEndpoint {
 
     public SchemaTranslator getSchemaTranslator() {
         return schemaTranslator;
-    }
-
-    private void initSchema() {
-        schemaTranslator = new SchemaTranslator(this);
     }
 
     private void authenticate() {
@@ -118,6 +110,32 @@ public class GraphEndpoint {
 
     private Proxy createProxy() {
         return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    }
+
+    private void initSchema() {
+        schemaTranslator = new SchemaTranslator(this);
+    }
+
+    private void initHttpClient() {
+        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        clientBuilder.setRetryHandler(myRetryHandler);
+        clientBuilder.setServiceUnavailableRetryStrategy(new ServiceUnavailableRetryStrategy() {
+            @Override
+            public boolean retryRequest(HttpResponse response, int executionCount, HttpContext context) {
+                return executionCount <= 7 && response.getStatusLine().getStatusCode() >= 500 && response.getStatusLine().getStatusCode() < 600;
+            }
+            @Override
+            public long getRetryInterval() {
+                return 3000;
+            }
+        });
+        if (configuration.hasProxy()) {
+            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
+            clientBuilder.setProxy(
+                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
+            );
+        }
+        httpClient = clientBuilder.build();
     }
 
     private AuthenticationResult getAccessToken() {
@@ -188,28 +206,10 @@ public class GraphEndpoint {
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.info("HtttpUriRequest: {0}", request);
         LOG.info(request.toString());
-        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
-        clientBuilder.setRetryHandler( myRetryHandler);
-        clientBuilder.setServiceUnavailableRetryStrategy( new ServiceUnavailableRetryStrategy() {
-        @Override
-        public boolean retryRequest(HttpResponse response,int executionCount,HttpContext context) {
-           return executionCount <= 7 && response.getStatusLine().getStatusCode() >= 500 && response.getStatusLine().getStatusCode() < 600;
-        }
-        @Override
-        public long getRetryInterval() {
-                return 3000;
-        }});
-        if (configuration.hasProxy()) {
-            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
-            clientBuilder.setProxy(
-                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
-            );
-        }
-        CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response;
 
         try {
-            response = client.execute(request);
+            response = httpClient.execute(request);
             LOG.info("response {0}", response);
             processResponseErrors(response);
             return response;
@@ -602,4 +602,11 @@ public class GraphEndpoint {
         }
     }
 
+    public void close() {
+        try {
+            httpClient.close();
+        } catch (IOException e) {
+            throw new ConnectorIOException(e);
+        }
+    }
 }
