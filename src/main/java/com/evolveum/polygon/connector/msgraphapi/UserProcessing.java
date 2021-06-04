@@ -634,17 +634,17 @@ public class UserProcessing extends ObjectProcessing {
 
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        final String emailAddress = attributes.stream()
+        final Optional<String> emailAddress = attributes.stream()
                 .filter(a -> a.is(ATTR_MAIL))
                 .map(a -> a.getValue().get(0).toString())
-                .findFirst().get();
+                .findFirst();
 
         final boolean hasUPN = attributes.stream()
                 .filter(a -> a.is(ATTR_USERPRINCIPALNAME))
                 .anyMatch(a -> !a.getValue().isEmpty());
 
 
-        final boolean invite = !emailAddress.split("@")[1].equals(getConfiguration().getTenantId()) &&
+        final boolean invite = emailAddress.isPresent() && !emailAddress.get().split("@")[1].equals(getConfiguration().getTenantId()) &&
                 getConfiguration().isInviteGuests() &&
                 !hasUPN;
 
