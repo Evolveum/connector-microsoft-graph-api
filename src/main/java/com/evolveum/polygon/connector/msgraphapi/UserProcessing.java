@@ -234,6 +234,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
                 .setRequired(false).setType(String.class).setMultiValued(true)
                 .setCreateable(false).setUpdateable(false).setReadable(true)
+                .setReturnedByDefault(false)
                 .build());
 
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
@@ -784,7 +785,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
-                handleJSONObject(user, handler);
+                handleJSONObject(options, user, handler);
 
             } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof userPrincipalName");
@@ -797,7 +798,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
-                handleJSONObject(user, handler);
+                handleJSONObject(options, user, handler);
 
             } else if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
                     .contains(equalsFilter.getAttribute().getName())
@@ -805,7 +806,7 @@ public class UserProcessing extends ObjectProcessing {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String filter = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
-                handleJSONArray(users, handler);
+                handleJSONArray(options, users, handler);
             }
         } else if (query instanceof ContainsFilter) {
             final ContainsFilter containsFilter = (ContainsFilter) query;
@@ -818,22 +819,23 @@ public class UserProcessing extends ObjectProcessing {
                 final String filter = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
-                handleJSONArray(users, handler);
+                handleJSONArray(options, users, handler);
             }
         } else if (query == null) {
             LOG.info("query==null");
             JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
             LOG.info("JSONObject users {0}", users.toString());
-            handleJSONArray(users, handler);
+            handleJSONArray(options, users, handler);
         }
     }
 
     @Override
-    protected boolean handleJSONObject(JSONObject user, ResultsHandler handler) {
+    protected boolean handleJSONObject(OperationOptions options, JSONObject user, ResultsHandler handler) {
         LOG.info("processingObjectFromGET (Object)");
-        ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(
-                saturateGroupMembership(user)
-        ).build();
+        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
+            user = saturateGroupMembership(user);
+        }
+        ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(user).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
     }

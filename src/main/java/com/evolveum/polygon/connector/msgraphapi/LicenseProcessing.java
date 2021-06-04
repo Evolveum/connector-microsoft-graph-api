@@ -119,7 +119,7 @@ public class LicenseProcessing extends ObjectProcessing {
         final GraphEndpoint endpoint = getGraphEndpoint();
         JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS + "/" + skuId, SELECTOR_FULL, options, false);
         LOG.info("JSONObject license {0}", json.toString());
-        handleJSONObject(json, handler);
+        handleJSONObject(options, json, handler);
     }
 
     private void list(ResultsHandler handler, OperationOptions options) {
@@ -129,7 +129,7 @@ public class LicenseProcessing extends ObjectProcessing {
             selector = SELECTOR_PARTIAL;
         JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS, selector, options, false);
         LOG.info("JSONObject license {0}", json.toString());
-        handleJSONArray(json, handler);
+        handleJSONArray(options, json, handler);
     }
 
     public void executeQueryForLicense(Filter query, ResultsHandler handler, OperationOptions options) {
@@ -153,7 +153,7 @@ public class LicenseProcessing extends ObjectProcessing {
     }
 
     @Override
-    protected boolean handleJSONObject(JSONObject json, ResultsHandler handler) {
+    protected boolean handleJSONObject(OperationOptions options, JSONObject json, ResultsHandler handler) {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(OBJECT_CLASS);
 

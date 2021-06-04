@@ -75,6 +75,11 @@ public class SchemaTranslator {
         return attributesToGet;
     }
 
+    public boolean containsToGet(String type, OperationOptions options, String attr) {
+        Set<String> returnedAttributes = getAttributesToGet(type, options);
+        return returnedAttributes.contains(attr);
+    }
+
     private static Set<String> toReturnedByDefaultAttributesSet(Map<String, AttributeInfo> attrs) {
         return attrs.entrySet().stream()
                 .filter(entry -> entry.getValue().isReturnedByDefault())

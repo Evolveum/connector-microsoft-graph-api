@@ -393,9 +393,9 @@ abstract class ObjectProcessing {
         return false;
     }
 
-    protected abstract boolean handleJSONObject(JSONObject object, ResultsHandler handler);
+    protected abstract boolean handleJSONObject(OperationOptions options, JSONObject object, ResultsHandler handler);
 
-    protected boolean handleJSONArray(JSONObject users, ResultsHandler handler) {
+    protected boolean handleJSONArray(OperationOptions options, JSONObject users, ResultsHandler handler) {
         String jsonStr = users.toString();
         JSONObject jsonObj = new JSONObject(jsonStr);
 
@@ -411,7 +411,7 @@ abstract class ObjectProcessing {
 
         for (int i = 0; i < length; i++) {
             JSONObject user = value.getJSONObject(i);
-            if (!handleJSONObject(user, handler))
+            if (!handleJSONObject(options, user, handler))
                 return false;
         }
         return true;
