@@ -11,7 +11,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,10 +30,10 @@ abstract class ObjectProcessing {
     protected static final String STARTSWITH = "startswith";
 
     private ICFPostMapper postMapper;
-    private MSGraphConfiguration configuration;
+    private GraphEndpoint graphEndpoint;
 
-    protected ObjectProcessing(MSGraphConfiguration configuration, ICFPostMapper postMapper) {
-        this.configuration = configuration;
+    protected ObjectProcessing(GraphEndpoint graphEndpoint, ICFPostMapper postMapper) {
+        this.graphEndpoint = graphEndpoint;
         this.postMapper = postMapper;
     }
 
@@ -42,8 +41,16 @@ abstract class ObjectProcessing {
 
     protected static final Log LOG = Log.getLog(MSGraphConnector.class);
 
+    public GraphEndpoint getGraphEndpoint() {
+        return graphEndpoint;
+    }
+
+    public SchemaTranslator getSchemaTranslator() {
+        return graphEndpoint.getSchemaTranslator();
+    }
+
     public MSGraphConfiguration getConfiguration() {
-        return configuration;
+        return graphEndpoint.getConfiguration();
     }
 
     protected void getIfExists(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {
@@ -386,9 +393,9 @@ abstract class ObjectProcessing {
         return false;
     }
 
-    protected abstract boolean handleJSONObject(JSONObject object, ResultsHandler handler);
+    protected abstract boolean handleJSONObject(OperationOptions options, JSONObject object, ResultsHandler handler);
 
-    protected boolean handleJSONArray(JSONObject users, ResultsHandler handler) {
+    protected boolean handleJSONArray(OperationOptions options, JSONObject users, ResultsHandler handler) {
         String jsonStr = users.toString();
         JSONObject jsonObj = new JSONObject(jsonStr);
 
@@ -404,7 +411,7 @@ abstract class ObjectProcessing {
 
         for (int i = 0; i < length; i++) {
             JSONObject user = value.getJSONObject(i);
-            if (!handleJSONObject(user, handler))
+            if (!handleJSONObject(options, user, handler))
                 return false;
         }
         return true;
@@ -412,6 +419,7 @@ abstract class ObjectProcessing {
 
     /**
      * Create a selector clause for GraphAPI attributes to list (from field names)
+     *
      * @param fields Names of fields to query
      * @return Selector clause
      */

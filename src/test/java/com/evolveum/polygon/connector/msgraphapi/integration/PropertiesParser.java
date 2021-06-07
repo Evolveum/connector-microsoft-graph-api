@@ -18,7 +18,7 @@ public class PropertiesParser {
 
     private static final Log LOGGER = Log.getLog(PropertiesParser.class);
     private Properties properties;
-    private String FilePath = "../connector-msgraph/testProperties/propertiesforTest.properties";
+    private String FilePath = "./testProperties/propertiesforTest.properties";
     private final String CLIENT_SECRET = "clientSecret";
     private final String CLIENT_ID = "clientID";
     private final String TENANT_ID = "tenantID";

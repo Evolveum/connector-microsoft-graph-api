@@ -2,32 +2,25 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
 import com.microsoft.aad.adal4j.AuthenticationContext;
-import com.microsoft.aad.adal4j.AuthenticationException;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
-import org.apache.http.HttpEntity;
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
 import org.apache.http.*;
-import org.apache.http.protocol.*;
-import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.HttpRequestRetryHandler;
+import org.apache.http.client.ServiceUnavailableRetryStrategy;
 import org.apache.http.client.methods.*;
-import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
-import org.apache.http.client.*;
-import org.apache.http.impl.client.*;
-//import org.apache.http.client.HttpRequestRetryHandler;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -36,12 +29,10 @@ import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
@@ -56,30 +47,42 @@ public class GraphEndpoint {
     private final static String RESOURCE = "https://graph.microsoft.com";
 
     private final MSGraphConfiguration configuration;
-    private URIBuilder uriBuilder;
+    private final URIBuilder uriBuilder;
+    private AuthenticationResult authenticateResult;
+    private SchemaTranslator schemaTranslator;
+    private CloseableHttpClient httpClient;
+
+    private final long SKEW = TimeUnit.MINUTES.toMillis(5);
 
     GraphEndpoint(MSGraphConfiguration configuration) {
         this.configuration = configuration;
         this.uriBuilder = createURIBuilder();
+
+        authenticate();
+        initSchema();
+        initHttpClient();
     }
 
-    private Proxy createProxy() {
-        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    public MSGraphConfiguration getConfiguration() {
+        return configuration;
     }
 
-    private AuthenticationResult getAccessTokenFromUserCredentials() {
-        AuthenticationContext context = null;
+    public SchemaTranslator getSchemaTranslator() {
+        return schemaTranslator;
+    }
+
+    private void authenticate() {
         AuthenticationResult result = null;
         ExecutorService service = null;
         GuardedString clientSecret = configuration.getClientSecret();
         GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
         clientSecret.access(accessorSecret);
-        LOG.info("getAccessTokenFromUserCredentials");
+        LOG.info("authenticate");
 
         try {
             service = Executors.newFixedThreadPool(1);
             ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
-            context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
+            AuthenticationContext context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
                     + "/oauth2/authorize", false, service);
             if (configuration.hasProxy()) {
                 LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
@@ -91,7 +94,7 @@ public class GraphEndpoint {
                     null);
             result = future.get();
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            throw new ConnectionFailedException(e);
         } catch (MalformedURLException e) {
             LOG.error(e.toString());
         } finally {
@@ -99,10 +102,48 @@ public class GraphEndpoint {
         }
 
         if (result == null) {
-            throw new AuthenticationException("authentication result was null");
+            throw new ConnectionFailedException("Failed to authenticate GitHub API");
         }
 
-        return result;
+        this.authenticateResult = result;
+    }
+
+    private Proxy createProxy() {
+        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    }
+
+    private void initSchema() {
+        schemaTranslator = new SchemaTranslator(this);
+    }
+
+    private void initHttpClient() {
+        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        clientBuilder.setRetryHandler(myRetryHandler);
+        clientBuilder.setServiceUnavailableRetryStrategy(new ServiceUnavailableRetryStrategy() {
+            @Override
+            public boolean retryRequest(HttpResponse response, int executionCount, HttpContext context) {
+                return executionCount <= 7 && response.getStatusLine().getStatusCode() >= 500 && response.getStatusLine().getStatusCode() < 600;
+            }
+            @Override
+            public long getRetryInterval() {
+                return 3000;
+            }
+        });
+        if (configuration.hasProxy()) {
+            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
+            clientBuilder.setProxy(
+                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
+            );
+        }
+        httpClient = clientBuilder.build();
+    }
+
+    private AuthenticationResult getAccessToken() {
+        if (authenticateResult.getExpiresOnDate().getTime() - SKEW < new Date().getTime()) {
+            // Expired, re-authenticate
+            authenticate();
+        }
+        return authenticateResult;
     }
 
     public URIBuilder createURIBuilder() {
@@ -160,33 +201,15 @@ public class GraphEndpoint {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided");
         }
-        request.setHeader("Authorization", getAccessTokenFromUserCredentials().getAccessToken());
+        request.setHeader("Authorization", getAccessToken().getAccessToken());
         request.setHeader("Content-Type", "application/json");
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.info("HtttpUriRequest: {0}", request);
         LOG.info(request.toString());
-        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
-        clientBuilder.setRetryHandler( myRetryHandler);
-        clientBuilder.setServiceUnavailableRetryStrategy( new ServiceUnavailableRetryStrategy() {
-        @Override
-        public boolean retryRequest(HttpResponse response,int executionCount,HttpContext context) {
-           return executionCount <= 7 && response.getStatusLine().getStatusCode() >= 500 && response.getStatusLine().getStatusCode() < 600;
-        }
-        @Override
-        public long getRetryInterval() {
-                return 3000;
-        }});
-        if (configuration.hasProxy()) {
-            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
-            clientBuilder.setProxy(
-                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
-            );
-        }
-        CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response;
 
         try {
-            response = client.execute(request);
+            response = httpClient.execute(request);
             LOG.info("response {0}", response);
             processResponseErrors(response);
             return response;
@@ -236,6 +259,9 @@ public class GraphEndpoint {
         }
         if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
             throw new InvalidAttributeValueException(message);
+        }
+        if (statusCode == 401 && message.contains("Access token has expired")) {
+            throw new ConnectionFailedException(message);
         }
         if (statusCode == 401 || statusCode == 402 || statusCode == 403 || statusCode == 407) {
             throw new PermissionDeniedException(message);
@@ -576,4 +602,11 @@ public class GraphEndpoint {
         }
     }
 
+    public void close() {
+        try {
+            httpClient.close();
+        } catch (IOException e) {
+            throw new ConnectorIOException(e);
+        }
+    }
 }

@@ -2,6 +2,7 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.connector.msgraphapi.GroupProcessing;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
+import com.evolveum.polygon.connector.msgraphapi.integration.BasicConfigurationForTests;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -16,7 +17,7 @@ import java.util.List;
  * Test case for {@link GroupProcessing}
  */
 @Test(groups = "unit")
-public class GroupProcessingTest {
+public class GroupProcessingTest extends BasicConfigurationForTests {
 
     private JSONObject parseResource(String fileName) throws IOException  {
         try (InputStream is = getClass().getResourceAsStream(fileName)) {
@@ -24,7 +25,7 @@ public class GroupProcessingTest {
         }
     }
 
-    final GroupProcessing groupProcessing = new GroupProcessing(new MSGraphConfiguration());
+    final GroupProcessing groupProcessing = new GroupProcessing(new GraphEndpoint(getConfiguration()));
 
     @Test
     public void testParseGroupMembers() throws Exception {
