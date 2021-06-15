@@ -46,9 +46,15 @@ public class SchemaTranslator {
 
     public String[] filter(String type, OperationOptions options, String... attrs) {
         Set<String> returnedAttributes = getAttributesToGet(type, options);
+        Set<String> returnedContainerAttributes = returnedAttributes.stream()
+                .filter(attr -> attr.contains("."))
+                .map(attr -> attr.substring(0, attr.indexOf(".")))
+                .distinct()
+                .collect(Collectors.toSet());
 
         String[] filtered = Arrays.stream(attrs)
-                .filter(attr -> returnedAttributes.contains(attr))
+                .filter(attr -> returnedAttributes.contains(attr)
+                        || returnedContainerAttributes.contains(attr))
                 .toArray(String[]::new);
 
         return filtered;
