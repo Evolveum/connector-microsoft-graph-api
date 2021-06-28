@@ -787,16 +787,29 @@ public class UserProcessing extends ObjectProcessing {
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(options, user, handler);
 
-            } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
+            } else if (equalsFilter.getAttribute() instanceof Name) {
+                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
+
+                Name name = (Name) ((EqualsFilter) query).getAttribute();
+                String nameValue = name.getNameValue();
+                if (nameValue == null) {
+                    invalidAttributeValue("Name", query);
+                }
+                String path = toGetURLByUserPrincipalName(nameValue);
+                LOG.info("path: {0}", path);
+
+                JSONObject user = endpoint.executeGetRequest(path, selectorSingle, options, false);
+                LOG.info("JSONObject user {0}", user.toString());
+                handleJSONObject(options, user, handler);
+
+            } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME) ) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof userPrincipalName");
 
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
-                StringBuilder sbPath = new StringBuilder();
-                sbPath.append(USERS).append("/").append(attributeValue);
+                String path = toGetURLByUserPrincipalName(attributeValue);
+                LOG.info("path: {0}", path);
 
-                LOG.info("value {0}", attributeValue);
-
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
+                JSONObject user = endpoint.executeGetRequest(path, selectorSingle, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(options, user, handler);
 
@@ -827,6 +840,28 @@ public class UserProcessing extends ObjectProcessing {
             LOG.info("JSONObject users {0}", users.toString());
             handleJSONArray(options, users, handler);
         }
+    }
+
+    /**
+     * When the userPrincipalName begins with a $ character, remove the slash (/) after /users and
+     * enclose the userPrincipalName in parentheses and single quotes.
+     * See https://docs.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http
+     *
+     * @param userPrincipalName
+     * @return
+     */
+    private String toGetURLByUserPrincipalName(String userPrincipalName) {
+        StringBuilder sbPath = new StringBuilder();
+        sbPath.append(USERS);
+        if (userPrincipalName.startsWith("$")) {
+            sbPath.append("('");
+            sbPath.append(userPrincipalName);
+            sbPath.append("')");
+            return sbPath.toString();
+        }
+        sbPath.append("/");
+        sbPath.append(userPrincipalName);
+        return sbPath.toString();
     }
 
     @Override
