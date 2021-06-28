@@ -453,6 +453,17 @@ public class GroupProcessing extends ObjectProcessing {
 
                 JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
                 handleJSONObject(options, group, handler);
+            } else if (equalsFilter.getAttribute() instanceof Name) {
+                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
+
+                Name name = (Name) ((EqualsFilter) query).getAttribute();
+                String nameValue = name.getNameValue();
+                if (nameValue == null) {
+                    invalidAttributeValue("Name", query);
+                }
+                final String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + nameValue + "'";
+                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
+                handleJSONArray(options, groups, handler);
             } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
