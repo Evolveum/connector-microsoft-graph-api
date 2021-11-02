@@ -59,7 +59,8 @@ public class LicenseProcessing extends ObjectProcessing {
             ATTR_SKUID,
             ATTR_SKUPAATNUMBER,
             ATTR_CAPABILITYSTATUS,
-            ATTR_CONSUMEDUNITS
+            ATTR_CONSUMEDUNITS,
+            ATTR_PREPAIDUNITS
     );
 
     public LicenseProcessing(GraphEndpoint graphEndpoint, SchemaTranslator schemaTranslator) {
