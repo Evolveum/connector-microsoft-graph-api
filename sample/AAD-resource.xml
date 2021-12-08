@@ -141,8 +141,8 @@
 			<cap:activation>
 				<cap:status>
 					<cap:attribute>ri:accountEnabled</cap:attribute>
-					<cap:enableValue>false</cap:enableValue>
-					<cap:disableValue>true</cap:disableValue>
+					<cap:enableValue>true</cap:enableValue>
+					<cap:disableValue>false</cap:disableValue>
 				</cap:status>
 			</cap:activation>
 			<cap:countObjects>

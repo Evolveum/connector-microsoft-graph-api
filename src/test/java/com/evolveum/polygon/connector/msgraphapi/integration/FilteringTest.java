@@ -2,6 +2,9 @@ package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
+import com.evolveum.polygon.connector.msgraphapi.UserProcessing;
+import com.evolveum.polygon.connector.msgraphapi.common.ObjectConstants;
+import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
@@ -12,12 +15,55 @@ import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
 import org.identityconnectors.framework.spi.SearchResultsHandler;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
-public class FilteringTest extends BasicConfigurationForTests {
+public class FilteringTest extends BasicConfigurationForTests implements ObjectConstants {
+
+
+    @Test(priority = 15)
+    public void findAccountEqualsUidWithLastLogin() {
+        MSGraphConnector msGraphConnector = new MSGraphConnector();
+
+        MSGraphConfiguration conf = getConfiguration();
+        msGraphConnector.init(conf);
+
+        Map<String, Object> operationOptions = new HashMap<>();
+        operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
+        operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
+                ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
+                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
+                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
+                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
+                ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
+                ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN
+        });
+        OperationOptions options = new OperationOptions(operationOptions);
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "RED"));
+        attributesAccount.add(AttributeBuilder.build("mail", "RED@example.com"));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "RED"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "RED@" + tenantId));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+
+        //Uid tstUsr = msGraphConnector.create(objectClassAccount, attributesAccount, options);
+        Uid tstUsr = new Uid("3144e12c-8ea3-468a-97ba-d9cab863d8f3");
+        AttributeFilter equalsFilterAccount;
+        equalsFilterAccount = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build(Uid.NAME, tstUsr.getUidValue()));
+        SearchResultsHandler handler = new TestSearchResultsHandler();
+
+        msGraphConnector.executeQuery(objectClassAccount, equalsFilterAccount, handler, options);
+
+    }
 
 
     @Test(priority = 20)

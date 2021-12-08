@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import com.google.gson.JsonArray;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpPatch;
@@ -54,6 +55,9 @@ public class UserProcessing extends ObjectProcessing {
 
     //optional
     private static final String ATTR_ABOUTME = "aboutMe"; // Need SPO license
+
+    //Sign in, auxiliary computed attribute representing the last sign in
+    private static final String ATTR_SIGN_IN = "lastSignIn";
 
     //ASSIGNEDLICENSES
     private static final String ATTR_ASSIGNEDLICENSES = "assignedLicenses";
@@ -229,6 +233,10 @@ public class UserProcessing extends ObjectProcessing {
         attrAboutMe.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrAboutMe.build());
 
+        AttributeInfoBuilder attrSignIn = new AttributeInfoBuilder(ATTR_SIGN_IN);
+        attrSignIn.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        userObjClassBuilder.addAttributeInfo(attrSignIn.build());
+
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
@@ -316,7 +324,8 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrGivenName.build());
 
         AttributeInfoBuilder attrHireDate = new AttributeInfoBuilder(ATTR_HIREDATE);
-        attrHireDate.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrHireDate.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrHireDate.build());
 
         //Read-only, not nullable
@@ -326,7 +335,8 @@ public class UserProcessing extends ObjectProcessing {
 
         //multivalued
         AttributeInfoBuilder attrInterests = new AttributeInfoBuilder(ATTR_INTERESTS);
-        attrInterests.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrInterests.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
 
@@ -401,7 +411,8 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrMobilePhone.build());
 
         AttributeInfoBuilder attrMySite = new AttributeInfoBuilder(ATTR_MYSITE);
-        attrMySite.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrMySite.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrMySite.build());
 
         AttributeInfoBuilder attrOfficeLocation = new AttributeInfoBuilder(ATTR_OFFICELOCATION);
@@ -431,7 +442,8 @@ public class UserProcessing extends ObjectProcessing {
 
         //multivalued
         AttributeInfoBuilder attrPastProjects = new AttributeInfoBuilder(ATTR_PASTPROJECTS);
-        attrPastProjects.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrPastProjects.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrPastProjects.build());
 
         AttributeInfoBuilder attrPostalCode = new AttributeInfoBuilder(ATTR_POSTALCODE);
@@ -443,7 +455,8 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrPreferredLanguage.build());
 
         AttributeInfoBuilder attrPreferredName = new AttributeInfoBuilder(ATTR_PREFERREDNAME);
-        attrPreferredName.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrPreferredName.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrPreferredName.build());
 
 
@@ -470,17 +483,20 @@ public class UserProcessing extends ObjectProcessing {
 
         //multivalued
         AttributeInfoBuilder attrResponsibilities = new AttributeInfoBuilder(ATTR_RESPONSIBILITIES);
-        attrResponsibilities.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrResponsibilities.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrResponsibilities.build());
 
         //multivalued
         AttributeInfoBuilder attrSchools = new AttributeInfoBuilder(ATTR_SCHOOLS);
-        attrSchools.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrSchools.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrSchools.build());
 
         //multivalued
         AttributeInfoBuilder attrSkills = new AttributeInfoBuilder(ATTR_SKILLS);
-        attrSkills.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);;
+        attrSkills.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        ;
         userObjClassBuilder.addAttributeInfo(attrSkills.build());
 
         //supports $filter
@@ -517,15 +533,15 @@ public class UserProcessing extends ObjectProcessing {
         List<Object> addLicenses = new ArrayList<>();
         // filter out the assignedLicense.skuId attribute, which must be handled separately
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
-            .filter(it -> {
-                if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
-                    if (it.getValue() != null)
-                        addLicenses.addAll(it.getValue());
-                    return false;
-                } else
-                    return true;
-            })
-            .collect(Collectors.toSet());
+                .filter(it -> {
+                    if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
+                        if (it.getValue() != null)
+                            addLicenses.addAll(it.getValue());
+                        return false;
+                    } else
+                        return true;
+                })
+                .collect(Collectors.toSet());
         delta.addValueToAdd(addLicenses);
         // read and fill-out the old values
         if (!create) {
@@ -553,7 +569,7 @@ public class UserProcessing extends ObjectProcessing {
         if (licenses == null)
             return new JSONArray();
 
-        Map<String,List<String>> disabledPlansMap = new HashMap<>();
+        Map<String, List<String>> disabledPlansMap = new HashMap<>();
         for (String licensePlans : getConfiguration().getDisabledPlans()) {
             String a[] = licensePlans.split(":", 2);
             if (a.length != 2)
@@ -567,7 +583,7 @@ public class UserProcessing extends ObjectProcessing {
         JSONArray json = new JSONArray();
         licenses.forEach(it -> {
             JSONObject jo = new JSONObject();
-            String skuId = (String)it;
+            String skuId = (String) it;
             jo.put(ATTR_SKUID, skuId);
             if (disabledPlansMap.containsKey(skuId))
                 jo.put(ATTR_DISABLEDPLANS, new JSONArray(disabledPlansMap.get(skuId)));
@@ -712,27 +728,27 @@ public class UserProcessing extends ObjectProcessing {
             List<Object> addValues = attrDelta.getValuesToAdd();
             List<Object> removeValues = attrDelta.getValuesToRemove();
 
-            switch(attrDelta.getName()) {
-            case ATTR_BUSINESSPHONES:
-                if (removeValues != null && !removeValues.isEmpty()) {
-                    for (Object removeValue : removeValues) {
-                        Set<Attribute> attributeReplace = new HashSet<>();
-                        attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), removeValue));
-                        updateUser(uid, attributeReplace);
+            switch (attrDelta.getName()) {
+                case ATTR_BUSINESSPHONES:
+                    if (removeValues != null && !removeValues.isEmpty()) {
+                        for (Object removeValue : removeValues) {
+                            Set<Attribute> attributeReplace = new HashSet<>();
+                            attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), removeValue));
+                            updateUser(uid, attributeReplace);
+                        }
                     }
-                }
-                if (addValues != null && !addValues.isEmpty()) {
-                    for (Object addValue : addValues) {
-                        LOG.info("addValue {0}", addValue);
-                        Set<Attribute> attributeReplace = new HashSet<>();
-                        attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), addValue));
-                        updateUser(uid, attributeReplace);
+                    if (addValues != null && !addValues.isEmpty()) {
+                        for (Object addValue : addValues) {
+                            LOG.info("addValue {0}", addValue);
+                            Set<Attribute> attributeReplace = new HashSet<>();
+                            attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), addValue));
+                            updateUser(uid, attributeReplace);
+                        }
                     }
-                }
-                break;
-            case ATTR_ASSIGNEDLICENSES__SKUID:
-                assignLicenses(uid, attrDelta);
-                break;
+                    break;
+                case ATTR_ASSIGNEDLICENSES__SKUID:
+                    assignLicenses(uid, attrDelta);
+                    break;
             }
         }
     }
@@ -784,6 +800,31 @@ public class UserProcessing extends ObjectProcessing {
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
+                if (shouldReturnSignInInfo(options)) {
+                    sbPath = new StringBuilder()
+                            .append("/auditLogs/signIns");
+                    StringBuilder signInSelector = new StringBuilder()
+                            .append("?&$filter=").append("userId").append(" eq ").append("'" + uid.getUidValue() + "'");
+
+                    LOG.ok("TEST about to execute the sing in query with path: {0} and filter {1}", sbPath.toString(), signInSelector.toString());
+                    JSONObject signInObject = endpoint.executeGetRequest(sbPath.toString(), signInSelector.toString(), options, false);
+                    if (signInObject != null && signInObject.has("value")) {
+                        JSONArray signIns = (JSONArray) signInObject.get("value");
+                        if (signIns != null && signIns.length() >= 1) {
+                            //First object in the array is the last sign in
+                            JSONObject lastSignIn = (JSONObject) signIns.get(0);
+
+                            if (lastSignIn != null && !lastSignIn.isNull("createdDateTime")) {
+                                String lastSignInTime = lastSignIn.getString("createdDateTime");
+                                user.put(ATTR_SIGN_IN, lastSignInTime);
+                            }
+                            LOG.ok("The last sign in: {0}", lastSignIn.toString());
+                        }
+
+                    }
+
+                }
+
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(options, user, handler);
 
@@ -802,7 +843,7 @@ public class UserProcessing extends ObjectProcessing {
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(options, user, handler);
 
-            } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME) ) {
+            } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof userPrincipalName");
 
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
@@ -840,6 +881,20 @@ public class UserProcessing extends ObjectProcessing {
             LOG.info("JSONObject users {0}", users.toString());
             handleJSONArray(options, users, handler);
         }
+    }
+
+    private boolean shouldReturnSignInInfo(OperationOptions options) {
+        for (String attrName : options.getAttributesToGet()) {
+            if (ATTR_SIGN_IN.equals(attrName)) {
+
+                return true;
+            } else {
+            }
+
+        }
+
+
+        return false;
     }
 
     /**
@@ -904,10 +959,10 @@ public class UserProcessing extends ObjectProcessing {
         final List<String> groups = getGraphEndpoint().executeGetRequest(
                 String.format("/users/%s/memberOf", uid), "$select=id", null, false
         ).getJSONArray("value").toList().stream()
-                .filter(o -> TYPE_GROUP.equals(((Map)o).get(TYPE)))
-                .map(o -> (String)((Map)o).get(ATTR_ID))
+                .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
+                .map(o -> (String) ((Map) o).get(ATTR_ID))
                 .collect(Collectors.toList());
-        user.put(ATTR_MEMBER_OF_GROUP, new JSONArray(groups)); 
+        user.put(ATTR_MEMBER_OF_GROUP, new JSONArray(groups));
         //user.put(ATTR_MEMBER_OF_GROUP, new JSONArray()); //Comment this line out after putting back in above
         return user;
     }
@@ -962,6 +1017,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_SURNAME, String.class, builder);
         getIfExists(user, ATTR_USAGELOCATION, String.class, builder);
         getIfExists(user, ATTR_USERTYPE, String.class, builder);
+        getIfExists(user, ATTR_SIGN_IN, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);

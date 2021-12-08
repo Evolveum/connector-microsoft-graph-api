@@ -30,6 +30,10 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private String inviteRedirectUrl;
     private String inviteMessage;
 
+    //throttling
+    private String throttlingRetryWait = "10";
+    private Integer throttlingRetryCount = 3;
+
     @ConfigurationProperty(order = 10, displayMessageKey = "ClientId", helpMessageKey = "The Application ID that the 'Application Registration Portal' (apps.dev.microsoft.com) assigned to your app.", required = true)
 
     public String getClientId() {
@@ -151,13 +155,32 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.inviteMessage = inviteMessage;
     }
 
+    @ConfigurationProperty(order = 100, displayMessageKey = "ThrottlingMaxReplyCount", helpMessageKey = "Max retry count in case of an request impacted by throttling. Default 3.")
 
+    public Integer getThrottlingRetryCount() {
+        return throttlingRetryCount;
+    }
+
+    public void setThrottlingRetryCount(Integer throttlingRetryCount) {
+        this.throttlingRetryCount = throttlingRetryCount;
+    }
+
+    @ConfigurationProperty(order = 110, displayMessageKey = "ThrottlingMaxWait", helpMessageKey = "Max time period in between requests impacted by throttling. Define as number of seconds. Default 10")
+
+    public String getThrottlingRetryWait() {
+
+        return throttlingRetryWait;
+    }
+
+    public void setThrottlingRetryWait(String throttlingRetryWait) {
+        this.throttlingRetryWait = throttlingRetryWait;
+    }
 
     @Override
     public void validate() {
         LOG.info("Processing trough configuration validation procedure.");
         if (StringUtil.isBlank(clientId)) {
-            throw new ConfigurationException("Client Id  cannot be empty.");
+            throw new ConfigurationException("Client Id cannot be empty.");
         }
 
         if ("".equals(clientSecret)) {
@@ -169,7 +192,8 @@ public class MSGraphConfiguration extends AbstractConfiguration
         }
 
         if (!StringUtil.isBlank(proxyHost)) {
-            if (StringUtil.isBlank(proxyPort)) throw new ConfigurationException("Proxy host is configured, but proxy port is not");
+            if (StringUtil.isBlank(proxyPort))
+                throw new ConfigurationException("Proxy host is configured, but proxy port is not");
             final Integer proxyPortNo;
             try {
                 proxyPortNo = Integer.parseInt(proxyPort);
@@ -186,8 +210,27 @@ public class MSGraphConfiguration extends AbstractConfiguration
             if (StringUtil.isBlank(inviteRedirectUrl))
                 throw new ConfigurationException("InviteRedirectUrl is mandatory when InviteGuests is enabled");
         } else {
-            if (StringUtil.isNotBlank(inviteRedirectUrl)) throw new ConfigurationException("InviteRedirectUrl is configured, but InviteGuests is disabled");
-            if (StringUtil.isNotBlank(inviteMessage)) throw new ConfigurationException("InviteMessage is configured, but InviteGuests is disabled");
+            if (StringUtil.isNotBlank(inviteRedirectUrl))
+                throw new ConfigurationException("InviteRedirectUrl is configured, but InviteGuests is disabled");
+            if (StringUtil.isNotBlank(inviteMessage))
+                throw new ConfigurationException("InviteMessage is configured, but InviteGuests is disabled");
+        }
+
+        try {
+            Float f = Float.parseFloat(throttlingRetryWait);
+
+            if (f < 0f) {
+
+                throw new ConfigurationException("The specified number for the maximum throttling request retry wait time has to be a non negative number!");
+            }
+        } catch (NumberFormatException e) {
+
+            throw new ConfigurationException("The specified number for the max throttling wait time is not a valid float!");
+        }
+
+        if (throttlingRetryCount < 0) {
+
+            throw new ConfigurationException("The specified number for the maximum throttling request retries has to be a non negative number!");
         }
 
         LOG.info("Configuration valid");

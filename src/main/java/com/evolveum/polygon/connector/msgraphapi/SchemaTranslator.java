@@ -1,5 +1,6 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
+import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.spi.operations.SearchOp;
@@ -11,6 +12,7 @@ public class SchemaTranslator {
 
     private final Schema rawConnIdSchema;
     private final Map<String, Map<String, AttributeInfo>> connIdSchema;
+    private static final Log LOG = Log.getLog(SchemaTranslator.class);
 
     public SchemaTranslator(GraphEndpoint graphEndpoint) {
         SchemaBuilder schemaBuilder = new SchemaBuilder(MSGraphConnector.class);
@@ -45,17 +47,25 @@ public class SchemaTranslator {
     }
 
     public String[] filter(String type, OperationOptions options, String... attrs) {
+/// TODO check invalid state in case operation options return no "get attributes to get"
         Set<String> returnedAttributes = getAttributesToGet(type, options);
-        Set<String> returnedContainerAttributes = returnedAttributes.stream()
-                .filter(attr -> attr.contains("."))
-                .map(attr -> attr.substring(0, attr.indexOf(".")))
-                .distinct()
-                .collect(Collectors.toSet());
+        Set<String> returnedContainerAttributes= new HashSet<>();
+        String[] filtered = null;
+        if (returnedAttributes != null) {
 
-        String[] filtered = Arrays.stream(attrs)
-                .filter(attr -> returnedAttributes.contains(attr)
-                        || returnedContainerAttributes.contains(attr))
-                .toArray(String[]::new);
+            returnedContainerAttributes = returnedAttributes.stream()
+                    .filter(attr -> attr.contains("."))
+                    .map(attr -> attr.substring(0, attr.indexOf(".")))
+                    .distinct()
+                    .collect(Collectors.toSet());
+
+        }
+            Set<String> finalReturnedContainerAttributes = returnedContainerAttributes;
+
+            filtered = Arrays.stream(attrs)
+                    .filter(attr -> returnedAttributes.contains(attr)
+                            || finalReturnedContainerAttributes.contains(attr))
+                    .toArray(String[]::new);
 
         return filtered;
     }
