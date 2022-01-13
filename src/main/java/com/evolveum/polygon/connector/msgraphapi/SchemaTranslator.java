@@ -48,25 +48,20 @@ public class SchemaTranslator {
 
     public String[] filter(String type, OperationOptions options, String... attrs) {
         Set<String> returnedAttributes = getAttributesToGet(type, options);
-        Set<String> returnedContainerAttributes= new HashSet<>();
-        String[] filtered = null;
-        if (returnedAttributes != null) {
 
-            returnedContainerAttributes = returnedAttributes.stream()
-                    .filter(attr -> attr.contains("."))
-                    .map(attr -> attr.substring(0, attr.indexOf(".")))
-                    .distinct()
-                    .collect(Collectors.toSet());
-
+        if (returnedAttributes.isEmpty()) {
+            return attrs;
         }
-            Set<String> finalReturnedContainerAttributes = returnedContainerAttributes;
 
-            filtered = Arrays.stream(attrs)
-                    .filter(attr -> returnedAttributes.contains(attr)
-                            || finalReturnedContainerAttributes.contains(attr))
-                    .toArray(String[]::new);
+        Set<String> returnedContainerAttributes = returnedAttributes.stream()
+                .filter(attr -> attr.contains("."))
+                .map(attr -> attr.substring(0, attr.indexOf(".")))
+                .collect(Collectors.toSet());
 
-        return filtered;
+        return Arrays.stream(attrs)
+                .filter(attr -> returnedAttributes.contains(attr)
+                        || returnedContainerAttributes.contains(attr))
+                .toArray(String[]::new);
     }
 
     public Set<String> getAttributesToGet(String type, OperationOptions options) {
@@ -74,15 +69,11 @@ public class SchemaTranslator {
             throw new ConnectorException("Invalid ObjectClass type: " + type);
         }
 
-        Set<String> attributesToGet = null;
+        Set<String> attributesToGet = new HashSet<>();
         if (Boolean.TRUE.equals(options.getReturnDefaultAttributes())) {
-            attributesToGet = new HashSet<>();
             attributesToGet.addAll(toReturnedByDefaultAttributesSet(connIdSchema.get(type)));
         }
         if (options.getAttributesToGet() != null) {
-            if (attributesToGet == null) {
-                attributesToGet = new HashSet<>();
-            }
             for (String a : options.getAttributesToGet()) {
                 attributesToGet.add(a);
             }
