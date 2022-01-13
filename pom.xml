@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright (c) 2010-2014 Evolveum
+  ~ Copyright (c) 2010-2022 Evolveum
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -76,6 +76,10 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<groups>unit</groups>
+					<excludes>
+						<exclude>**/UserPerformanceTest.java</exclude>
+						<exclude>**/GroupPerformanceTests.java</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 		</plugins>

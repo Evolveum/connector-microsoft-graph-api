@@ -7,39 +7,41 @@ import org.identityconnectors.framework.common.exceptions.AlreadyExistsException
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.exceptions.InvalidPasswordException;
 import org.identityconnectors.framework.common.objects.*;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
+import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 
 public class CreateActionTest extends BasicConfigurationForTests {
 
     @Test(expectedExceptions = UnsupportedOperationException.class)
     public void creteTestNotSupportedObjectClass() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
         OperationOptions options = new OperationOptions(new HashMap<>());
         Set<Attribute> attributesAccount = new HashSet<>();
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing1"));
         ObjectClass objectClassAccount = new ObjectClass("notExistingObjectClass");
 
-        try {
-            msGraphConnector.create(objectClassAccount, attributesAccount, options);
-        } finally {
-            msGraphConnector.dispose();
-        }
+        msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
     }
 
 
     @Test(expectedExceptions = InvalidAttributeValueException.class, priority = 6)
     public void creteTestWithNotFilledMandatoryAttributeForAccount() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<>());
 
@@ -47,47 +49,46 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("city", "Kosice"));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-        try {
-            msGraphConnector.create(objectClassAccount, attributesAccount, options);
-        } finally {
-            msGraphConnector.dispose();
-        }
+
+        msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
     }
 
     @Test(expectedExceptions = InvalidAttributeValueException.class, priority = 7)
     public void creteTestWithoutPasswordForAccount() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<>());
 
         Set<Attribute> attributesAccount = new HashSet<>();
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
-        attributesAccount.add(AttributeBuilder.build("displayName", "testing"));
-        attributesAccount.add(AttributeBuilder.build("mail", "testing@example.com"));
-        attributesAccount.add(AttributeBuilder.build("mailNickname", "testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("displayName", "testing_noPass"));
+        attributesAccount.add(AttributeBuilder.build("mail", "testing_noPass@example.com"));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "testing_noPass"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing_noPass@" + tenantId));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-        try {
-            msGraphConnector.create(objectClassAccount, attributesAccount, options);
-        } finally {
-            msGraphConnector.dispose();
-        }
+        msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
     }
 
 
     @Test(expectedExceptions = AlreadyExistsException.class, priority = 10)
-    public void creteTestUserWithExistingUserPrincipalName() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
+    public void creteTestUserWithExistingUserPrincipalName() throws Exception {
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
-        OperationOptions options = new OperationOptions(new HashMap<>());
+        Map<String, Object> operationOptions = new HashMap<>();
+        operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
+        operationOptions.put(OperationOptions.OP_PAGED_RESULTS_OFFSET, 1);
+        operationOptions.put(OperationOptions.OP_PAGE_SIZE, 10);
+        OperationOptions options = new OperationOptions(operationOptions);
+
+//        OperationOptions options = new OperationOptions(new HashMap<>());
 
         Set<Attribute> attributesAccount = new HashSet<>();
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
@@ -105,17 +106,15 @@ public class CreateActionTest extends BasicConfigurationForTests {
         try {
             msGraphConnector.create(objectClassAccount, attributesAccount, options);
         } finally {
-            msGraphConnector.delete(objectClassAccount, testUid, options);
-            msGraphConnector.dispose();
+            deleteWaitAndRetry(objectClassAccount, testUid, options);
         }
     }
 
     @Test(expectedExceptions = InvalidAttributeValueException.class, priority = 4)
     public void creteTestWithNotFilledMandatoryAttributeForGroup() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<>());
         Set<Attribute> attributesGroup = new HashSet<>();
@@ -124,19 +123,16 @@ public class CreateActionTest extends BasicConfigurationForTests {
 
         ObjectClass objectClassGroup = ObjectClass.GROUP;
 
-        try {
-            msGraphConnector.create(objectClassGroup, attributesGroup, options);
-        } finally {
-            msGraphConnector.dispose();
-        }
+
+        msGraphConnector.create(objectClassGroup, attributesGroup, options);
+
     }
 
     @Test(expectedExceptions = InvalidPasswordException.class, priority = 9)
     public void creteTestUserWithWrongCredentials() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<>());
 
@@ -151,13 +147,8 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
+        msGraphConnector.create(objectClassAccount, attributesAccount, options);
 
-        try {
-            msGraphConnector.create(objectClassAccount, attributesAccount, options);
-        } finally {
-
-            msGraphConnector.dispose();
-        }
     }
 
 }

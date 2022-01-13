@@ -5,6 +5,7 @@ import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -15,10 +16,10 @@ public class UpdateTest extends BasicConfigurationForTests {
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 14)
     public void updateTestGroupWithUnknownUid() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
+        msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<String, Object>());
 
@@ -27,19 +28,15 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         ObjectClass objectClassAccount = ObjectClass.GROUP;
 
-        try {
             msGraphConnector.update(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateGroup, options);
-        } finally {
-            msGraphConnector.dispose();
-        }
     }
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 13)
     public void updateTestUserWithUnknownUid() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
+         msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<String, Object>());
 
@@ -48,19 +45,16 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-        try {
             msGraphConnector.update(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateUser, options);
-        } finally {
-            msGraphConnector.dispose();
-        }
+
     }
 
     @Test(priority = 12)
-    public void updateTestUser() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
+    public void updateTestUser() throws Exception {
+        msGraphConnector = new MSGraphConnector();
 
-        MSGraphConfiguration conf = getConfiguration();
-        msGraphConnector.init(conf);
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
 
         OperationOptions options = new OperationOptions(new HashMap<>());
 
@@ -83,12 +77,12 @@ public class UpdateTest extends BasicConfigurationForTests {
         updateAccount.add(AttributeBuilder.build("surName", "Peter"));
         updateAccount.add(AttributeBuilder.build("givenName", "Jackie"));
 
-        try {
-            msGraphConnector.update(objectClassAccount, testUid, updateAccount, options);
-        } finally {
-            msGraphConnector.delete(objectClassAccount, testUid, options);
-            msGraphConnector.dispose();
-        }
+
+          Uid uid =  msGraphConnector.update(objectClassAccount, testUid, updateAccount, options);
+          deleteWaitAndRetry(objectClassAccount,testUid,options);
+          Assert.assertNotNull(uid);
+
+
     }
 
 

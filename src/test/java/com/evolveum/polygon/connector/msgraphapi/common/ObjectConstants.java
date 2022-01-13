@@ -96,4 +96,21 @@ public interface ObjectConstants {
 
     String ATTR_ICF_PASSWORD = "__PASSWORD__";
     String ATTR_ICF_ENABLED = "__ENABLE__";
+
+
+    // Group
+
+    String ATTR_ALLOWEXTERNALSENDERS = "allowExternalSenders";
+    String ATTR_AUTOSUBSCRIBENEWMEMBERS = "autoSubscribeNewMembers";
+    String ATTR_CLASSIFICATION = "classification";
+    String ATTR_CREATEDDATETIME = "createdDateTime";
+    String ATTR_DESCRIPTION = "description";
+    String ATTR_GROUPTYPES = "groupTypes";
+    String ATTR_ISSUBSCRIBEDBYMAIL = "isSubscribedByMail";
+    String ATTR_MAILENABLED = "mailEnabled";
+    String ATTR_SECURITYENABLED = "securityEnabled";
+    String ATTR_UNSEENCOUNT = "unseenCount";
+    String ATTR_VISIBILITY = "visibility";
+    String ATTR_MEMBERS = "members";
+    String ATTR_OWNERS = "owners";
 }

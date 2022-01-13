@@ -83,8 +83,10 @@ public class MSGraphConnector implements Connector,
 
         configuration = null;
 
-        graphEndpoint.close();
-        graphEndpoint = null;
+        if (graphEndpoint != null) {
+            graphEndpoint.close();
+            graphEndpoint = null;
+        }
     }
 
     @Override
@@ -158,120 +160,118 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public SyncToken getLatestSyncToken(ObjectClass objectClass) {
-       if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
-          String getPath = USERS + "/microsoft.graph.delta";
-          String customQuery = "$deltaToken=latest";
-          GraphEndpoint endpoint = getGraphEndpoint();
-          URIBuilder uriBuilder = endpoint.createURIBuilder().clearParameters();
-          uriBuilder.setCustomQuery(customQuery);
-          uriBuilder.setPath(getPath);
-          LOG.info("Get latest sync token uri is {0} ", uriBuilder.toString());
-          try {
-             URI uri = uriBuilder.build();
-             HttpGet syncTokenRequest = new HttpGet(uri);
-             JSONObject  syncTokenJson = endpoint.callRequest(syncTokenRequest, true);
-             LOG.info("SyncToken JSON content {0}", syncTokenJson);
-             String deltaLink = syncTokenJson.getString("@odata.deltaLink");
-             return new SyncToken(deltaLink);
-          } catch (URISyntaxException e) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("It was not possible create URI from UriBuider:").append(uriBuilder).append(";")
-                    .append(e.getLocalizedMessage());
-            throw new ConnectorException(sb.toString(), e);
-         }
+        if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
+            String getPath = USERS + "/microsoft.graph.delta";
+            String customQuery = "$deltaToken=latest";
+            GraphEndpoint endpoint = getGraphEndpoint();
+            URIBuilder uriBuilder = endpoint.createURIBuilder().clearParameters();
+            uriBuilder.setCustomQuery(customQuery);
+            uriBuilder.setPath(getPath);
+            LOG.info("Get latest sync token uri is {0} ", uriBuilder.toString());
+            try {
+                URI uri = uriBuilder.build();
+                HttpGet syncTokenRequest = new HttpGet(uri);
+                JSONObject syncTokenJson = endpoint.callRequest(syncTokenRequest, true);
+                LOG.info("SyncToken JSON content {0}", syncTokenJson);
+                String deltaLink = syncTokenJson.getString("@odata.deltaLink");
+                return new SyncToken(deltaLink);
+            } catch (URISyntaxException e) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("It was not possible create URI from UriBuider:").append(uriBuilder).append(";")
+                        .append(e.getLocalizedMessage());
+                throw new ConnectorException(sb.toString(), e);
+            }
 
-       } else {
+        } else {
             LOG.error("Attribute of type ObjectClass is not supported. Only Account objectclass is supported for getLatestSyncToken currently.");
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported. Only Account objectclass is supported for getLatestSyncToken currently.");
-       }
+        }
     }
 
     @Override
     public void sync(ObjectClass objectClass, SyncToken fromToken, SyncResultsHandler handler, OperationOptions oo) {
-       if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
-          if (fromToken == null) {
-               fromToken = getLatestSyncToken(objectClass);
-          }
-          LOG.info("starting sync");
-          LOG.info("ObjectClass.ACCOUNT_NAME is " + ObjectClass.ACCOUNT_NAME);
-          LOG.info("sync ObjectClass is " + objectClass.getObjectClassValue() + "--");
-          LOG.info("fromToken value is " + fromToken);
-          GraphEndpoint endpoint = getGraphEndpoint();
-          UserProcessing userProcessor = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
-          String nextDeltaLink = new String();
-          HttpRequestBase request = new HttpGet((String)fromToken.getValue());
+        if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
+            if (fromToken == null) {
+                fromToken = getLatestSyncToken(objectClass);
+            }
+            LOG.info("starting sync");
+            LOG.info("ObjectClass.ACCOUNT_NAME is " + ObjectClass.ACCOUNT_NAME);
+            LOG.info("sync ObjectClass is " + objectClass.getObjectClassValue() + "--");
+            LOG.info("fromToken value is " + fromToken);
+            GraphEndpoint endpoint = getGraphEndpoint();
+            UserProcessing userProcessor = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
+            String nextDeltaLink = new String();
+            HttpRequestBase request = new HttpGet((String) fromToken.getValue());
             //request.setRetryHandler(new StandardHttpRequestRetryHandler(5, true));
-          JSONObject firstCall = endpoint.callRequest(request, true);
-          JSONArray value = new JSONArray();
-          String nextLink = new String();
-          //JSONObject values = new JSONObject();
-          boolean morePages = false;
-          if (firstCall.has("@odata.nextLink") && firstCall.getString("@odata.nextLink") != null && !firstCall.getString("@odata.nextLink").isEmpty() ) {
-             morePages = true;
-             nextLink = firstCall.getString("@odata.nextLink");
-             LOG.info("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
-          }
-          else {
-             morePages = false;
-             LOG.info("No nextLink defined, final page was firstCall");
-             nextDeltaLink = firstCall.getString("@odata.deltaLink");
-          }
-          if ( firstCall.has("value") && firstCall.get("value") != null  ) {
-             //value.addAll(firstCall.getJSONArray("value"));
-             for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
-                value.put(firstCall.getJSONArray("value").get(i));
-             }
-             LOG.info("firstCall: {0} ", firstCall);
-          } else {
-             LOG.info("firstCall contained no value object or the object was null");
-          }
-          while (morePages == true) {
-             JSONObject nextLinkJson = new JSONObject();
-             HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
-             LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
-             nextLinkJson = endpoint.callRequest(nextLinkUriRequest, true);
-             if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null && !nextLinkJson.getString("@odata.nextLink").isEmpty() ) {
+            JSONObject firstCall = endpoint.callRequest(request, true);
+            JSONArray value = new JSONArray();
+            String nextLink = new String();
+            //JSONObject values = new JSONObject();
+            boolean morePages = false;
+            if (firstCall.has("@odata.nextLink") && firstCall.getString("@odata.nextLink") != null && !firstCall.getString("@odata.nextLink").isEmpty()) {
                 morePages = true;
-                nextLink = nextLinkJson.getString("@odata.nextLink");
-                LOG.info("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
-             }
-             else {
+                nextLink = firstCall.getString("@odata.nextLink");
+                LOG.info("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
+            } else {
                 morePages = false;
-                LOG.info("No nextLink defined, final page");
-                nextDeltaLink = nextLinkJson.getString("@odata.deltaLink");
-             }
-             if ( nextLinkJson.has("value") && nextLinkJson.get("value") != null  ) {
-                //value.addAll(nextLinkJson.getJSONArray("value"));
-                for (int i = 0; i < nextLinkJson.getJSONArray("value").length(); i++) {
-                   value.put(nextLinkJson.getJSONArray("value").get(i));
+                LOG.info("No nextLink defined, final page was firstCall");
+                nextDeltaLink = firstCall.getString("@odata.deltaLink");
+            }
+            if (firstCall.has("value") && firstCall.get("value") != null) {
+                //value.addAll(firstCall.getJSONArray("value"));
+                for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
+                    value.put(firstCall.getJSONArray("value").get(i));
                 }
-                LOG.info("nextLinkJson: {0} ", nextLinkJson);
-             } else {
-                LOG.info("nextLinkJson contained no value object or the object was null");
-             }
-          }
-          //values.put("value",value);
-          SyncToken nextLinkSyncToken = new SyncToken(nextDeltaLink);
-          int length = value.length();
-          LOG.info("User JSONArray length for SyncOp: {0}", length);
-          for (int i = 0; i < length; i++) {
-             JSONObject user = value.getJSONObject(i);
-             LOG.info("Processing user json object, {0}", user);
-             ConnectorObjectBuilder userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
-             SyncDeltaBuilder builder = new SyncDeltaBuilder();
-             builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
-             builder.setObjectClass(ObjectClass.ACCOUNT);
-             builder.setToken(nextLinkSyncToken);
-             ConnectorObject connectorObject = userConnectorObjectBuilder.build();
-             builder.setObject(connectorObject);
-             handler.handle(builder.build());
-          }
+                LOG.info("firstCall: {0} ", firstCall);
+            } else {
+                LOG.info("firstCall contained no value object or the object was null");
+            }
+            while (morePages == true) {
+                JSONObject nextLinkJson = new JSONObject();
+                HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
+                LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
+                nextLinkJson = endpoint.callRequest(nextLinkUriRequest, true);
+                if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null && !nextLinkJson.getString("@odata.nextLink").isEmpty()) {
+                    morePages = true;
+                    nextLink = nextLinkJson.getString("@odata.nextLink");
+                    LOG.info("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
+                } else {
+                    morePages = false;
+                    LOG.info("No nextLink defined, final page");
+                    nextDeltaLink = nextLinkJson.getString("@odata.deltaLink");
+                }
+                if (nextLinkJson.has("value") && nextLinkJson.get("value") != null) {
+                    //value.addAll(nextLinkJson.getJSONArray("value"));
+                    for (int i = 0; i < nextLinkJson.getJSONArray("value").length(); i++) {
+                        value.put(nextLinkJson.getJSONArray("value").get(i));
+                    }
+                    LOG.info("nextLinkJson: {0} ", nextLinkJson);
+                } else {
+                    LOG.info("nextLinkJson contained no value object or the object was null");
+                }
+            }
+            //values.put("value",value);
+            SyncToken nextLinkSyncToken = new SyncToken(nextDeltaLink);
+            int length = value.length();
+            LOG.info("User JSONArray length for SyncOp: {0}", length);
+            for (int i = 0; i < length; i++) {
+                JSONObject user = value.getJSONObject(i);
+                LOG.info("Processing user json object, {0}", user);
+                ConnectorObjectBuilder userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+                SyncDeltaBuilder builder = new SyncDeltaBuilder();
+                builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
+                builder.setObjectClass(ObjectClass.ACCOUNT);
+                builder.setToken(nextLinkSyncToken);
+                ConnectorObject connectorObject = userConnectorObjectBuilder.build();
+                builder.setObject(connectorObject);
+                handler.handle(builder.build());
+            }
 
 
-       } else {
+        } else {
             LOG.error("Attribute of type ObjectClass is not supported. Only Account objectclass is supported for SyncOp currently.");
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported. Only Account objectclass is supported for SyncOp currently.");
-       }
+        }
 
     }
 

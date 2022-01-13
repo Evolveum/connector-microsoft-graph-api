@@ -47,7 +47,6 @@ public class SchemaTranslator {
     }
 
     public String[] filter(String type, OperationOptions options, String... attrs) {
-/// TODO check invalid state in case operation options return no "get attributes to get"
         Set<String> returnedAttributes = getAttributesToGet(type, options);
         Set<String> returnedContainerAttributes= new HashSet<>();
         String[] filtered = null;

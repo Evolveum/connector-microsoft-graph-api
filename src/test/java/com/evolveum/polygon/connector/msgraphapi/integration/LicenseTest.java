@@ -6,10 +6,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
-import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeDelta;
@@ -20,46 +20,49 @@ import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.Uid;
+import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
 import org.identityconnectors.test.common.ToListResultsHandler;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.evolveum.polygon.connector.msgraphapi.LicenseProcessing;
-import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 
 
 public class LicenseTest extends BasicConfigurationForTests {
     private static final Log LOG = Log.getLog(LicenseTest.class);
 
-    MSGraphConnector conn;
     final String nickname = "testing";
     final String ATTR_LICENSES = "assignedLicenses.skuId";
     Set<Uid> users = new HashSet<>();
 
     @BeforeClass
     public void setUp() {
-        LOG.info("==== setUp ==== ");
-        conn = new MSGraphConnector();
-        MSGraphConfiguration conf = getConfiguration();
-        conn.init(conf);
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
     }
 
     @AfterClass
     public void tearDown() {
         users.forEach(uid -> {
             try {
-                deleteUser(uid);
-            } catch (UnknownUidException e) {}
+                // deleteUser(uid);
+                deleteWaitAndRetry(ObjectClass.ACCOUNT, uid, getDefaultAccountOperationOptions());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
-        conn.dispose();
+        msGraphConnector.dispose();
     }
 
     Uid createUser(Collection<Attribute> initialAttributes) {
@@ -67,7 +70,7 @@ public class LicenseTest extends BasicConfigurationForTests {
         Set<Attribute> attributesAccount = new HashSet<>();
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "License Testing"));
-        attributesAccount.add(AttributeBuilder.build("mail", nickname + "@example.com"));
+        attributesAccount.add(AttributeBuilder.build("mail", nickname + "@" + tenantId));
         attributesAccount.add(AttributeBuilder.build("mailNickname", nickname));
         attributesAccount.add(AttributeBuilder.build("userPrincipalName", nickname + "@" + tenantId));
         attributesAccount.add(AttributeBuilder.build("usageLocation", "US")); // required for licenses
@@ -75,7 +78,7 @@ public class LicenseTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", secret));
         if (initialAttributes != null)
             attributesAccount.addAll(initialAttributes);
-        Uid uid = conn.create(ObjectClass.ACCOUNT, attributesAccount, null);
+        Uid uid = msGraphConnector.create(ObjectClass.ACCOUNT, attributesAccount, null);
         if (uid != null)
             users.add(uid);
         return uid;
@@ -83,27 +86,62 @@ public class LicenseTest extends BasicConfigurationForTests {
 
     void deleteUser(Uid uid) {
         LOG.info("deleting user {0}", uid.getUidValue());
-        conn.delete(ObjectClass.ACCOUNT, uid, null);
+        try {
+            deleteWaitAndRetry(ObjectClass.ACCOUNT, uid, getDefaultAccountOperationOptions());
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
         users.remove(uid);
     }
 
     ConnectorObject getUser(Uid uid) {
-        ToListResultsHandler handler = new ToListResultsHandler();
-        Map<String,Object> options = new HashMap<>();
-        conn.executeQuery(ObjectClass.ACCOUNT, FilterBuilder.equalTo(uid), handler, new OperationOptions(options));
-        assertNotNull(handler.getObjects(), "result objects");
-        assertEquals(handler.getObjects().size(), 1, "result objects size");
-        return handler.getObjects().get(0);
+        TestSearchResultsHandler handler = new TestSearchResultsHandler();
+        try {
+            queryWaitAndRetry(ObjectClass.ACCOUNT, (AttributeFilter) FilterBuilder.equalTo(uid), handler, getDefaultAccountOperationOptions(), uid);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        for(ConnectorObject o :handler.getResult()){
+            System.out.println("Object uuid: "+ o.getUid());
+
+        }
+        assertNotNull(handler.getResult(), "result objects");
+        assertEquals(handler.getResult().size(), 1, "result objects size");
+        return handler.getResult().get(0);
     }
 
     void check(ConnectorObject co, String skuId, boolean has) {
         Attribute attr = co.getAttributeByName(ATTR_LICENSES);
-        boolean found;
-        if (attr == null)
-            found = false;
-        else
-            found = attr.getValue().stream().anyMatch(it -> skuId.equals(it.toString()));
-        LOG.info("check(co, {0}, {1}) => attr {2}, found {3}", skuId, has, attr, found);
+        boolean found = !has;
+
+        int iteration = 0;
+        while (iteration < _REPEAT_COUNT + 5 && ((has && !found) || (!has && found))) {
+            attr = co.getAttributeByName(ATTR_LICENSES);
+            if (attr == null) {
+                found = false;
+                break;
+            } else {
+
+                for (Object s : attr.getValue().toArray()) {
+                }
+
+                found = attr.getValue().stream().anyMatch(it -> skuId.equals(it.toString()));
+                LOG.info("check(co, {0}, {1}) => attr {2}, found {3}", skuId, has, attr, found);
+            }
+            if ((has && !found) || (!has && found)) {
+
+                try {
+                    Thread.sleep(_REPEAT_INTERVAL);
+                    co = getUser(co.getUid());
+
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            iteration++;
+        }
+
         if (has)
             assertTrue(found, "License " + skuId + " should be there");
         else
@@ -115,8 +153,8 @@ public class LicenseTest extends BasicConfigurationForTests {
         LOG.info("==== listAllTest ==== ");
 
         ToListResultsHandler handler = new ToListResultsHandler();
-        Map<String,Object> options = new HashMap<>();
-        conn.executeQuery(LicenseProcessing.OBJECT_CLASS, null, handler, new OperationOptions(options));
+        Map<String, Object> options = new HashMap<>();
+        msGraphConnector.executeQuery(LicenseProcessing.OBJECT_CLASS, null, handler, new OperationOptions(options));
 
         Set<String> remains = CollectionUtil.newSet(licenses);
         if (handler.getObjects() != null) {
@@ -136,7 +174,7 @@ public class LicenseTest extends BasicConfigurationForTests {
     }
 
     @Test
-    public void addRemoveLicenseTest() {
+    public void addRemoveLicenseTest() throws Exception {
         LOG.info("==== addRemoveLicenseTest ==== ");
         if (licenses.isEmpty())
             throw new SkipException("License skuIds not specified, skipping");
@@ -145,6 +183,7 @@ public class LicenseTest extends BasicConfigurationForTests {
         Set<AttributeDelta> changes;
 
         Uid uid = createUser(null);
+        users.add(uid);
         Set<AttributeDelta> deltas = new HashSet<>();
         //String skuId = licenses.stream().findFirst().get();
         OperationOptions options = new OperationOptions(new HashMap<>());
@@ -152,7 +191,7 @@ public class LicenseTest extends BasicConfigurationForTests {
         LOG.info("==== addRemoveLicenseTest (add) ==== ");
         deltas.clear();
         deltas.add(AttributeDeltaBuilder.build("assignedLicenses.skuId", licenses, null));
-        changes = conn.updateDelta(ObjectClass.ACCOUNT, uid, deltas, options);
+        changes = msGraphConnector.updateDelta(ObjectClass.ACCOUNT, uid, deltas, options);
         assertTrue(changes == null || changes.isEmpty(), "no side changes");
         co = getUser(uid);
         for (String skuId : licenses)
@@ -161,7 +200,7 @@ public class LicenseTest extends BasicConfigurationForTests {
         LOG.info("==== addRemoveLicenseTest (remove) ==== ");
         deltas.clear();
         deltas.add(AttributeDeltaBuilder.build("assignedLicenses.skuId", null, licenses));
-        changes = conn.updateDelta(ObjectClass.ACCOUNT, uid, deltas, options);
+        changes = msGraphConnector.updateDelta(ObjectClass.ACCOUNT, uid, deltas, options);
         assertTrue(changes == null || changes.isEmpty(), "no side changes");
         co = getUser(uid);
         for (String skuId : licenses)
@@ -171,7 +210,7 @@ public class LicenseTest extends BasicConfigurationForTests {
     }
 
     @Test
-    public void createWithLicenseTest() {
+    public void createWithLicenseTest() throws Exception {
         LOG.info("==== createWithLicenseTest ==== ");
         if (licenses.isEmpty())
             throw new SkipException("Licenses not specified, skipping");
@@ -188,7 +227,7 @@ public class LicenseTest extends BasicConfigurationForTests {
         for (String skuId : licenses)
             check(co, skuId, true);
 
-      deleteUser(uid);
+        deleteUser(uid);
     }
 
     @Test
@@ -209,14 +248,14 @@ public class LicenseTest extends BasicConfigurationForTests {
 
         Set<Attribute> attributes = new HashSet<>();
         attributes.add(AttributeBuilder.build(ATTR_LICENSES, licenses));
-        conn.update(ObjectClass.ACCOUNT, uid, attributes, options);
+        msGraphConnector.update(ObjectClass.ACCOUNT, uid, attributes, options);
         co = getUser(uid);
         for (String skuId : licenses)
             check(co, skuId, true);
 
         attributes.clear();
         attributes.add(AttributeBuilder.build(ATTR_LICENSES, licenses2));
-        conn.update(ObjectClass.ACCOUNT, uid, attributes, options);
+        msGraphConnector.update(ObjectClass.ACCOUNT, uid, attributes, options);
         co = getUser(uid);
         Set<String> removedLicenses = CollectionUtil.newSet(licenses);
         removedLicenses.removeAll(licenses2);
@@ -226,5 +265,6 @@ public class LicenseTest extends BasicConfigurationForTests {
             check(co, skuId, true);
 
         deleteUser(uid);
+
     }
 }
