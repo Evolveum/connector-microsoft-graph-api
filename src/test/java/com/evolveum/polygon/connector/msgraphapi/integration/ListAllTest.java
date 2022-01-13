@@ -38,30 +38,10 @@ public class ListAllTest extends BasicConfigurationForTests {
 
         ArrayList<ConnectorObject> resultsGroup = new ArrayList<>();
         TestSearchResultsHandler handlerGroup = new TestSearchResultsHandler();
-//        SearchResultsHandler handlerGroup = new SearchResultsHandler() {
-//
-//            @Override
-//            public boolean handle(ConnectorObject connectorObject) {
-//                resultsGroup.add(connectorObject);
-//                return true;
-//            }
-//
-//            @Override
-//            public void handleResult(SearchResult result) {
-//            }
-//        };
+
 
         msGraphConnector.executeQuery(objectClassGroup, null, handlerGroup, options);
 
-//        try {
-//            if (!resultsGroup.isEmpty()) {
-//                throw new InvalidAttributeValueException("Searched page is not empty.");
-//            }
-//        } finally {
-//            msGraphConnector.delete(objectClassGroup, groupBlue, options);
-//            msGraphConnector.dispose();
-//        }
-        // could be a part of the after method
         resultsGroup = handlerGroup.getResult();
         deleteWaitAndRetry(ObjectClass.GROUP, groupBlue, options);
         Assert.assertTrue(!resultsGroup.isEmpty());
