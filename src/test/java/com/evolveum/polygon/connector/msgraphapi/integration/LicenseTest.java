@@ -41,7 +41,7 @@ import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 public class LicenseTest extends BasicConfigurationForTests {
     private static final Log LOG = Log.getLog(LicenseTest.class);
 
-    final String nickname = "testing";
+    final String nickname = "ltesting";
     final String ATTR_LICENSES = "assignedLicenses.skuId";
     Set<Uid> users = new HashSet<>();
 

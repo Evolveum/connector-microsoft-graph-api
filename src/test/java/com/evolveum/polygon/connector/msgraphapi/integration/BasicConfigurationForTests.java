@@ -20,7 +20,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
 
     protected static int _WAIT_INTERVAL = 1;
     protected static int _REPEAT_COUNT = 5;
-    protected static long _REPEAT_INTERVAL = 5000;
+    protected static long _REPEAT_INTERVAL = 6500;
 
     protected MSGraphConnector msGraphConnector;
     protected MSGraphConfiguration msGraphConfiguration;
