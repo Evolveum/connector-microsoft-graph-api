@@ -15,103 +15,102 @@
   ~ limitations under the License.
   -->
 <project
-		xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<artifactId>connector-parent</artifactId>
-		<groupId>com.evolveum.polygon</groupId>
-		<version>1.4.3.47</version>
-		<relativePath></relativePath>
-	</parent>
+    <parent>
+        <artifactId>connector-parent</artifactId>
+        <groupId>com.evolveum.polygon</groupId>
+        <version>1.4.3.47</version>
+        <relativePath></relativePath>
+    </parent>
 
-	<groupId>com.evolveum.polygon</groupId>
-	<artifactId>connector-msgraph</artifactId>
-	<version>1.0.0.1</version>
-	<packaging>jar</packaging>
+    <groupId>com.evolveum.polygon</groupId>
+    <artifactId>connector-msgraph</artifactId>
+    <version>1.1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
-	<name>connector-microsoft-graph-api</name>
+    <name>connector-microsoft-graph-api</name>
 
-	<properties>
-		<connectorPackage>com.evolveum.polygon</connectorPackage>
-		<connectorClass>MSGraphConnectorConnector</connectorClass>
-		<!--  <slf4jVersion>1.6.1</slf4jVersion>-->
-	</properties>
+    <properties>
+        <connectorPackage>com.evolveum.polygon</connectorPackage>
+        <connectorClass>MSGraphConnectorConnector</connectorClass>
+        <!--  <slf4jVersion>1.6.1</slf4jVersion>-->
+    </properties>
 
-	<repositories>
-		<repository>
-			<id>evolveum-nexus-releases</id>
-			<name>Internal Releases</name>
-			<url>http://nexus.evolveum.com/nexus/content/repositories/releases/</url>
-		</repository>
-		<repository>
-			<id>evolveum-nexus-snapshots</id>
-			<name>Internal Releases</name>
-			<url>http://nexus.evolveum.com/nexus/content/repositories/snapshots/</url>
-		</repository>
-	</repositories>
+    <repositories>
+        <repository>
+            <id>evolveum-nexus-releases</id>
+            <name>Internal Releases</name>
+            <url>http://nexus.evolveum.com/nexus/content/repositories/releases/</url>
+        </repository>
+        <repository>
+            <id>evolveum-nexus-snapshots</id>
+            <name>Internal Releases</name>
+            <url>http://nexus.evolveum.com/nexus/content/repositories/snapshots/</url>
+        </repository>
+    </repositories>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-assembly-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-resources-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<groups>unit</groups>
-					<excludes>
-						<exclude>**/UserPerformanceTest.java</exclude>
-						<exclude>**/GroupPerformanceTests.java</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
-	<dependencies>
-		<dependency>
-			<groupId>com.microsoft.azure</groupId>
-			<artifactId>adal4j</artifactId>
-			<version>1.6.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-			<version>4.5.13</version>
-		</dependency>
-		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20180130</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.6.4</version>
-		</dependency>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <groups>unit</groups>
+                    <excludes>
+                        <exclude>**/UserPerformanceTest.java</exclude>
+                        <exclude>**/GroupPerformanceTests.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+        <dependency>
+            <groupId>com.microsoft.azure</groupId>
+            <artifactId>adal4j</artifactId>
+            <version>1.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20180130</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.6.4</version>
+        </dependency>
 
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>2.7</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
-
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.7</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
