@@ -884,7 +884,19 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     private boolean shouldReturnSignInInfo(OperationOptions options) {
-        for (String attrName : options.getAttributesToGet()) {
+        if (options == null) {
+
+            return false;
+        }
+
+        String[] attrNameArray = options.getAttributesToGet();
+
+        if (attrNameArray == null || attrNameArray.length == 0) {
+
+            return false;
+        }
+
+        for (String attrName : attrNameArray) {
             if (ATTR_SIGN_IN.equals(attrName)) {
 
                 return true;

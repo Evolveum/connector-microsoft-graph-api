@@ -303,10 +303,10 @@ public class GraphEndpoint {
             throw new AlreadyExistsException(message);
         }
         if (statusCode == 400 && message.contains("The specified password does not comply with password complexity requirements.")) {
-            throw new InvalidPasswordException();
+            throw new InvalidPasswordException(message);
         }
         if (statusCode == 400 && message.contains("Invalid object identifier")) {
-            throw new UnknownUidException();
+            throw new UnknownUidException(message);
         }
         if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
             throw new InvalidAttributeValueException(message);
