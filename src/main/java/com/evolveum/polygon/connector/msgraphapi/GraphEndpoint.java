@@ -1,9 +1,11 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import com.microsoft.aad.adal4j.AsymmetricKeyCredential;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.*;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.ServiceUnavailableRetryStrategy;
@@ -24,12 +26,23 @@ import org.identityconnectors.framework.common.objects.Uid;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -76,28 +89,40 @@ public class GraphEndpoint {
     private void authenticate() {
         AuthenticationResult result = null;
         ExecutorService service = null;
-        GuardedString clientSecret = configuration.getClientSecret();
-        GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
-        clientSecret.access(accessorSecret);
         LOG.info("authenticate");
 
         try {
             service = Executors.newFixedThreadPool(1);
-            ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
             AuthenticationContext context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
                     + "/oauth2/authorize", false, service);
             if (configuration.hasProxy()) {
                 LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
                 context.setProxy(createProxy());
             }
-            Future<AuthenticationResult> future = context.acquireToken(
-                    RESOURCE,
-                    credential,
-                    null);
+            Future<AuthenticationResult> future;
+            if (configuration.isCertificateBasedAuthentication()) {
+                X509Certificate certificate = getCertificate(configuration.getCertificatePath());
+
+                PrivateKey privateKey;
+                if (configuration.getPrivateKeyPath().toLowerCase().endsWith(".der")) {
+                    privateKey = getPrivateKey(configuration.getPrivateKeyPath());
+                } else {
+                    privateKey = getPrivateKeyFromPem(configuration.getPrivateKeyPath());
+                }
+
+                AsymmetricKeyCredential asymmetricKeyCredential = AsymmetricKeyCredential.create(configuration.getClientId(), privateKey, certificate);
+                future = context.acquireToken(RESOURCE, asymmetricKeyCredential, null);
+            } else {
+                GuardedString clientSecret = configuration.getClientSecret();
+                GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
+                clientSecret.access(accessorSecret);
+                ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
+                future = context.acquireToken(RESOURCE, credential, null);
+            }
             result = future.get();
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (InterruptedException | ExecutionException | GeneralSecurityException e) {
             throw new ConnectionFailedException(e);
-        } catch (MalformedURLException e) {
+        } catch (IOException e) {
             LOG.error(e.toString());
         } finally {
             service.shutdown();
@@ -108,6 +133,44 @@ public class GraphEndpoint {
         }
 
         this.authenticateResult = result;
+    }
+
+    private static X509Certificate getCertificate(String certificationPath) throws IOException, CertificateException {
+        InputStream input = new FileInputStream(certificationPath);
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate certificate = (X509Certificate) cf.generateCertificate(input);
+
+        return certificate;
+    }
+
+    private static RSAPrivateKey getPrivateKey(String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        File file = new File(privateKeyPath);
+        FileInputStream fis = new FileInputStream(file);
+        DataInputStream dis = new DataInputStream(fis);
+
+        byte[] keyBytes = new byte[(int) file.length()];
+        dis.readFully(keyBytes);
+        dis.close();
+
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        RSAPrivateKey privateKey = (RSAPrivateKey) keyFactory.generatePrivate(spec);
+
+        return privateKey;
+    }
+
+    public RSAPrivateKey getPrivateKeyFromPem(String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        File file = new File(privateKeyPath);
+        String key = new String(Files.readAllBytes(file.toPath()), Charset.defaultCharset());
+        String privateKeyPEM = key
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replaceAll(System.lineSeparator(), "")
+                .replace("-----END PRIVATE KEY----- ", "");
+
+        byte[] encoded = Base64.decodeBase64(privateKeyPEM);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+        return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
     }
 
     private Proxy createProxy() {

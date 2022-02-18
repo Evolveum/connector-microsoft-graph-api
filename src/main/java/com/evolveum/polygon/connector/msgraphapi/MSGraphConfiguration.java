@@ -34,6 +34,11 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private String throttlingRetryWait = "10";
     private Integer throttlingRetryCount = 3;
 
+    //cert auth
+    private boolean certificateBasedAuthentication;
+    private String certificatePath;
+    private String privateKeyPath;
+
     @ConfigurationProperty(order = 10, displayMessageKey = "ClientId", helpMessageKey = "The Application ID that the 'Application Registration Portal' (apps.dev.microsoft.com) assigned to your app.", required = true)
 
     public String getClientId() {
@@ -175,6 +180,24 @@ public class MSGraphConfiguration extends AbstractConfiguration
     public void setThrottlingRetryWait(String throttlingRetryWait) {
         this.throttlingRetryWait = throttlingRetryWait;
     }
+
+    @ConfigurationProperty(order = 120, displayMessageKey = "CertificateBasedAuthentication", helpMessageKey = "If set to true connector uses certificate-based authentication.")
+
+    public boolean isCertificateBasedAuthentication() { return certificateBasedAuthentication; }
+
+    public void setCertificateBasedAuthentication(boolean certificateBasedAuthentication) { this.certificateBasedAuthentication = certificateBasedAuthentication; }
+
+    @ConfigurationProperty(order = 130, displayMessageKey = "CertificatePath", helpMessageKey = "Path to public key (.crt format).")
+
+    public String getCertificatePath() { return certificatePath; }
+
+    public void setCertificatePath(String certificatePath) { this.certificatePath = certificatePath; }
+
+    @ConfigurationProperty(order = 140, displayMessageKey = "PrivateKeyPath", helpMessageKey = "Path to private key (.der or .pem format).")
+
+    public String getPrivateKeyPath() { return privateKeyPath; }
+
+    public void setPrivateKeyPath(String privateKeyPath) { this.privateKeyPath = privateKeyPath; }
 
     @Override
     public void validate() {
