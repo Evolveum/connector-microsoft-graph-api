@@ -23,7 +23,7 @@ mvn clean install -Dmaven.test.skip=true
  
 ##Config
 
-* you must import certificate to your keystore. Download current (Baltimore CyberTrust Root) certificate in .der format and after that you must import it to midPoint keystore.jceks:
+* Import of SSL certificates is needed. Download current DigiCert Global Root G2 and DigiCert Global Root CA certificate in .der format and after that you must import it to midPoint keystore.jceks:
 ```
 keytool -keystore keystore.jceks -storetype jceks -storepass changeit -import -alias nlight -trustcacerts -file {your certificate}.der
 ```

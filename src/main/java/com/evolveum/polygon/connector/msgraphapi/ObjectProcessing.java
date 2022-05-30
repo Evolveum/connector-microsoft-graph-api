@@ -11,7 +11,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,10 +30,10 @@ abstract class ObjectProcessing {
     protected static final String STARTSWITH = "startswith";
 
     private ICFPostMapper postMapper;
-    private MSGraphConfiguration configuration;
+    private GraphEndpoint graphEndpoint;
 
-    protected ObjectProcessing(MSGraphConfiguration configuration, ICFPostMapper postMapper) {
-        this.configuration = configuration;
+    protected ObjectProcessing(GraphEndpoint graphEndpoint, ICFPostMapper postMapper) {
+        this.graphEndpoint = graphEndpoint;
         this.postMapper = postMapper;
     }
 
@@ -42,8 +41,16 @@ abstract class ObjectProcessing {
 
     protected static final Log LOG = Log.getLog(MSGraphConnector.class);
 
+    public GraphEndpoint getGraphEndpoint() {
+        return graphEndpoint;
+    }
+
+    public SchemaTranslator getSchemaTranslator() {
+        return graphEndpoint.getSchemaTranslator();
+    }
+
     public MSGraphConfiguration getConfiguration() {
-        return configuration;
+        return graphEndpoint.getConfiguration();
     }
 
     protected void getIfExists(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {
@@ -87,6 +94,47 @@ abstract class ObjectProcessing {
                     sb.append("Unsupported value: ").append(valueObject).append(" for attribute name:").append(attrName)
                             .append(" from: ").append(object);
                     throw new InvalidAttributeValueException(sb.toString());
+                }
+            }
+        }
+    }
+
+    private Object getValueFromItem(JSONObject object, String attrName, Class<?> type) {
+        if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
+            if (type.equals(String.class))
+                return String.valueOf(object.get(attrName));
+            else
+                return object.get(attrName);
+        } else {
+            return null;
+        }
+    }
+
+    protected void getFromItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null) {
+                Object subValue = getValueFromItem((JSONObject)valueObject, subAttrName, type);
+                builder.addAttribute(attrName + "." + subAttrName, subValue);
+            }
+        }
+    }
+
+    protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONArray) {
+                    JSONArray objectArray = (JSONArray)valueObject;
+                    List<Object> values = new ArrayList<>();
+                    objectArray.forEach(it -> {
+                        if (it instanceof JSONObject) {
+                            Object subValue = getValueFromItem((JSONObject)it, subAttrName, type);
+                            if (subValue != null)
+                                values.add(subValue);
+                        }
+                    });
+                    builder.addAttribute(attrName + "." + subAttrName, values.toArray());
                 }
             }
         }
@@ -345,9 +393,9 @@ abstract class ObjectProcessing {
         return false;
     }
 
-    protected abstract void handleJSONObject(JSONObject object, ResultsHandler handler);
+    protected abstract boolean handleJSONObject(OperationOptions options, JSONObject object, ResultsHandler handler);
 
-    protected void handleJSONArray(JSONObject users, ResultsHandler handler) {
+    protected boolean handleJSONArray(OperationOptions options, JSONObject users, ResultsHandler handler) {
         String jsonStr = users.toString();
         JSONObject jsonObj = new JSONObject(jsonStr);
 
@@ -356,19 +404,22 @@ abstract class ObjectProcessing {
             value = jsonObj.getJSONArray("value");
         } catch (JSONException e) {
             LOG.info("No objects in JSON Array");
-            return;
+            return false;
         }
         int length = value.length();
         LOG.info("jsonObj length: {0}", length);
 
         for (int i = 0; i < length; i++) {
             JSONObject user = value.getJSONObject(i);
-            handleJSONObject(user, handler);
+            if (!handleJSONObject(options, user, handler))
+                return false;
         }
+        return true;
     }
 
     /**
      * Create a selector clause for GraphAPI attributes to list (from field names)
+     *
      * @param fields Names of fields to query
      * @return Selector clause
      */

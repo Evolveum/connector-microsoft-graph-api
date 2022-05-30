@@ -7,6 +7,7 @@ import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
+import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -15,6 +16,7 @@ import java.util.*;
 public class GroupProcessing extends ObjectProcessing {
 
     private final static String GROUPS = "/groups";
+    private final static String USERS = "/users";
 
     private static final String ATTR_ALLOWEXTERNALSENDERS = "allowExternalSenders";
     private static final String ATTR_AUTOSUBSCRIBENEWMEMBERS = "autoSubscribeNewMembers";
@@ -38,8 +40,8 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_MEMBERS = "members";
     private static final String ATTR_OWNERS = "owners";
 
-    public GroupProcessing(MSGraphConfiguration configuration) {
-        super(configuration, ICFPostMapper.builder().build());
+    public GroupProcessing(GraphEndpoint graphEndpoint) {
+        super(graphEndpoint, ICFPostMapper.builder().build());
     }
 
 
@@ -149,11 +151,11 @@ public class GroupProcessing extends ObjectProcessing {
         groupObjClassBuilder.addAttributeInfo(attrVisibility.build());
 
         AttributeInfoBuilder attrMembers = new AttributeInfoBuilder(ATTR_MEMBERS);
-        attrMembers.setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true);
+        attrMembers.setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).setReturnedByDefault(false);
         groupObjClassBuilder.addAttributeInfo(attrMembers.build());
 
         AttributeInfoBuilder attrOwners = new AttributeInfoBuilder(ATTR_OWNERS);
-        attrOwners.setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true);
+        attrOwners.setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).setReturnedByDefault(false);
         groupObjClassBuilder.addAttributeInfo(attrOwners.build());
 
 
@@ -167,7 +169,7 @@ public class GroupProcessing extends ObjectProcessing {
         }
 
         Boolean create = uid == null;
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
 
         HttpEntityEnclosingRequestBase request = null;
@@ -220,7 +222,7 @@ public class GroupProcessing extends ObjectProcessing {
         HttpDelete request;
         URI uri = null;
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
         uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
         uri = endpoint.getUri(uriBuilder);
@@ -389,7 +391,7 @@ public class GroupProcessing extends ObjectProcessing {
 
     private void postRequestNoContent(String path, JSONObject json) {
         LOG.info("path: {0} , json {1}, ", path, json);
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(path);
         final URI uri = endpoint.getUri(uriBuilder);
         LOG.info("uri {0}", uri);
@@ -420,7 +422,7 @@ public class GroupProcessing extends ObjectProcessing {
     private void executeDeleteOperation(Uid uid, String path) {
         LOG.info("Delete object, Uid: {0}, Path: {1}", uid, path);
 
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
         uriBuilder.setPath(path + "/" + uid.getUidValue() + "/$ref");
 
@@ -433,11 +435,12 @@ public class GroupProcessing extends ObjectProcessing {
 
 
     public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
-        LOG.info("executeQueryForGroup()");
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+        LOG.info("executeQueryForGroup() Query: {0}", query);
+        final GraphEndpoint endpoint = getGraphEndpoint();
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
             final String attributeName = equalsFilter.getAttribute().getName();
+            LOG.info("Query is instance of EqualsFilter: {0}", query);
             if (equalsFilter.getAttribute() instanceof Uid) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
 
@@ -449,65 +452,93 @@ public class GroupProcessing extends ObjectProcessing {
                 sbPath.append(GROUPS).append("/").append(uid.getUidValue());
 
                 JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
-                handleJSONObject(group, handler);
+                handleJSONObject(options, group, handler);
+            } else if (equalsFilter.getAttribute() instanceof Name) {
+                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
+
+                Name name = (Name) ((EqualsFilter) query).getAttribute();
+                String nameValue = name.getNameValue();
+                if (nameValue == null) {
+                    invalidAttributeValue("Name", query);
+                }
+                final String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + nameValue + "'";
+                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
+                handleJSONArray(options, groups, handler);
             } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
                 final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(groups, handler);
+                handleJSONArray(options, groups, handler);
             }
         } else if (query instanceof ContainsFilter) {
+            LOG.info("Query is instance of ContainsFilter: {0}", query);
             final ContainsFilter containsFilter = (ContainsFilter) query;
             final String attributeName = containsFilter.getAttribute().getName();
             final String attributeValue = getAttributeFirstValue(containsFilter);
             if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_MAIL, ATTR_MAILNICKNAME).contains(attributeName)) {
                 String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
                 JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(groups, handler);
+                handleJSONArray(options, groups, handler);
             }
+        } else if (query instanceof ContainsAllValuesFilter) {
+           LOG.info("Query is instance of ContainsAllValuesFilter: {0}", query);
+           final ContainsAllValuesFilter containsAllValuesFilter = (ContainsAllValuesFilter) query;
+           final String attributeName = containsAllValuesFilter.getAttribute().getName();
+           final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
+           LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
+           String getPath = USERS + "/" + attributeValue + "/memberOf/microsoft.graph.group";
+           String customQuery = "$filter=startswith(displayName,'unc:app:aad')&$count=true";
+           JSONObject groups = endpoint.executeGetRequest(getPath, customQuery,options,false);
+           handleJSONArray(options, groups, handler);
         } else if (query == null) {
+           LOG.info("Query is null");
             JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
-            handleJSONArray(groups, handler);
+            handleJSONArray(options, groups, handler);
         }
     }
 
     /**
      * Query a group's members and owners, add them to the group's JSON attributes (multivalue)
      *
-     * @param endpoint Graph endpoint to use for querying
+     * @param options Operation options
      * @param group Group to query for (JSON object resulting from previous API call)
      *
      * @return Original JSON, enriched with member/owner information
      */
-    private JSONObject saturateGroupMembership(JSONObject group) {
-        final GraphEndpoint endpoint = new GraphEndpoint(getConfiguration());
+    private JSONObject saturateGroupMembership(OperationOptions options, JSONObject group) {
+        final GraphEndpoint endpoint = getGraphEndpoint();
         final String uid = group.getString(ATTR_ID);
+
         //get list of group members
-        final String memberQuery = new StringBuilder()
-                .append(GROUPS).append("/").append(uid).append("/")
-                .append(ATTR_MEMBERS).toString();
-        final JSONObject groupMembers = endpoint.executeGetRequest(memberQuery, "$select=id,userPrincipalName", null, false);
+        if (getSchemaTranslator().containsToGet(ObjectClass.GROUP_NAME, options, ATTR_MEMBERS)) {
+            final String memberQuery = new StringBuilder()
+                    .append(GROUPS).append("/").append(uid).append("/")
+                    .append(ATTR_MEMBERS).toString();
+            final JSONObject groupMembers = endpoint.executeGetRequest(memberQuery, "$select=id,userPrincipalName", null, false);
+            group.put(ATTR_MEMBERS, getJSONArray(groupMembers, "id"));
+        }
 
         //get list of group owners
-        final String ownerQuery = new StringBuilder()
-                .append(GROUPS).append("/").append(uid).append("/")
-                .append(ATTR_OWNERS).toString();
-        final JSONObject groupOwners = endpoint.executeGetRequest(ownerQuery, "$select=id,userPrincipalName", null, false);
-
-        group.put(ATTR_MEMBERS, getJSONArray(groupMembers, "id"));
-        group.put(ATTR_OWNERS, getJSONArray(groupOwners, "id"));
+        if (getSchemaTranslator().containsToGet(ObjectClass.GROUP_NAME, options, ATTR_OWNERS)) {
+            final String ownerQuery = new StringBuilder()
+                    .append(GROUPS).append("/").append(uid).append("/")
+                    .append(ATTR_OWNERS).toString();
+            final JSONObject groupOwners = endpoint.executeGetRequest(ownerQuery, "$select=id,userPrincipalName", null, false);
+            group.put(ATTR_OWNERS, getJSONArray(groupOwners, "id"));
+        }
 
         return group;
     }
 
     @Override
-    protected void handleJSONObject(JSONObject group, ResultsHandler handler) {
+    protected boolean handleJSONObject(OperationOptions options, JSONObject group, ResultsHandler handler) {
         LOG.info("processingObjectFromGET (Object)");
-        final ConnectorObject connectorObject = convertGroupJSONObjectToConnectorObject(
-                saturateGroupMembership(group)
-        ).build();
+        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
+            group = saturateGroupMembership(options, group);
+        }
+        final ConnectorObject connectorObject = convertGroupJSONObjectToConnectorObject(group).build();
         LOG.info("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
-        handler.handle(connectorObject);
+        return handler.handle(connectorObject);
     }
 
     private ConnectorObjectBuilder convertGroupJSONObjectToConnectorObject(JSONObject group) {

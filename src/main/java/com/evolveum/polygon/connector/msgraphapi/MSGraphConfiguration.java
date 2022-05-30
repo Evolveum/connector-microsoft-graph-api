@@ -21,12 +21,23 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private String tenantId = null;
     private String proxyHost;
     private String proxyPort;
+    private String[] disabledPlans = {};
+    private String pageSize = "100";
 
     // invites
     private boolean inviteGuests;
     private boolean sendInviteMail;
     private String inviteRedirectUrl;
     private String inviteMessage;
+
+    //throttling
+    private String throttlingRetryWait = "10";
+    private Integer throttlingRetryCount = 3;
+
+    //cert auth
+    private boolean certificateBasedAuthentication;
+    private String certificatePath;
+    private String privateKeyPath;
 
     @ConfigurationProperty(order = 10, displayMessageKey = "ClientId", helpMessageKey = "The Application ID that the 'Application Registration Portal' (apps.dev.microsoft.com) assigned to your app.", required = true)
 
@@ -76,6 +87,16 @@ public class MSGraphConfiguration extends AbstractConfiguration
     }
 
 
+    @ConfigurationProperty(order = 100, displayMessageKey = "PageSize", helpMessageKey = "The number of entries to bring back per page in the call to the Graph API")
+
+    public String getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(String pageSize) {
+        this.pageSize = pageSize;
+    }
+
     @ConfigurationProperty(order = 50, displayMessageKey = "ProxyPort", helpMessageKey = "Port number of the HTTPS proxy to use to connect to cloud services. For this setting to take any effect, ProxyHost needs to be configured as well.")
 
     public String getProxyPort() {
@@ -86,6 +107,15 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.proxyPort = proxyPort;
     }
 
+    @ConfigurationProperty(order = 55, displayMessageKey = "DisabledPlans", helpMessageKey = "List of the SkuId:ServicePlanId,[ServicePlanId2...]. These service plan will be disabled during assignment of the each license. Friendly names are not supported. Default: (empty)")
+
+    public String[] getDisabledPlans() {
+        return disabledPlans;
+    }
+
+    public void setDisabledPlans(String[] disabledPlans) {
+        this.disabledPlans = disabledPlans;
+    }
 
     @ConfigurationProperty(order = 60, displayMessageKey = "InviteGuests", helpMessageKey = "Whether to allow creation of guest accounts by inviting users from outside the tenant (based on e-mail address only)")
 
@@ -130,13 +160,50 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.inviteMessage = inviteMessage;
     }
 
+    @ConfigurationProperty(order = 100, displayMessageKey = "ThrottlingMaxReplyCount", helpMessageKey = "Max retry count in case of an request impacted by throttling. Default 3.")
 
+    public Integer getThrottlingRetryCount() {
+        return throttlingRetryCount;
+    }
+
+    public void setThrottlingRetryCount(Integer throttlingRetryCount) {
+        this.throttlingRetryCount = throttlingRetryCount;
+    }
+
+    @ConfigurationProperty(order = 110, displayMessageKey = "ThrottlingMaxWait", helpMessageKey = "Max time period in between requests impacted by throttling. Define as number of seconds. Default 10")
+
+    public String getThrottlingRetryWait() {
+
+        return throttlingRetryWait;
+    }
+
+    public void setThrottlingRetryWait(String throttlingRetryWait) {
+        this.throttlingRetryWait = throttlingRetryWait;
+    }
+
+    @ConfigurationProperty(order = 120, displayMessageKey = "CertificateBasedAuthentication", helpMessageKey = "If set to true connector uses certificate-based authentication.")
+
+    public boolean isCertificateBasedAuthentication() { return certificateBasedAuthentication; }
+
+    public void setCertificateBasedAuthentication(boolean certificateBasedAuthentication) { this.certificateBasedAuthentication = certificateBasedAuthentication; }
+
+    @ConfigurationProperty(order = 130, displayMessageKey = "CertificatePath", helpMessageKey = "Path to public key (.crt format).")
+
+    public String getCertificatePath() { return certificatePath; }
+
+    public void setCertificatePath(String certificatePath) { this.certificatePath = certificatePath; }
+
+    @ConfigurationProperty(order = 140, displayMessageKey = "PrivateKeyPath", helpMessageKey = "Path to private key (.der or .pem format).")
+
+    public String getPrivateKeyPath() { return privateKeyPath; }
+
+    public void setPrivateKeyPath(String privateKeyPath) { this.privateKeyPath = privateKeyPath; }
 
     @Override
     public void validate() {
         LOG.info("Processing trough configuration validation procedure.");
         if (StringUtil.isBlank(clientId)) {
-            throw new ConfigurationException("Client Id  cannot be empty.");
+            throw new ConfigurationException("Client Id cannot be empty.");
         }
 
         if ("".equals(clientSecret)) {
@@ -148,7 +215,8 @@ public class MSGraphConfiguration extends AbstractConfiguration
         }
 
         if (!StringUtil.isBlank(proxyHost)) {
-            if (StringUtil.isBlank(proxyPort)) throw new ConfigurationException("Proxy host is configured, but proxy port is not");
+            if (StringUtil.isBlank(proxyPort))
+                throw new ConfigurationException("Proxy host is configured, but proxy port is not");
             final Integer proxyPortNo;
             try {
                 proxyPortNo = Integer.parseInt(proxyPort);
@@ -158,12 +226,34 @@ public class MSGraphConfiguration extends AbstractConfiguration
             if (proxyPortNo <= 0) throw new ConfigurationException("Proxy port value must be positive");
         }
 
+        if (disabledPlans == null)
+            throw new ConfigurationException("Disabled plans array can't be null");
+
         if (inviteGuests) {
             if (StringUtil.isBlank(inviteRedirectUrl))
                 throw new ConfigurationException("InviteRedirectUrl is mandatory when InviteGuests is enabled");
         } else {
-            if (StringUtil.isNotBlank(inviteRedirectUrl)) throw new ConfigurationException("InviteRedirectUrl is configured, but InviteGuests is disabled");
-            if (StringUtil.isNotBlank(inviteMessage)) throw new ConfigurationException("InviteMessage is configured, but InviteGuests is disabled");
+            if (StringUtil.isNotBlank(inviteRedirectUrl))
+                throw new ConfigurationException("InviteRedirectUrl is configured, but InviteGuests is disabled");
+            if (StringUtil.isNotBlank(inviteMessage))
+                throw new ConfigurationException("InviteMessage is configured, but InviteGuests is disabled");
+        }
+
+        try {
+            Float f = Float.parseFloat(throttlingRetryWait);
+
+            if (f < 0f) {
+
+                throw new ConfigurationException("The specified number for the maximum throttling request retry wait time has to be a non negative number!");
+            }
+        } catch (NumberFormatException e) {
+
+            throw new ConfigurationException("The specified number for the max throttling wait time is not a valid float!");
+        }
+
+        if (throttlingRetryCount < 0) {
+
+            throw new ConfigurationException("The specified number for the maximum throttling request retries has to be a non negative number!");
         }
 
         LOG.info("Configuration valid");

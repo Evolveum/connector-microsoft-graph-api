@@ -10,7 +10,7 @@ import org.testng.annotations.Test;
 
 import java.util.*;
 
-
+//// TODO Exclude
 public class GroupPerformanceTests extends BasicConfigurationForTests {
 
     private Uid groupTestUser;

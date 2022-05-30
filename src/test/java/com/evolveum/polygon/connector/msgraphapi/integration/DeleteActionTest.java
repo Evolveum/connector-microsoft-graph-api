@@ -1,14 +1,14 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
-import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
+import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
-import org.identityconnectors.framework.spi.SearchResultsHandler;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -21,21 +21,20 @@ import java.util.concurrent.TimeUnit;
 public class DeleteActionTest extends BasicConfigurationForTests {
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 24)
-    public void deleteUserTest() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
+    public void deleteUserTest() throws InterruptedException {
 
         MSGraphConfiguration conf = getConfiguration();
         msGraphConnector.init(conf);
 
-        OperationOptions options = new OperationOptions(new HashMap<>());
+        OperationOptions options = getDefaultAccountOperationOptions();
 
         Set<Attribute> attributesAccount = new HashSet<>();
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
-        attributesAccount.add(AttributeBuilder.build("displayName", "testing"));
-        attributesAccount.add(AttributeBuilder.build("mail", "testing@example.com"));
-        attributesAccount.add(AttributeBuilder.build("mailNickname", "testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("displayName", "del_testing"));
+        attributesAccount.add(AttributeBuilder.build("mail", "del_testing@example.com"));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "del_testing"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "del_testing@" + tenantId));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
@@ -45,37 +44,29 @@ public class DeleteActionTest extends BasicConfigurationForTests {
         msGraphConnector.delete(objectClassAccount, testUserUid, options);
 
 
-        final ArrayList<ConnectorObject> resultsAccount = new ArrayList<>();
-        SearchResultsHandler handlerAccount = new SearchResultsHandler() {
+        ArrayList<ConnectorObject> resultsAccount = new ArrayList<>();
+        TestSearchResultsHandler handlerAccount = getResultHandler();
 
-            @Override
-            public boolean handle(ConnectorObject connectorObject) {
-                resultsAccount.add(connectorObject);
-                return true;
-            }
+        AttributeFilter equalsFilter;
+        equalsFilter = (EqualsFilter) FilterBuilder.equalTo(testUserUid);
 
-            @Override
-            public void handleResult(SearchResult result) {
-            }
-        };
+        TimeUnit.SECONDS.sleep(_WAIT_INTERVAL);
 
-        try {
-            AttributeFilter equalsFilter;
-            equalsFilter = (EqualsFilter) FilterBuilder.equalTo(testUserUid);
-            try {
-                TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        msGraphConnector.executeQuery(objectClassAccount, equalsFilter, handlerAccount, options);
+
+        resultsAccount = handlerAccount.getResult();
+
+        for (ConnectorObject o : resultsAccount) {
+            if (o.getUid().equals(testUserUid)) {
+
+                Assert.fail();
+                break;
             }
-            msGraphConnector.executeQuery(objectClassAccount, equalsFilter, handlerAccount, options);
-        } finally {
-            msGraphConnector.dispose();
         }
     }
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 25)
-    public void deleteGroupTest() {
-        MSGraphConnector msGraphConnector = new MSGraphConnector();
+    public void deleteGroupTest() throws InterruptedException {
 
         MSGraphConfiguration conf = getConfiguration();
         msGraphConnector.init(conf);
@@ -94,31 +85,23 @@ public class DeleteActionTest extends BasicConfigurationForTests {
         msGraphConnector.delete(groupObject, testGroupUid, options);
 
 
-        final ArrayList<ConnectorObject> resultsAccount = new ArrayList<>();
-        SearchResultsHandler handlerAccount = new SearchResultsHandler() {
+        ArrayList<ConnectorObject> resultsGroup = new ArrayList<>();
+        TestSearchResultsHandler handlergroup = new TestSearchResultsHandler();
 
-            @Override
-            public boolean handle(ConnectorObject connectorObject) {
-                resultsAccount.add(connectorObject);
-                return true;
-            }
+        AttributeFilter equalsFilter;
+        equalsFilter = (EqualsFilter) FilterBuilder.equalTo(testGroupUid);
 
-            @Override
-            public void handleResult(SearchResult result) {
-            }
-        };
+        TimeUnit.SECONDS.sleep(_WAIT_INTERVAL);
+        msGraphConnector.executeQuery(groupObject, equalsFilter, handlergroup, options);
 
-        try {
-            AttributeFilter equalsFilter;
-            equalsFilter = (EqualsFilter) FilterBuilder.equalTo(testGroupUid);
-            try {
-                TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        resultsGroup = handlergroup.getResult();
+
+        for (ConnectorObject o : resultsGroup) {
+            if (o.getUid().equals(testGroupUid)) {
+
+                Assert.fail();
+                break;
             }
-            msGraphConnector.executeQuery(groupObject, equalsFilter, handlerAccount, options);
-        } finally {
-            msGraphConnector.dispose();
         }
     }
 }

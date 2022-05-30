@@ -1,37 +1,50 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import com.microsoft.aad.adal4j.AsymmetricKeyCredential;
 import com.microsoft.aad.adal4j.AuthenticationContext;
-import com.microsoft.aad.adal4j.AuthenticationException;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.http.*;
+import org.apache.http.client.HttpRequestRetryHandler;
+import org.apache.http.client.ServiceUnavailableRetryStrategy;
 import org.apache.http.client.methods.*;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
+import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.json.JSONException;
+import org.identityconnectors.framework.common.objects.Uid;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.*;
+import java.util.concurrent.*;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
@@ -44,55 +57,159 @@ public class GraphEndpoint {
     private final static String API_ENDPOINT = "graph.microsoft.com/v1.0";
     private final static String AUTHORITY = "https://login.microsoftonline.com/";
     private final static String RESOURCE = "https://graph.microsoft.com";
+    //private static final int MAX_THROTTLING_RETRY_COUNT = 3;
 
     private final MSGraphConfiguration configuration;
-    private URIBuilder uriBuilder;
+    private final URIBuilder uriBuilder;
+    private AuthenticationResult authenticateResult;
+    private SchemaTranslator schemaTranslator;
+    private CloseableHttpClient httpClient;
+    private Boolean throttling = false;
+    //private final long MAX_THROTTLING_REPLY_TIME = TimeUnit.SECONDS.toMillis(10);
+
+    private final long SKEW = TimeUnit.MINUTES.toMillis(5);
 
     GraphEndpoint(MSGraphConfiguration configuration) {
         this.configuration = configuration;
         this.uriBuilder = createURIBuilder();
+
+        authenticate();
+        initSchema();
+        initHttpClient();
     }
 
-    private Proxy createProxy() {
-        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    public MSGraphConfiguration getConfiguration() {
+        return configuration;
     }
 
-    private AuthenticationResult getAccessTokenFromUserCredentials() {
-        AuthenticationContext context = null;
+    public SchemaTranslator getSchemaTranslator() {
+        return schemaTranslator;
+    }
+
+    private void authenticate() {
         AuthenticationResult result = null;
         ExecutorService service = null;
-        GuardedString clientSecret = configuration.getClientSecret();
-        GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
-        clientSecret.access(accessorSecret);
-        LOG.info("getAccessTokenFromUserCredentials");
+        LOG.info("authenticate");
 
         try {
             service = Executors.newFixedThreadPool(1);
-            ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
-            context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
+            AuthenticationContext context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
                     + "/oauth2/authorize", false, service);
             if (configuration.hasProxy()) {
                 LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
                 context.setProxy(createProxy());
             }
-            Future<AuthenticationResult> future = context.acquireToken(
-                    RESOURCE,
-                    credential,
-                    null);
+            Future<AuthenticationResult> future;
+            if (configuration.isCertificateBasedAuthentication()) {
+                X509Certificate certificate = getCertificate(configuration.getCertificatePath());
+
+                PrivateKey privateKey;
+                if (configuration.getPrivateKeyPath().toLowerCase().endsWith(".der")) {
+                    privateKey = getPrivateKey(configuration.getPrivateKeyPath());
+                } else {
+                    privateKey = getPrivateKeyFromPem(configuration.getPrivateKeyPath());
+                }
+
+                AsymmetricKeyCredential asymmetricKeyCredential = AsymmetricKeyCredential.create(configuration.getClientId(), privateKey, certificate);
+                future = context.acquireToken(RESOURCE, asymmetricKeyCredential, null);
+            } else {
+                GuardedString clientSecret = configuration.getClientSecret();
+                GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
+                clientSecret.access(accessorSecret);
+                ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
+                future = context.acquireToken(RESOURCE, credential, null);
+            }
             result = future.get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (MalformedURLException e) {
+        } catch (InterruptedException | ExecutionException | GeneralSecurityException e) {
+            throw new ConnectionFailedException(e);
+        } catch (IOException e) {
             LOG.error(e.toString());
         } finally {
             service.shutdown();
         }
 
         if (result == null) {
-            throw new AuthenticationException("authentication result was null");
+            throw new ConnectionFailedException("Failed to authenticate GitHub API");
         }
 
-        return result;
+        this.authenticateResult = result;
+    }
+
+    private static X509Certificate getCertificate(String certificationPath) throws IOException, CertificateException {
+        InputStream input = new FileInputStream(certificationPath);
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate certificate = (X509Certificate) cf.generateCertificate(input);
+
+        return certificate;
+    }
+
+    private static RSAPrivateKey getPrivateKey(String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        File file = new File(privateKeyPath);
+        FileInputStream fis = new FileInputStream(file);
+        DataInputStream dis = new DataInputStream(fis);
+
+        byte[] keyBytes = new byte[(int) file.length()];
+        dis.readFully(keyBytes);
+        dis.close();
+
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        RSAPrivateKey privateKey = (RSAPrivateKey) keyFactory.generatePrivate(spec);
+
+        return privateKey;
+    }
+
+    public RSAPrivateKey getPrivateKeyFromPem(String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        File file = new File(privateKeyPath);
+        String key = new String(Files.readAllBytes(file.toPath()), Charset.defaultCharset());
+        String privateKeyPEM = key
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replaceAll(System.lineSeparator(), "")
+                .replace("-----END PRIVATE KEY----- ", "");
+
+        byte[] encoded = Base64.decodeBase64(privateKeyPEM);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+        return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
+    }
+
+    private Proxy createProxy() {
+        return new Proxy(Proxy.Type.HTTP, configuration.getProxyAddress());
+    }
+
+    private void initSchema() {
+        schemaTranslator = new SchemaTranslator(this);
+    }
+
+    private void initHttpClient() {
+        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        clientBuilder.setRetryHandler(myRetryHandler);
+        clientBuilder.setServiceUnavailableRetryStrategy(new ServiceUnavailableRetryStrategy() {
+            @Override
+            public boolean retryRequest(HttpResponse response, int executionCount, HttpContext context) {
+                return executionCount <= 7 && response.getStatusLine().getStatusCode() >= 500 && response.getStatusLine().getStatusCode() < 600;
+            }
+
+            @Override
+            public long getRetryInterval() {
+                return 3000;
+            }
+        });
+        if (configuration.hasProxy()) {
+            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
+            clientBuilder.setProxy(
+                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
+            );
+        }
+        httpClient = clientBuilder.build();
+    }
+
+    private AuthenticationResult getAccessToken() {
+        if (authenticateResult.getExpiresOnDate().getTime() - SKEW < new Date().getTime()) {
+            // Expired, re-authenticate
+            authenticate();
+        }
+        return authenticateResult;
     }
 
     public URIBuilder createURIBuilder() {
@@ -109,35 +226,113 @@ public class GraphEndpoint {
         return uri;
     }
 
+    HttpRequestRetryHandler myRetryHandler = new HttpRequestRetryHandler() {
+
+        public boolean retryRequest(
+                IOException exception,
+                int executionCount,
+                HttpContext context) {
+            if (executionCount >= 10) {
+                // Do not retry if over max retry count
+                return false;
+            }
+        /*if (exception instanceof InterruptedIOException) {
+            // Timeout
+            return false;
+        }
+        if (exception instanceof UnknownHostException) {
+            // Unknown host
+            return false;
+        }
+        if (exception instanceof ConnectTimeoutException) {
+            // Connection refused
+            return false;
+        }
+        if (exception instanceof SSLException) {
+            // SSL handshake exception
+            return false;
+        } */
+
+            HttpClientContext clientContext = HttpClientContext.adapt(context);
+            HttpRequest request = clientContext.getRequest();
+            boolean idempotent = !(request instanceof HttpEntityEnclosingRequest);
+            if (idempotent) {
+                // Retry if the request is considered idempotent
+                return true;
+            }
+
+            if (exception instanceof org.apache.http.NoHttpResponseException) {
+                LOG.warn("No response from server on " + executionCount + " call");
+                return true;
+            }
+
+            return false;
+        }
+
+    };
+
     private CloseableHttpResponse executeRequest(HttpUriRequest request) {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided");
         }
-        request.setHeader("Authorization", getAccessTokenFromUserCredentials().getAccessToken());
+        request.setHeader("Authorization", getAccessToken().getAccessToken());
         request.setHeader("Content-Type", "application/json");
+        request.setHeader("ConsistencyLevel", "eventual");
         LOG.info("HtttpUriRequest: {0}", request);
         LOG.info(request.toString());
-        final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
-        if (configuration.hasProxy()) {
-            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
-            clientBuilder.setProxy(
-                    new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
-            );
-        }
-        CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response;
-
+        int retryCount = 0;
         try {
-            response = client.execute(request);
+            response = httpClient.execute(request);
             LOG.info("response {0}", response);
+            throttling = false;
             processResponseErrors(response);
+            while (throttling) {
+                throttling = false;
+                LOG.ok("Current retry count: {0}", retryCount);
+                if (retryCount >= configuration.getThrottlingRetryCount()) {
+
+                    throw new ConnectorException("Max retry count for request throttling exceeded! Request was not successful");
+                }
+                retryCount++;
+                Header[] callHeaders = response.getAllHeaders();
+                if (callHeaders != null) {
+                    for (Header header : callHeaders) {
+                        if (header.getName().equals("Retry-After")) {
+                            String tmpRaHeadValue = header.getValue();
+                            if (tmpRaHeadValue != null || !tmpRaHeadValue.isEmpty()) {
+                                long retryAfter = (long) (Float.parseFloat(tmpRaHeadValue) * 1000);
+                                long maxWail = (long) (Float.parseFloat(configuration.getThrottlingRetryWait()) * 1000);
+                                LOG.ok("Max retry time in ms: {0}", maxWail);
+                                LOG.ok("Returned retry time in ms: {0}", retryAfter);
+                                if (retryAfter > maxWail) {
+
+                                    throw new ConnectorException("Max time for request throttling exceeded! Request was not successful");
+                                }
+                                Thread.sleep(retryAfter);
+                                LOG.ok("Throttling retry");
+
+                                response = httpClient.execute(request);
+                                processResponseErrors(response);
+                            }
+                        }
+                    }
+                }
+            }
+
             return response;
 
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             StringBuilder sb = new StringBuilder();
+            LOG.ok("The exception type: {0}", e.getClass());
             sb.append("It is not possible to execute request:").append(request.toString()).append(";")
                     .append(e.getLocalizedMessage());
-            throw new ConnectorIOException(sb.toString(), e);
+            if (e instanceof IOException) {
+                throw new ConnectorIOException(sb.toString(), e);
+            } else {
+
+                throw new ConnectorException(sb.toString(), e);
+            }
         }
     }
 
@@ -150,6 +345,11 @@ public class GraphEndpoint {
         if (statusCode >= 200 && statusCode <= 299) {
             return;
         }
+        /*if (statusCode == 404) {
+            //throw new UnknownUidException(message);
+            LOG.info("Status code 404 caught in processResponseErrors {0}", response.getStatusLine().getReasonPhrase());
+            return;
+        }*/
         String responseBody = null;
         try {
             responseBody = EntityUtils.toString(response.getEntity());
@@ -166,18 +366,22 @@ public class GraphEndpoint {
             throw new AlreadyExistsException(message);
         }
         if (statusCode == 400 && message.contains("The specified password does not comply with password complexity requirements.")) {
-            throw new InvalidPasswordException();
+            throw new InvalidPasswordException(message);
         }
         if (statusCode == 400 && message.contains("Invalid object identifier")) {
-            throw new UnknownUidException();
+            throw new UnknownUidException(message);
         }
         if (statusCode == 400 || statusCode == 405 || statusCode == 406) {
             throw new InvalidAttributeValueException(message);
+        }
+        if (statusCode == 401 && message.contains("Access token has expired")) {
+            throw new ConnectionFailedException(message);
         }
         if (statusCode == 401 || statusCode == 402 || statusCode == 403 || statusCode == 407) {
             throw new PermissionDeniedException(message);
         }
         if (statusCode == 404 || statusCode == 410) {
+            LOG.info("Status code 404 or 410 caught in processResponseErrors {0}", message);
             throw new UnknownUidException(message);
         }
         if (statusCode == 408) {
@@ -192,11 +396,14 @@ public class GraphEndpoint {
         if (statusCode == 418) {
             throw new UnsupportedOperationException("Sorry, no cofee: " + message);
         }
+        if (statusCode == 429) {
+            LOG.warn("Request returned with status code 429 which means an api call limit was reached.");
+            throttling = true;
+            return;
+        }
 
         throw new ConnectorException(message);
     }
-
-
 
 
     protected JSONObject callRequest(HttpRequestBase request, boolean parseResult) {
@@ -205,6 +412,13 @@ public class GraphEndpoint {
         }
         LOG.info("callRequest");
         String result = null;
+        request.setHeader("ConsistencyLevel", "eventual");
+        LOG.info("URL in request: {0}", request.getRequestLine().getUri());
+        LOG.info("Enumerating headers");
+        List<Header> httpHeaders = Arrays.asList(request.getAllHeaders());
+        for (Header header : httpHeaders) {
+            LOG.info("Headers.. name,value:" + header.getName() + "," + header.getValue());
+        }
         try (CloseableHttpResponse response = executeRequest(request)) {
             processResponseErrors(response);
             if (response.getStatusLine().getStatusCode() == 204) {
@@ -298,7 +512,12 @@ public class GraphEndpoint {
         final URIBuilder uribuilder = createURIBuilder().clearParameters();
 
         if (customQuery != null && options != null && paging) {
-            Integer perPage = options.getPageSize();
+            /*Integer perPage = options.getPageSize();
+            if (perPage == null) {
+               LOG.info("perPage found null, but paging set to: {0}", paging);
+               perPage = 100;
+            }*/
+            String perPage = configuration.getPageSize();
             if (perPage != null) {
                 uribuilder.setCustomQuery(customQuery + "&" + TOP + "=" + perPage.toString());
                 LOG.info("setCustomQuery {0} ", uribuilder.toString());
@@ -324,17 +543,21 @@ public class GraphEndpoint {
             URI uri = uribuilder.build();
             LOG.info("uri {0}", uri);
             HttpRequestBase request = new HttpGet(uri);
+            //request.setRetryHandler(new StandardHttpRequestRetryHandler(5, true));
             JSONObject firstCall = callRequest(request, true);
 
             //call skipToken for paging
             if (options != null && paging) {
-                Integer page = options.getPagedResultsOffset();
+                /*Integer page = options.getPagedResultsOffset();
+                LOG.info("Paging enabled, and this page is: {0} ", page);
                 if (page != null) {
                     if (page == 0 || page == 1) {
+                        LOG.info("Inside returning firstCall");
                         return firstCall; // no need for skipToken actually returned the first page
                     } else {
                         String nextLink;
                         try {
+                            LOG.info("About to try getting the odata.nextLink");
                             nextLink = firstCall.getString("@odata.nextLink");
                         } catch (JSONException e) {
                             LOG.info("all data returned from the first call, no more data remain to return");
@@ -358,7 +581,53 @@ public class GraphEndpoint {
 
                     }
                 }
-                return firstCall;
+                return firstCall;*/
+                JSONArray value = new JSONArray();
+                String nextLink = new String();
+                JSONObject values = new JSONObject();
+                boolean morePages = false;
+                if (firstCall.has("@odata.nextLink") && firstCall.getString("@odata.nextLink") != null && !firstCall.getString("@odata.nextLink").isEmpty()) {
+                    morePages = true;
+                    nextLink = firstCall.getString("@odata.nextLink");
+                    LOG.info("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
+                } else {
+                    morePages = false;
+                    LOG.info("No nextLink defined, final page was firstCall");
+                }
+                if (firstCall.has("value") && firstCall.get("value") != null) {
+                    //value.addAll(firstCall.getJSONArray("value"));
+                    for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
+                        value.put(firstCall.getJSONArray("value").get(i));
+                    }
+                    LOG.info("firstCall: {0} ", firstCall);
+                } else {
+                    LOG.info("firstCall contained no value object or the object was null");
+                }
+                while (morePages == true) {
+                    JSONObject nextLinkJson = new JSONObject();
+                    HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
+                    LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
+                    nextLinkJson = callRequest(nextLinkUriRequest, true);
+                    if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null && !nextLinkJson.getString("@odata.nextLink").isEmpty()) {
+                        morePages = true;
+                        nextLink = nextLinkJson.getString("@odata.nextLink");
+                        LOG.info("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
+                    } else {
+                        morePages = false;
+                        LOG.info("No nextLink defined, final page");
+                    }
+                    if (nextLinkJson.has("value") && nextLinkJson.get("value") != null) {
+                        //value.addAll(nextLinkJson.getJSONArray("value"));
+                        for (int i = 0; i < nextLinkJson.getJSONArray("value").length(); i++) {
+                            value.put(nextLinkJson.getJSONArray("value").get(i));
+                        }
+                        LOG.info("nextLinkJson: {0} ", nextLinkJson);
+                    } else {
+                        LOG.info("nextLinkJson contained no value object or the object was null");
+                    }
+                }
+                values.put("value", value);
+                return values;
             } else return firstCall;
 
 
@@ -448,4 +717,11 @@ public class GraphEndpoint {
         }
     }
 
+    public void close() {
+        try {
+            httpClient.close();
+        } catch (IOException e) {
+            throw new ConnectorIOException(e);
+        }
+    }
 }
