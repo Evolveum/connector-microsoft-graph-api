@@ -162,7 +162,7 @@ abstract class ObjectProcessing {
         } else {
             StringBuilder sb = new StringBuilder();
             sb.append("Missing required attribute: ").append(nameAttr)
-                    .append("for converting JSONObject to ConnectorObject.");
+                    .append(" for converting JSONObject to ConnectorObject.");
             throw new InvalidAttributeValueException(sb.toString());
         }
     }
@@ -174,7 +174,7 @@ abstract class ObjectProcessing {
         } else {
             StringBuilder sb = new StringBuilder();
             sb.append("Missing required attribute: ").append(nameAttr)
-                    .append("for converting JSONObject to ConnectorObject.");
+                    .append(" for converting JSONObject to ConnectorObject.");
             throw new InvalidAttributeValueException(sb.toString());
         }
     }
@@ -185,7 +185,7 @@ abstract class ObjectProcessing {
         } else {
             StringBuilder sb = new StringBuilder();
             sb.append("Missing required attribute: ").append(nameAttr)
-                    .append("for converting JSONObject to ConnectorObject.");
+                    .append(" for converting JSONObject to ConnectorObject.");
             throw new InvalidAttributeValueException(sb.toString());
         }
     }
