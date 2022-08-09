@@ -19,6 +19,7 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -553,17 +554,26 @@ public class UserProcessing extends ObjectProcessing {
         AttributeDeltaBuilder delta = new AttributeDeltaBuilder();
         delta.setName(ATTR_ASSIGNEDLICENSES__SKUID);
         List<Object> addLicenses = new ArrayList<>();
+
+        AtomicBoolean isLicenceAttrNull = new AtomicBoolean(true);
         // filter out the assignedLicense.skuId attribute, which must be handled separately
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
                 .filter(it -> {
                     if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
                         if (it.getValue() != null)
-                            addLicenses.addAll(it.getValue());
+                            isLicenceAttrNull.set(false);
+                        addLicenses.addAll(it.getValue());
                         return false;
                     } else
                         return true;
                 })
                 .collect(Collectors.toSet());
+
+        // in case assignedLicences attribute is null we don't want to do anything with licences
+        if (isLicenceAttrNull.get()) {
+            return preparedAttributes;
+        }
+
         delta.addValueToAdd(addLicenses);
         // read and fill-out the old values
         if (!create) {
@@ -615,6 +625,10 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     private void assignLicenses(Uid uid, AttributeDelta deltaLicense) {
+        if (deltaLicense == null) {
+            return;
+        }
+
         final List<Object> addLicenses = deltaLicense.getValuesToAdd();
         final List<Object> removeLicenses = deltaLicense.getValuesToRemove();
         if ((addLicenses == null || addLicenses.isEmpty()) && (removeLicenses == null || removeLicenses.isEmpty()))
