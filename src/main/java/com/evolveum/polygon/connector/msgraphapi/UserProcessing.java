@@ -560,9 +560,10 @@ public class UserProcessing extends ObjectProcessing {
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
                 .filter(it -> {
                     if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
-                        if (it.getValue() != null)
+                        if (it.getValue() != null) {
                             isLicenceAttrNull.set(false);
-                        addLicenses.addAll(it.getValue());
+                            addLicenses.addAll(it.getValue());
+                        }
                         return false;
                     } else
                         return true;
