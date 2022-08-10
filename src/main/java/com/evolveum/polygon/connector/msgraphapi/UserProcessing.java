@@ -138,10 +138,6 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_INVITE_MSG_INFO = "invitedUserMessageInfo";
     private static final String ATTR_INVITED_USER_TYPE = "invitedUserType";
 
-    // GUEST ACCOUNT STATUS
-    private static final String ATTR_EXTERNALUSERSTATE = "externalUserState";
-    private static final String ATTR_EXTERNALUSERSTATECHANGEDATETIME = "externalUserStateChangeDateTime";
-
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
 
@@ -243,17 +239,6 @@ public class UserProcessing extends ObjectProcessing {
         attrSignIn.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrSignIn.build());
 
-        //read-only - externalUserState
-        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_EXTERNALUSERSTATE)
-                .setRequired(false).setType(String.class)
-                .setCreateable(false).setUpdateable(false).setReadable(true)
-                .build());
-
-        //read-only - externalUserStateChangeDateTime
-        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_EXTERNALUSERSTATECHANGEDATETIME)
-                .setRequired(false).setType(String.class)
-                .setCreateable(false).setUpdateable(false).setReadable(true)
-                .build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
@@ -805,8 +790,7 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
                 ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
                 ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME));
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES));
 
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
@@ -819,8 +803,7 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
                 ATTR_PROXYADDRESSES,
                 ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME);
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES);
 
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
@@ -1020,12 +1003,13 @@ public class UserProcessing extends ObjectProcessing {
         //user.put(ATTR_MEMBER_OF_GROUP, new JSONArray()); //Comment this line out after putting back in above
         return user;
     }
+
     // Saturate group ownership function
     private JSONObject saturateGroupOwnership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
         final List<String> groups = getGraphEndpoint().executeGetRequest(
-                String.format("/users/%s/ownedObjects", uid), "$select=id", null, false
-        ).getJSONArray("value").toList().stream()
+                        String.format("/users/%s/ownedObjects", uid), "$select=id", null, false
+                ).getJSONArray("value").toList().stream()
                 .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
                 .map(o -> (String) ((Map) o).get(ATTR_ID))
                 .collect(Collectors.toList());
@@ -1085,8 +1069,6 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_USAGELOCATION, String.class, builder);
         getIfExists(user, ATTR_USERTYPE, String.class, builder);
         getIfExists(user, ATTR_SIGN_IN, String.class, builder);
-        getIfExists(user, ATTR_EXTERNALUSERSTATE, String.class, builder);
-        getIfExists(user, ATTR_EXTERNALUSERSTATECHANGEDATETIME, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
