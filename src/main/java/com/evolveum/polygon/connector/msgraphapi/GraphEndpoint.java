@@ -45,6 +45,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
@@ -689,31 +690,52 @@ public class GraphEndpoint {
             throw new InvalidAttributeValueException("Request not provided or empty");
         }
 
+        List<JSONObject> jsonObjectList = jsonObject;
 
         //execute one by one because Microsoft Graph not support SharePoint and Azure AD attributes in one JSONObject
-        for (Object list : jsonObject) {
-            HttpEntity entity = null;
-
-            try {
-                entity = new ByteArrayEntity(list.toString().getBytes("UTF-8"));
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-            request.setEntity(entity);
-
-            try (CloseableHttpResponse response = executeRequest(request)) {
-                processResponseErrors(response);
-                LOG.info("response {0}", response);
-                int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode == 204) {
-                    LOG.ok("204 - No content, Update was succesfull");
-                } else {
-                    LOG.error("Not updated, statusCode: {0}", statusCode);
-                }
-            } catch (IOException e) {
-                throw new ConnectorIOException();
+        for (JSONObject item : jsonObjectList) {
+            if (item.has("passwordProfile")) {
+                continue;
             }
 
+            sendRequest(request, item);
+        }
+
+        //Handle passwordProfile sepaately
+
+        List<Map<String, Object>> passwordProfileItems = jsonObjectList.stream()
+                .filter(obj -> obj.has("passwordProfile"))
+                .map(obj -> obj.getJSONObject("passwordProfile").toMap())
+                .collect(Collectors.toList());
+        
+        JSONObject passwordProfileObject = new JSONObject();
+        passwordProfileObject.append("passwordProfile", passwordProfileItems);
+
+        sendRequest(request, passwordProfileObject);
+
+    }
+
+    private void sendRequest(HttpEntityEnclosingRequestBase request, JSONObject item) {
+        HttpEntity entity = null;
+
+        try {
+            entity = new ByteArrayEntity(item.toString().getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        request.setEntity(entity);
+
+        try (CloseableHttpResponse response = executeRequest(request)) {
+            processResponseErrors(response);
+            LOG.info("response {0}", response);
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == 204) {
+                LOG.ok("204 - No content, Update was succesfull");
+            } else {
+                LOG.error("Not updated, statusCode: {0}", statusCode);
+            }
+        } catch (IOException e) {
+            throw new ConnectorIOException();
         }
     }
 
