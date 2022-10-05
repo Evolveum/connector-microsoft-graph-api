@@ -682,10 +682,6 @@ public class GraphEndpoint {
 
     }
 
-    public static void main(String[] args) {
-        JSONObject j = new JSONObject();
-    }
-
     protected void callRequestNoContentNoJson(HttpEntityEnclosingRequestBase request, List<JSONObject> jsonObjectList) {
         LOG.info("Request {0} ", request);
         LOG.info("Attributes {0} ", jsonObjectList);
