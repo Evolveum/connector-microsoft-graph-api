@@ -298,8 +298,9 @@ abstract class ObjectProcessing {
         return json;
     }
 
-    protected List<Object> buildLayeredAtrribute(Set<Attribute> multiLayerAttribute) {
-        LinkedList<Object> list = new LinkedList<>();
+    protected List<JSONObject> buildLayeredAtrribute(Set<Attribute> multiLayerAttribute) {
+        LinkedList<JSONObject> list = new LinkedList<>();
+        //FIXME what is this good for?
         String json = "";
         for (Attribute attribute : multiLayerAttribute) {
             final String[] attributePath = resolveAttributePath(attribute);
@@ -338,9 +339,9 @@ abstract class ObjectProcessing {
             currentNode.keyValueMap.put(attributePath[attributePath.length - 1], leaf);
             JSONObject jsonObject = new JSONObject(root.toString());
             //empty json
+            //FIXME what is this condition good for?
             if (json.isEmpty()) {
-                json = jsonObject.toString();
-                list.add(json);
+                list.add(jsonObject);
             } else {
                 String key = jsonObject.keys().next();
                 Object value = jsonObject.get(key);
