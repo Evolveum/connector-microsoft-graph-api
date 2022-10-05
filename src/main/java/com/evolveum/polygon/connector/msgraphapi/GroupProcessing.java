@@ -486,9 +486,16 @@ public class GroupProcessing extends ObjectProcessing {
            final String attributeName = containsAllValuesFilter.getAttribute().getName();
            final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
            LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
-           String getPath = USERS + "/" + attributeValue + "/memberOf/microsoft.graph.group";
-           String customQuery = "$filter=startswith(displayName,'unc:app:aad')&$count=true";
-           JSONObject groups = endpoint.executeGetRequest(getPath, customQuery,options,false);
+
+           String pathSegmentFromAttrName;
+           if (attributeName.equals("members")) {
+               pathSegmentFromAttrName = "memberOf";
+           } else {
+               pathSegmentFromAttrName = "ownedObjects";
+           }
+
+           String getPath = USERS + "/" + attributeValue + "/" + pathSegmentFromAttrName + "/microsoft.graph.group";
+           JSONObject groups = endpoint.executeGetRequest(getPath, null, options,false);
            handleJSONArray(options, groups, handler);
         } else if (query == null) {
            LOG.info("Query is null");

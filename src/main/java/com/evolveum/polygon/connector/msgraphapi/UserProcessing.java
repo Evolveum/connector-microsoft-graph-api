@@ -268,6 +268,12 @@ public class UserProcessing extends ObjectProcessing {
                 .setReturnedByDefault(false)
                 .build());
 
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_OWNER_OF_GROUP)
+                .setRequired(false).setType(String.class).setMultiValued(true)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .setReturnedByDefault(false)
+                .build());
+
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
                 ATTR_ASSIGNEDLICENSES__SKUID)
                 .setRequired(false)
@@ -976,9 +982,11 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
+
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_OWNER_OF_GROUP)) {
             user = saturateGroupOwnership(user);
         }
+
         ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(user).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
@@ -1026,6 +1034,19 @@ public class UserProcessing extends ObjectProcessing {
         final List<String> groups = getGraphEndpoint().executeGetRequest(
                 String.format("/users/%s/ownedObjects", uid), "$select=id", null, false
         ).getJSONArray("value").toList().stream()
+                .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
+                .map(o -> (String) ((Map) o).get(ATTR_ID))
+                .collect(Collectors.toList());
+        user.put(ATTR_OWNER_OF_GROUP, new JSONArray(groups));
+        return user;
+    }
+
+    // Saturate group ownership function
+    private JSONObject saturateGroupOwnership(JSONObject user) {
+        final String uid = user.getString(ATTR_ID);
+        final List<String> groups = getGraphEndpoint().executeGetRequest(
+                        String.format("/users/%s/ownedObjects", uid), "$select=id", null, false
+                ).getJSONArray("value").toList().stream()
                 .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
                 .map(o -> (String) ((Map) o).get(ATTR_ID))
                 .collect(Collectors.toList());
