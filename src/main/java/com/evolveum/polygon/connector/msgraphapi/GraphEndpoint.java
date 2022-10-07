@@ -709,6 +709,8 @@ public class GraphEndpoint {
         
         JSONObject passwordProfileObject = new JSONObject();
         passwordProfileObject.put("passwordProfile", passwordProfileItems);
+        
+        LOG.info("passwordProfileObject: {0}", passwordProfileObject);
 
         sendRequest(request, passwordProfileObject);
 
