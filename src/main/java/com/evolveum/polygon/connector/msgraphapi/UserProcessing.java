@@ -678,7 +678,7 @@ public class UserProcessing extends ObjectProcessing {
         final Set<AttributeDelta> deltas = new HashSet<>();
         Set<Attribute> updateAttributes = prepareAttributes(uid, attributes, deltas, false);
 
-        List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
+        List<JSONObject> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
     }

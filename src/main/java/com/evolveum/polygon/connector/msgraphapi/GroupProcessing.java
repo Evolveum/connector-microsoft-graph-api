@@ -197,7 +197,7 @@ public class GroupProcessing extends ObjectProcessing {
             LOG.info("Uid != null -> update group");
             LOG.info("Path: {0}", uri);
             request = new HttpPatch(uri);
-            List<Object> attributeList = buildLayeredAtrribute(attributes);
+            List<JSONObject> attributeList = buildLayeredAtrribute(attributes);
             endpoint.callRequestNoContentNoJson(request, attributeList);
         }
 

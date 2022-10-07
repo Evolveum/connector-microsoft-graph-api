@@ -682,15 +682,13 @@ public class GraphEndpoint {
 
     }
 
-    protected void callRequestNoContentNoJson(HttpEntityEnclosingRequestBase request, List jsonObject) {
+    protected void callRequestNoContentNoJson(HttpEntityEnclosingRequestBase request, List<JSONObject> jsonObjectList) {
         LOG.info("Request {0} ", request);
-        LOG.info("Attributes {0} ", jsonObject);
+        LOG.info("Attributes {0} ", jsonObjectList);
 
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided or empty");
         }
-
-        List<JSONObject> jsonObjectList = jsonObject;
 
         //execute one by one because Microsoft Graph not support SharePoint and Azure AD attributes in one JSONObject
         for (JSONObject item : jsonObjectList) {
