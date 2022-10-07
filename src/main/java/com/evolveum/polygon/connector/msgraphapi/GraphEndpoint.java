@@ -699,21 +699,22 @@ public class GraphEndpoint {
             sendRequest(request, item);
         }
 
-        //Handle passwordProfile sepaately
+        //Handle passwordProfile separately
 
-        List<Map<String, Object>> passwordProfileItems = jsonObjectList.stream()
+        Map<String, Object> passwordProfileItems = jsonObjectList.stream()
                 .filter(obj -> obj.has("passwordProfile"))
                 .map(obj -> obj.getJSONObject("passwordProfile").toMap())
-                .collect(Collectors.toList());
+                .flatMap(stringObjectMap -> stringObjectMap.entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         
         JSONObject passwordProfileObject = new JSONObject();
-        passwordProfileObject.append("passwordProfile", passwordProfileItems);
+        passwordProfileObject.put("passwordProfile", passwordProfileItems);
         
         LOG.info("passwordProfileObject: {0}", passwordProfileObject);
+
         sendRequest(request, passwordProfileObject);
 
     }
-
     private void sendRequest(HttpEntityEnclosingRequestBase request, JSONObject item) {
         HttpEntity entity = null;
 
