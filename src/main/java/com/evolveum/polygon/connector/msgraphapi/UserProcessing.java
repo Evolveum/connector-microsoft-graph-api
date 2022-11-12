@@ -2,10 +2,7 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
 import com.google.gson.JsonArray;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
-import org.apache.http.client.methods.HttpPatch;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
@@ -26,6 +23,7 @@ import java.util.stream.Stream;
 
 public class UserProcessing extends ObjectProcessing {
 
+    private final static String API_ENDPOINT = "https://graph.microsoft.com/v1.0";
     private static final String USERS = "/users";
     private static final String MESSAGES = "messages";
     private static final String INVITATIONS = "/invitations";
@@ -146,6 +144,7 @@ public class UserProcessing extends ObjectProcessing {
 
     // MANAGER
     private static final String ATTR_MANAGER = "manager";
+    private static final String ATTR_MANAGER_ID = ATTR_MANAGER + "." + ATTR_ID;
 
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
@@ -551,7 +550,7 @@ public class UserProcessing extends ObjectProcessing {
         attrUserType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrUserType.build());
 
-        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER + "." + ATTR_ID);
+        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID);
         attrManager.setRequired(false)
                 .setType(String.class)
                 .setCreateable(true).setUpdateable(true).setReadable(true);
@@ -576,10 +575,8 @@ public class UserProcessing extends ObjectProcessing {
                             addLicenses.addAll(it.getValue());
                         }
                         return false;
-                    } else
-                        return true;
-                })
-                .collect(Collectors.toSet());
+                    } else return !it.getName().equals(ATTR_MANAGER_ID);
+                }).collect(Collectors.toSet());
 
         // in case assignedLicences attribute is null we don't want to do anything with licences
         if (isLicenceAttrNull.get()) {
@@ -672,6 +669,31 @@ public class UserProcessing extends ObjectProcessing {
         }
     }
 
+    private void assignManager(Uid uid, Attribute attribute) {
+        if (attribute == null) {
+            return;
+        }
+
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + MANAGER);
+        HttpEntityEnclosingRequestBase request = null;
+        URI uri = endpoint.getUri(uriBuilder);
+        request = new HttpPut(uri);
+
+        String managerId = attribute.getValue().stream().map(Object::toString).findFirst().orElse("");
+        String managerRef = API_ENDPOINT + USERS + "/" + managerId;
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("@odata.id", managerRef);
+
+        LOG.info("Assign Manager Path: {0}", uri);
+        LOG.info("Assign Manager JSON: {0}", jsonObject);
+        LOG.info("Assign Manager mangerRef: {0}", managerRef);
+        LOG.info("Assign Manager attribute: {0}", attribute);
+
+        endpoint.callRequestNoContent(request, null, jsonObject);
+    }
+
     public void updateUser(Uid uid, Set<Attribute> attributes) {
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
@@ -683,9 +705,14 @@ public class UserProcessing extends ObjectProcessing {
         final Set<AttributeDelta> deltas = new HashSet<>();
         Set<Attribute> updateAttributes = prepareAttributes(uid, attributes, deltas, false);
 
+        final Attribute manager = attributes.stream()
+                .filter(a -> a.is(ATTR_MANAGER_ID))
+                .findFirst().orElse(null);
+
         List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
+        assignManager(uid, manager);
     }
 
     public Uid createUser(Uid uid, Set<Attribute> attributes) {
@@ -698,6 +725,10 @@ public class UserProcessing extends ObjectProcessing {
         if (uid != null) return uid;
 
         final GraphEndpoint endpoint = getGraphEndpoint();
+
+        final Attribute manager = attributes.stream()
+                .filter(a -> a.is(ATTR_MANAGER_ID))
+                .findFirst().orElse(null);
 
         final Optional<String> emailAddress = attributes.stream()
                 .filter(a -> a.is(ATTR_MAIL))
@@ -747,6 +778,7 @@ public class UserProcessing extends ObjectProcessing {
         }
 
         assignLicenses(new Uid(newUid), AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
+        assignManager(new Uid(newUid), manager);
 
         return new Uid(newUid);
     }
