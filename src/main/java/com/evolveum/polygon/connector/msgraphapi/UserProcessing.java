@@ -19,6 +19,7 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,6 +51,7 @@ public class UserProcessing extends ObjectProcessing {
 
     private static final String ATTR_USERPRINCIPALNAME = "userPrincipalName";
     private static final String ATTR_MEMBER_OF_GROUP = "memberOfGroup";
+    private static final String ATTR_OWNER_OF_GROUP = "ownerOfGroup";
     //private static final String ATTR_MEMBER_OF_ROLE= "memberOfRole";
 
 
@@ -255,6 +257,12 @@ public class UserProcessing extends ObjectProcessing {
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
+                .setRequired(false).setType(String.class).setMultiValued(true)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .setReturnedByDefault(false)
+                .build());
+
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_OWNER_OF_GROUP)
                 .setRequired(false).setType(String.class).setMultiValued(true)
                 .setCreateable(false).setUpdateable(false).setReadable(true)
                 .setReturnedByDefault(false)
@@ -546,17 +554,27 @@ public class UserProcessing extends ObjectProcessing {
         AttributeDeltaBuilder delta = new AttributeDeltaBuilder();
         delta.setName(ATTR_ASSIGNEDLICENSES__SKUID);
         List<Object> addLicenses = new ArrayList<>();
+
+        AtomicBoolean isLicenceAttrNull = new AtomicBoolean(true);
         // filter out the assignedLicense.skuId attribute, which must be handled separately
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
                 .filter(it -> {
                     if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
-                        if (it.getValue() != null)
+                        if (it.getValue() != null) {
+                            isLicenceAttrNull.set(false);
                             addLicenses.addAll(it.getValue());
+                        }
                         return false;
                     } else
                         return true;
                 })
                 .collect(Collectors.toSet());
+
+        // in case assignedLicences attribute is null we don't want to do anything with licences
+        if (isLicenceAttrNull.get()) {
+            return preparedAttributes;
+        }
+
         delta.addValueToAdd(addLicenses);
         // read and fill-out the old values
         if (!create) {
@@ -608,6 +626,10 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     private void assignLicenses(Uid uid, AttributeDelta deltaLicense) {
+        if (deltaLicense == null) {
+            return;
+        }
+
         final List<Object> addLicenses = deltaLicense.getValuesToAdd();
         final List<Object> removeLicenses = deltaLicense.getValuesToRemove();
         if ((addLicenses == null || addLicenses.isEmpty()) && (removeLicenses == null || removeLicenses.isEmpty()))
@@ -954,6 +976,9 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
+        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_OWNER_OF_GROUP)) {
+            user = saturateGroupOwnership(user);
+        }
         ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(user).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
@@ -996,6 +1021,19 @@ public class UserProcessing extends ObjectProcessing {
         return user;
     }
 
+    // Saturate group ownership function
+    private JSONObject saturateGroupOwnership(JSONObject user) {
+        final String uid = user.getString(ATTR_ID);
+        final List<String> groups = getGraphEndpoint().executeGetRequest(
+                        String.format("/users/%s/ownedObjects", uid), "$select=id", null, false
+                ).getJSONArray("value").toList().stream()
+                .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
+                .map(o -> (String) ((Map) o).get(ATTR_ID))
+                .collect(Collectors.toList());
+        user.put(ATTR_OWNER_OF_GROUP, new JSONArray(groups));
+        return user;
+    }
+
     public ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
@@ -1014,6 +1052,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_MAILNICKNAME, String.class, builder);
         getIfExists(user, ATTR_ABOUTME, String.class, builder);
         getMultiIfExists(user, ATTR_MEMBER_OF_GROUP, builder);
+        getMultiIfExists(user, ATTR_OWNER_OF_GROUP, builder);
         getIfExists(user, ATTR_BIRTHDAY, String.class, builder);
         getIfExists(user, ATTR_CITY, String.class, builder);
         getIfExists(user, ATTR_COMPANYNAME, String.class, builder);
