@@ -676,22 +676,31 @@ public class UserProcessing extends ObjectProcessing {
 
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + MANAGER);
-        HttpEntityEnclosingRequestBase request = null;
-        URI uri = endpoint.getUri(uriBuilder);
-        request = new HttpPut(uri);
+        String managerId = attribute.getValue().stream().map(Object::toString).findFirst().orElse(null);
 
-        String managerId = attribute.getValue().stream().map(Object::toString).findFirst().orElse("");
-        String managerRef = API_ENDPOINT + USERS + "/" + managerId;
+        if (managerId != null) {
+            HttpEntityEnclosingRequestBase request = null;
+            URI uri = endpoint.getUri(uriBuilder);
+            request = new HttpPut(uri);
 
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("@odata.id", managerRef);
+            String managerRef = API_ENDPOINT + USERS + "/" + managerId;
 
-        LOG.info("Assign Manager Path: {0}", uri);
-        LOG.info("Assign Manager JSON: {0}", jsonObject);
-        LOG.info("Assign Manager mangerRef: {0}", managerRef);
-        LOG.info("Assign Manager attribute: {0}", attribute);
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("@odata.id", managerRef);
 
-        endpoint.callRequestNoContent(request, null, jsonObject);
+            LOG.info("Assign Manager Path: {0}", uri);
+            LOG.info("Assign Manager JSON: {0}", jsonObject);
+
+            endpoint.callRequestNoContent(request, null, jsonObject);
+        } else {
+            HttpDelete request = null;
+            URI uri = endpoint.getUri(uriBuilder);
+            request = new HttpDelete(uri);
+
+            LOG.info("Assign Manager Path: {0}", uri);
+
+            endpoint.callRequest(request, false);
+        }
     }
 
     public void updateUser(Uid uid, Set<Attribute> attributes) {
