@@ -12,11 +12,11 @@ See https://wiki.evolveum.com/display/midPoint/Microsoft+Graph+API+Connector
 ```
 mvn clean install -Dmaven.test.skip=true
 ```
-* find connector-msgraph-1.0-beta.jar in ```\target``` folder
+* find connector-msgraph-{version}.jar in ```\target``` folder
 
 ##Installation
 
-* put connector-msgraph-1.0-beta.jar to ```{midPoint_home}\icf-connectors\``` directory
+* put connector-msgraph-{version}.jar to ```{midPoint_home}\icf-connectors\``` directory
 * run/restart midPoint 
  
 ##Config
