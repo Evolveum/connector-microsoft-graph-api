@@ -30,6 +30,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String MESSAGES = "messages";
     private static final String INVITATIONS = "/invitations";
     private static final String ASSIGN_LICENSES = "/assignLicense";
+    private final static String ROLE_ASSIGNMENT = "/roleManagement/directory/roleAssignments";
 
     private static final String SPACE = "%20";
     private static final String QUOTATION = "%22";
@@ -52,7 +53,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_USERPRINCIPALNAME = "userPrincipalName";
     private static final String ATTR_MEMBER_OF_GROUP = "memberOfGroup";
     private static final String ATTR_OWNER_OF_GROUP = "ownerOfGroup";
-    //private static final String ATTR_MEMBER_OF_ROLE= "memberOfRole";
+    private static final String ATTR_MEMBER_OF_ROLE= "memberOfRole";
 
 
     //optional
@@ -137,6 +138,10 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_INVITE_SEND_MESSAGE = "sendInvitationMessage";
     private static final String ATTR_INVITE_MSG_INFO = "invitedUserMessageInfo";
     private static final String ATTR_INVITED_USER_TYPE = "invitedUserType";
+
+    // GUEST ACCOUNT STATUS
+    private static final String ATTR_EXTERNALUSERSTATE = "externalUserState";
+    private static final String ATTR_EXTERNALUSERSTATECHANGEDATETIME = "externalUserStateChangeDateTime";
 
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
@@ -239,6 +244,17 @@ public class UserProcessing extends ObjectProcessing {
         attrSignIn.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrSignIn.build());
 
+        //read-only - externalUserState
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_EXTERNALUSERSTATE)
+                .setRequired(false).setType(String.class)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .build());
+
+        //read-only - externalUserStateChangeDateTime
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_EXTERNALUSERSTATECHANGEDATETIME)
+                .setRequired(false).setType(String.class)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
@@ -246,8 +262,15 @@ public class UserProcessing extends ObjectProcessing {
                 .setCreateable(false).setUpdateable(false).setReadable(true)
                 .setReturnedByDefault(false)
                 .build());
-        
+
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_OWNER_OF_GROUP)
+                .setRequired(false).setType(String.class).setMultiValued(true)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .setReturnedByDefault(false)
+                .build());
+
+        //read-only, not nullable
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_ROLE)
                 .setRequired(false).setType(String.class).setMultiValued(true)
                 .setCreateable(false).setUpdateable(false).setReadable(true)
                 .setReturnedByDefault(false)
@@ -790,7 +813,8 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
                 ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
                 ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES));
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME));
 
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
@@ -803,7 +827,8 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
                 ATTR_PROXYADDRESSES,
                 ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES);
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME);
 
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
@@ -959,9 +984,15 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
+
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_OWNER_OF_GROUP)) {
             user = saturateGroupOwnership(user);
         }
+
+        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
+            user = saturateRoleMembership(options, user);
+        }
+
         ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(user).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
@@ -1017,6 +1048,22 @@ public class UserProcessing extends ObjectProcessing {
         return user;
     }
 
+    private JSONObject saturateRoleMembership(OperationOptions options, JSONObject user) {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final String uid = user.getString(ATTR_ID);
+
+        if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_ROLE)) {
+            LOG.info("[GET] - saturateRoleMembership(), for user with UID: {0}", uid);
+
+            //get list of group members
+            final String customQuery = "$filter=principalId eq '" + uid + "'";
+            final JSONObject userMembership = endpoint.executeGetRequest(ROLE_ASSIGNMENT, customQuery, options, false);
+            user.put(ATTR_MEMBER_OF_ROLE, getJSONArray(userMembership, "roleDefinitionId"));
+        }
+
+        return user;
+    }
+
     public ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
@@ -1036,6 +1083,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_ABOUTME, String.class, builder);
         getMultiIfExists(user, ATTR_MEMBER_OF_GROUP, builder);
         getMultiIfExists(user, ATTR_OWNER_OF_GROUP, builder);
+        getMultiIfExists(user, ATTR_MEMBER_OF_ROLE, builder);
         getIfExists(user, ATTR_BIRTHDAY, String.class, builder);
         getIfExists(user, ATTR_CITY, String.class, builder);
         getIfExists(user, ATTR_COMPANYNAME, String.class, builder);
@@ -1069,6 +1117,8 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_USAGELOCATION, String.class, builder);
         getIfExists(user, ATTR_USERTYPE, String.class, builder);
         getIfExists(user, ATTR_SIGN_IN, String.class, builder);
+        getIfExists(user, ATTR_EXTERNALUSERSTATE, String.class, builder);
+        getIfExists(user, ATTR_EXTERNALUSERSTATECHANGEDATETIME, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
