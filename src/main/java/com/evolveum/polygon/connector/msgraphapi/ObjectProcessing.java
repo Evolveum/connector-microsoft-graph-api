@@ -120,6 +120,23 @@ abstract class ObjectProcessing {
         }
     }
 
+    protected void getJSONObjectItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONObject) {
+                    JSONObject jsonObject = (JSONObject) valueObject;
+
+                    if (subAttrName != null) {
+                        Object value = getValueFromItem(jsonObject, subAttrName, type);
+                        if (value != null)
+                            builder.addAttribute(attrName + "." + subAttrName, value);
+                    }
+                }
+            }
+        }
+    }
+
     protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
         if (object.has(attrName)) {
             Object valueObject = object.get(attrName);

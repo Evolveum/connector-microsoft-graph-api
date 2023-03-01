@@ -2,10 +2,7 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
 import com.google.gson.JsonArray;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
-import org.apache.http.client.methods.HttpPatch;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
@@ -26,10 +23,12 @@ import java.util.stream.Stream;
 
 public class UserProcessing extends ObjectProcessing {
 
+    private final static String API_ENDPOINT = "https://graph.microsoft.com/v1.0";
     private static final String USERS = "/users";
     private static final String MESSAGES = "messages";
     private static final String INVITATIONS = "/invitations";
     private static final String ASSIGN_LICENSES = "/assignLicense";
+    private static final String MANAGER = "/manager/$ref";
 
     private static final String SPACE = "%20";
     private static final String QUOTATION = "%22";
@@ -39,6 +38,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String FILTER = "filter";
     private static final String EQUAL = "%3D";
     private static final String SLASH = "%2F";
+    private static final String EXPAND = "expand";
 
     //required
     private static final String ATTR_ACCOUNTENABLED = "accountEnabled";
@@ -137,6 +137,14 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_INVITE_SEND_MESSAGE = "sendInvitationMessage";
     private static final String ATTR_INVITE_MSG_INFO = "invitedUserMessageInfo";
     private static final String ATTR_INVITED_USER_TYPE = "invitedUserType";
+
+    // GUEST ACCOUNT STATUS
+    private static final String ATTR_EXTERNALUSERSTATE = "externalUserState";
+    private static final String ATTR_EXTERNALUSERSTATECHANGEDATETIME = "externalUserStateChangeDateTime";
+
+    // MANAGER
+    private static final String ATTR_MANAGER = "manager";
+    private static final String ATTR_MANAGER_ID = ATTR_MANAGER + "." + ATTR_ID;
 
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
@@ -239,6 +247,17 @@ public class UserProcessing extends ObjectProcessing {
         attrSignIn.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrSignIn.build());
 
+        //read-only - externalUserState
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_EXTERNALUSERSTATE)
+                .setRequired(false).setType(String.class)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .build());
+
+        //read-only - externalUserStateChangeDateTime
+        userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_EXTERNALUSERSTATECHANGEDATETIME)
+                .setRequired(false).setType(String.class)
+                .setCreateable(false).setUpdateable(false).setReadable(true)
+                .build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_MEMBER_OF_GROUP)
@@ -246,7 +265,7 @@ public class UserProcessing extends ObjectProcessing {
                 .setCreateable(false).setUpdateable(false).setReadable(true)
                 .setReturnedByDefault(false)
                 .build());
-        
+
         userObjClassBuilder.addAttributeInfo(new AttributeInfoBuilder(ATTR_OWNER_OF_GROUP)
                 .setRequired(false).setType(String.class).setMultiValued(true)
                 .setCreateable(false).setUpdateable(false).setReadable(true)
@@ -531,6 +550,12 @@ public class UserProcessing extends ObjectProcessing {
         attrUserType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrUserType.build());
 
+        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID);
+        attrManager.setRequired(false)
+                .setType(String.class)
+                .setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrManager.build());
+
 
         return userObjClassBuilder.build();
     }
@@ -550,10 +575,8 @@ public class UserProcessing extends ObjectProcessing {
                             addLicenses.addAll(it.getValue());
                         }
                         return false;
-                    } else
-                        return true;
-                })
-                .collect(Collectors.toSet());
+                    } else return !it.getName().equals(ATTR_MANAGER_ID);
+                }).collect(Collectors.toSet());
 
         // in case assignedLicences attribute is null we don't want to do anything with licences
         if (isLicenceAttrNull.get()) {
@@ -646,6 +669,40 @@ public class UserProcessing extends ObjectProcessing {
         }
     }
 
+    private void assignManager(Uid uid, Attribute attribute) {
+        if (attribute == null) {
+            return;
+        }
+
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + MANAGER);
+        String managerId = attribute.getValue().stream().map(Object::toString).findFirst().orElse(null);
+
+        if (managerId != null) {
+            HttpEntityEnclosingRequestBase request = null;
+            URI uri = endpoint.getUri(uriBuilder);
+            request = new HttpPut(uri);
+
+            String managerRef = API_ENDPOINT + USERS + "/" + managerId;
+
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("@odata.id", managerRef);
+
+            LOG.info("Assign Manager Path: {0}", uri);
+            LOG.info("Assign Manager JSON: {0}", jsonObject);
+
+            endpoint.callRequestNoContent(request, null, jsonObject);
+        } else {
+            HttpDelete request = null;
+            URI uri = endpoint.getUri(uriBuilder);
+            request = new HttpDelete(uri);
+
+            LOG.info("Assign Manager Path: {0}", uri);
+
+            endpoint.callRequest(request, false);
+        }
+    }
+
     public void updateUser(Uid uid, Set<Attribute> attributes) {
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
@@ -657,9 +714,14 @@ public class UserProcessing extends ObjectProcessing {
         final Set<AttributeDelta> deltas = new HashSet<>();
         Set<Attribute> updateAttributes = prepareAttributes(uid, attributes, deltas, false);
 
+        final Attribute manager = attributes.stream()
+                .filter(a -> a.is(ATTR_MANAGER_ID))
+                .findFirst().orElse(null);
+
         List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
+        assignManager(uid, manager);
     }
 
     public Uid createUser(Uid uid, Set<Attribute> attributes) {
@@ -672,6 +734,10 @@ public class UserProcessing extends ObjectProcessing {
         if (uid != null) return uid;
 
         final GraphEndpoint endpoint = getGraphEndpoint();
+
+        final Attribute manager = attributes.stream()
+                .filter(a -> a.is(ATTR_MANAGER_ID))
+                .findFirst().orElse(null);
 
         final Optional<String> emailAddress = attributes.stream()
                 .filter(a -> a.is(ATTR_MAIL))
@@ -721,6 +787,7 @@ public class UserProcessing extends ObjectProcessing {
         }
 
         assignLicenses(new Uid(newUid), AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
+        assignManager(new Uid(newUid), manager);
 
         return new Uid(newUid);
     }
@@ -790,7 +857,8 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
                 ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
                 ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES));
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER));
 
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
@@ -803,7 +871,8 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
                 ATTR_PROXYADDRESSES,
                 ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES);
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
 
         if (query instanceof EqualsFilter) {
             final EqualsFilter equalsFilter = (EqualsFilter) query;
@@ -817,11 +886,12 @@ public class UserProcessing extends ObjectProcessing {
                 }
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(USERS).append("/").append(uid.getUidValue()).append("/");
+                String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 LOG.info("sbPath: {0}", sbPath);
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle, options, false);
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" + filter, options, false);
                 if (shouldReturnSignInInfo(options)) {
                     sbPath = new StringBuilder()
                             .append("/auditLogs/signIns");
@@ -859,9 +929,10 @@ public class UserProcessing extends ObjectProcessing {
                     invalidAttributeValue("Name", query);
                 }
                 String path = toGetURLByUserPrincipalName(nameValue);
+                String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 LOG.info("path: {0}", path);
 
-                JSONObject user = endpoint.executeGetRequest(path, selectorSingle, options, false);
+                JSONObject user = endpoint.executeGetRequest(path, selectorSingle + '&' + filter, options, false);
                 LOG.info("JSONObject user {0}", user.toString());
                 handleJSONObject(options, user, handler);
 
@@ -1069,9 +1140,12 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_USAGELOCATION, String.class, builder);
         getIfExists(user, ATTR_USERTYPE, String.class, builder);
         getIfExists(user, ATTR_SIGN_IN, String.class, builder);
+        getIfExists(user, ATTR_EXTERNALUSERSTATE, String.class, builder);
+        getIfExists(user, ATTR_EXTERNALUSERSTATECHANGEDATETIME, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
+        getJSONObjectItemIfExists(user, ATTR_MANAGER, ATTR_ID, String.class, builder);
         return builder;
     }
 
