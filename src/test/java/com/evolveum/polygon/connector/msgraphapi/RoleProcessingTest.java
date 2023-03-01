@@ -12,10 +12,10 @@ import java.io.InputStream;
 import java.util.List;
 
 /**
- * Test case for {@link GroupProcessing}
+ * Test case for {@link RoleProcessing}
  */
 @Test(groups = "unit")
-public class GroupProcessingTest extends BasicConfigurationForTests {
+public class RoleProcessingTest extends BasicConfigurationForTests {
 
     private JSONObject parseResource(String fileName) throws IOException  {
         try (InputStream is = getClass().getResourceAsStream(fileName)) {
@@ -23,12 +23,12 @@ public class GroupProcessingTest extends BasicConfigurationForTests {
         }
     }
 
-    final GroupProcessing groupProcessing = new GroupProcessing(new GraphEndpoint(getConfiguration()));
+    final RoleProcessing roleProcessing = new RoleProcessing(new GraphEndpoint(getConfiguration()));
 
     @Test
     public void testParseGroupMembers() throws Exception {
         final JSONObject membersJson = parseResource("groupMembers.json");
-        final JSONArray jarr = groupProcessing.getJSONArray(membersJson, "id");
+        final JSONArray jarr = roleProcessing.getJSONArray(membersJson, "id");
         final List<Object> ids = jarr.toList();
         Assert.assertEquals(2, ids.size());
         Assert.assertEquals("9639bcbc-0089-4855-a793-44b940e52286", ids.get(0));

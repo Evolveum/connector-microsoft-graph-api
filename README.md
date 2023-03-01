@@ -57,6 +57,11 @@ This are permissions which you need to add to your Azure Active Directory applic
 ###For SharePoint you need also:
 * User.Read.All -> Delegated permission
 * User.ReadWrite.All -> Delegated permission
+###For Role membership management you need also:
+* EntitlementManagement.Read.All -> Application permission 
+* EntitlementManagement.ReadWrite.All -> Application permission 
+* RoleManagement.Read.Directory -> Application permission 
+* RoleManagement.ReadWrite.Directory -> Application permission
 
 ##Resource Examples
 * AAD-resource.xml - sample resource.

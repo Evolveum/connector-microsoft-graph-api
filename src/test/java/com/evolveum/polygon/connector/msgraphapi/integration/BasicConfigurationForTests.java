@@ -17,6 +17,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
     private PropertiesParser parser = new PropertiesParser();
     protected String tenantId;
     protected Set<String> licenses, licenses2;
+    protected String roleWhichExistsInTenantDisplayName;
 
     protected static int _WAIT_INTERVAL = 1;
     protected static int _REPEAT_COUNT = 5;
@@ -40,6 +41,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         this.tenantId = parser.getTenantId();
         licenses = parser.getLicenses();
         licenses2 = parser.getLicenses2();
+        roleWhichExistsInTenantDisplayName = parser.getExistedRoleDisplayName();
         return msGraphConfiguration;
     }
 
@@ -47,16 +49,16 @@ public class BasicConfigurationForTests implements ObjectConstants {
         Map<String, Object> operationOptions = new HashMap<>();
         operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
         operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
-                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
-                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
-                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
-                ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
-                ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID
+            ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
+            ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+            ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
+            ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
+            ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+            ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
+            ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
+            ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
+            ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+            ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID
         });
         OperationOptions options = new OperationOptions(operationOptions);
         return options;
@@ -67,10 +69,26 @@ public class BasicConfigurationForTests implements ObjectConstants {
         operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
 
         operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{ATTR_ALLOWEXTERNALSENDERS, ATTR_AUTOSUBSCRIBENEWMEMBERS,
-                ATTR_CLASSIFICATION, ATTR_CREATEDDATETIME, ATTR_DESCRIPTION, ATTR_DISPLAYNAME, ATTR_GROUPTYPES, ATTR_ID,
-                ATTR_ISSUBSCRIBEDBYMAIL, ATTR_MAIL, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_ONPREMISESLASTSYNCDATETIME,
-                ATTR_ONPREMISESSECURITYIDENTIFIER, ATTR_ONPREMISESSYNCENABLED, ATTR_PROXYADDRESSES, ATTR_SECURITYENABLED,
-                ATTR_UNSEENCOUNT, ATTR_VISIBILITY, ATTR_MEMBERS, ATTR_OWNERS
+            ATTR_CLASSIFICATION, ATTR_CREATEDDATETIME, ATTR_DESCRIPTION, ATTR_DISPLAYNAME, ATTR_GROUPTYPES, ATTR_ID,
+            ATTR_ISSUBSCRIBEDBYMAIL, ATTR_MAIL, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_ONPREMISESLASTSYNCDATETIME,
+            ATTR_ONPREMISESSECURITYIDENTIFIER, ATTR_ONPREMISESSYNCENABLED, ATTR_PROXYADDRESSES, ATTR_SECURITYENABLED,
+            ATTR_UNSEENCOUNT, ATTR_VISIBILITY, ATTR_MEMBERS, ATTR_OWNERS
+        });
+        OperationOptions options = new OperationOptions(operationOptions);
+        return options;
+    }
+
+    protected OperationOptions getDefaultRoleOperationOptions() {
+        Map<String, Object> operationOptions = new HashMap<>();
+        operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", false);
+
+        operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{
+            ATTR_DESCRIPTION, ATTR_DISPLAYNAME, ATTR_ID, ATTR_IS_BUILT_IN,
+            ATTR_IS_ENABLED, ATTR_RESOURCE_SCOPES, ATTR_TEMPLATE_ID, ATTR_VERSION,
+            ATTR_ROLE_PERMISSIONS, ATTR_ALLOWED_RESOURCE_ACTIONS, ATTR_ROLE_PERMISSIONS_ALL,
+            ATTR_INHERIT_PERMISSIONS_FROM_ODATA_CONTEXT, ATTR_INHERIT_PERMISSIONS_FROM,
+            ATTR_INHERIT_PERMISSIONS_FROM, ATTR_INHERIT_PERMISSIONS_FROM_ALL,
+            ATTR_MEMBERS
         });
         OperationOptions options = new OperationOptions(operationOptions);
         return options;
@@ -110,15 +128,73 @@ public class BasicConfigurationForTests implements ObjectConstants {
             throw exp;
         }
     }
+    
+    protected void addAttributeWaitAndRetry(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions oOptions) throws Exception {
+        int iterator = 0;
+        boolean notFound = true;
+        Exception exp = null;
+
+        while (_REPEAT_COUNT > iterator && notFound) {
+            notFound = false;
+            try {
+                msGraphConnector.addAttributeValues(objectClass, uid, attributes, oOptions);
+            } catch (UnknownUidException e) {
+
+                exp = e;
+                notFound = true;
+                Thread.sleep(_REPEAT_INTERVAL);
+            }
+
+            if (!notFound) {
+
+                return;
+            }
+            iterator++;
+        }
+
+        if (exp != null) {
+
+            throw exp;
+        }
+    }
+    
+    protected void removeAttributeWaitAndRetry(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions oOptions) throws Exception {
+        int iterator = 0;
+        boolean notFound = true;
+        Exception exp = null;
+
+        while (_REPEAT_COUNT > iterator && notFound) {
+            notFound = false;
+            try {
+                msGraphConnector.removeAttributeValues(objectClass, uid, attributes, oOptions);
+            } catch (UnknownUidException e) {
+
+                exp = e;
+                notFound = true;
+                Thread.sleep(_REPEAT_INTERVAL);
+            }
+
+            if (!notFound) {
+
+                return;
+            }
+            iterator++;
+        }
+
+        if (exp != null) {
+
+            throw exp;
+        }
+    }
 
     protected void queryWaitAndRetry(ObjectClass objectClass, AttributeFilter filter, TestSearchResultsHandler handler,
-                                     OperationOptions oOptions, Uid uid) throws InterruptedException {
+            OperationOptions oOptions, Uid uid) throws InterruptedException {
 
         queryWaitAndRetry(objectClass, filter, handler, oOptions, Collections.singletonList(uid));
     }
 
     protected void queryWaitAndRetry(ObjectClass objectClass, AttributeFilter filter, TestSearchResultsHandler handler,
-                                     OperationOptions oOptions, List<Uid> uid) throws InterruptedException {
+            OperationOptions oOptions, List<Uid> uid) throws InterruptedException {
         int iterator = 0;
         for (Uid i : uid) {
         }
@@ -144,7 +220,6 @@ public class BasicConfigurationForTests implements ObjectConstants {
             iterator++;
         }
     }
-
 
     private boolean areObjectsPresent(ArrayList<ConnectorObject> resultsAccount, List<Uid> uidToCompare) {
         boolean match = false;
