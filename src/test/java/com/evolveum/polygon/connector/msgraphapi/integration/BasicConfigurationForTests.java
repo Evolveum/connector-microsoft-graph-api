@@ -18,7 +18,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
     protected String tenantId;
     protected Set<String> licenses, licenses2;
 
-    protected static int _WAIT_INTERVAL = 1;
+    protected static int _WAIT_INTERVAL = 2;
     protected static int _REPEAT_COUNT = 5;
     protected static long _REPEAT_INTERVAL = 6500;
 

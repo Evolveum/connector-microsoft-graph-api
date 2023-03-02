@@ -278,8 +278,7 @@ public class GraphEndpoint {
         request.setHeader("Authorization", getAccessToken().getAccessToken());
         request.setHeader("Content-Type", "application/json");
         request.setHeader("ConsistencyLevel", "eventual");
-        LOG.info("HtttpUriRequest: {0}", request);
-        LOG.info(request.toString());
+        LOG.ok("Request execution -> HtttpUriRequest: {0}", request);
         CloseableHttpResponse response;
         int retryCount = 0;
         try {
@@ -413,7 +412,7 @@ public class GraphEndpoint {
         LOG.info("callRequest");
         String result = null;
         request.setHeader("ConsistencyLevel", "eventual");
-        LOG.info("URL in request: {0}", request.getRequestLine().getUri());
+        LOG.ok("URL in request: {0}", request.getRequestLine().getUri());
         LOG.info("Enumerating headers");
         List<Header> httpHeaders = Arrays.asList(request.getAllHeaders());
         for (Header header : httpHeaders) {

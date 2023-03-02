@@ -197,7 +197,7 @@ public class MSGraphConnector implements Connector,
             LOG.info("starting sync");
             LOG.info("ObjectClass.ACCOUNT_NAME is " + ObjectClass.ACCOUNT_NAME);
             LOG.info("sync ObjectClass is " + objectClass.getObjectClassValue() + "--");
-            LOG.info("fromToken value is " + fromToken);
+            LOG.ok("fromToken value is " + fromToken);
             GraphEndpoint endpoint = getGraphEndpoint();
             UserProcessing userProcessor = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
             String nextDeltaLink = new String();
@@ -211,7 +211,7 @@ public class MSGraphConnector implements Connector,
             if (firstCall.has("@odata.nextLink") && firstCall.getString("@odata.nextLink") != null && !firstCall.getString("@odata.nextLink").isEmpty()) {
                 morePages = true;
                 nextLink = firstCall.getString("@odata.nextLink");
-                LOG.info("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
+                LOG.ok("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
             } else {
                 morePages = false;
                 LOG.info("No nextLink defined, final page was firstCall");
@@ -222,7 +222,7 @@ public class MSGraphConnector implements Connector,
                 for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
                     value.put(firstCall.getJSONArray("value").get(i));
                 }
-                LOG.info("firstCall: {0} ", firstCall);
+                LOG.ok("firstCall: {0} ", firstCall);
             } else {
                 LOG.info("firstCall contained no value object or the object was null");
             }
@@ -231,10 +231,12 @@ public class MSGraphConnector implements Connector,
                 HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
                 LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
                 nextLinkJson = endpoint.callRequest(nextLinkUriRequest, true);
-                if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null && !nextLinkJson.getString("@odata.nextLink").isEmpty()) {
+                if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null &&
+                        !nextLinkJson.getString("@odata.nextLink").isEmpty()) {
+
                     morePages = true;
                     nextLink = nextLinkJson.getString("@odata.nextLink");
-                    LOG.info("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
+                    LOG.ok("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
                 } else {
                     morePages = false;
                     LOG.info("No nextLink defined, final page");
@@ -245,7 +247,7 @@ public class MSGraphConnector implements Connector,
                     for (int i = 0; i < nextLinkJson.getJSONArray("value").length(); i++) {
                         value.put(nextLinkJson.getJSONArray("value").get(i));
                     }
-                    LOG.info("nextLinkJson: {0} ", nextLinkJson);
+                    LOG.ok("nextLinkJson: {0} ", nextLinkJson);
                 } else {
                     LOG.info("nextLinkJson contained no value object or the object was null");
                 }
@@ -256,15 +258,36 @@ public class MSGraphConnector implements Connector,
             LOG.info("User JSONArray length for SyncOp: {0}", length);
             for (int i = 0; i < length; i++) {
                 JSONObject user = value.getJSONObject(i);
+
+                String userUID = userProcessor.getUIDIfExists(user);
                 LOG.info("Processing user json object, {0}", user);
-                ConnectorObjectBuilder userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+
+                ConnectorObjectBuilder userConnectorObjectBuilder;
                 SyncDeltaBuilder builder = new SyncDeltaBuilder();
-                builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
                 builder.setObjectClass(ObjectClass.ACCOUNT);
+
+                if (userProcessor.isDeleteDelta(user)){
+
+                    LOG.info("Sync operation -> Processing Delete delta for the User: {0} ", userUID);
+
+                    builder.setDeltaType(SyncDeltaType.DELETE);
+                    builder.setUid(new Uid(userUID));
+
+                } else {
+
+                    LOG.info("Sync operation -> Processing Create or Update delta for the User: {0} ", userUID);
+
+                    userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+                    builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
+                    builder.setObject(userConnectorObjectBuilder.build());
+                }
+
                 builder.setToken(nextLinkSyncToken);
-                ConnectorObject connectorObject = userConnectorObjectBuilder.build();
-                builder.setObject(connectorObject);
+
+                LOG.ok("Sync operation -> Object handler execution for the User object {0} ", userUID);
+
                 handler.handle(builder.build());
+
             }
 
 

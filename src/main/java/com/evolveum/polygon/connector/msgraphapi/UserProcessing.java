@@ -146,6 +146,8 @@ public class UserProcessing extends ObjectProcessing {
     private static final String TYPE = "@odata.type";
     private static final String TYPE_GROUP = "#microsoft.graph.group";
 
+    private static final String O_REMOVED = "@removed";
+
     private static final Set<String> OPTIONAL_ATTRS = Stream.of(
             ATTR_ABOUTME,
             ATTR_BIRTHDAY,
@@ -533,6 +535,18 @@ public class UserProcessing extends ObjectProcessing {
 
 
         return userObjClassBuilder.build();
+    }
+
+    public boolean isDeleteDelta(JSONObject o) {
+
+        if (o.has(O_REMOVED)) {
+
+            LOG.ok("Delta for processed object is {0}", SyncDeltaType.DELETE);
+            return true;
+        }
+
+        LOG.ok("Delta for processed object is {0}", SyncDeltaType.DELETE);
+        return false;
     }
 
     private Set<Attribute> prepareAttributes(Uid uid, Set<Attribute> replaceAttributes, Set<AttributeDelta> deltas, boolean create) {
@@ -1073,6 +1087,18 @@ public class UserProcessing extends ObjectProcessing {
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
         return builder;
+    }
+
+    protected String getUIDIfExists(JSONObject object) {
+        if (object.has(ATTR_ID)) {
+            String uid = object.getString(ATTR_ID);
+            return uid;
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Missing required attribute: ").append(ATTR_ID)
+                    .append(" for converting JSONObject to ConnectorObject.");
+            throw new InvalidAttributeValueException(sb.toString());
+        }
     }
 
 
