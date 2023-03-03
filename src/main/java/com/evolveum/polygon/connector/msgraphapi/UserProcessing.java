@@ -545,7 +545,7 @@ public class UserProcessing extends ObjectProcessing {
             return true;
         }
 
-        LOG.ok("Delta for processed object is {0}", SyncDeltaType.DELETE);
+        LOG.ok("Delta for processed object is {0}", SyncDeltaType.CREATE_OR_UPDATE);
         return false;
     }
 
