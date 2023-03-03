@@ -1113,7 +1113,7 @@ public class UserProcessing extends ObjectProcessing {
         String objectId= getUIDIfExists(object);
 
         LOG.warn("Naming attribute not present for the currently processed object with the Id {0}. Most probably " +
-                "object already deleted, yet it might indicates potential consistency issues with the currently "+
+                "object already deleted, yet it might indicate potential consistency issues with the currently "+
                 "processed object.", objectId);
 
         return false;
