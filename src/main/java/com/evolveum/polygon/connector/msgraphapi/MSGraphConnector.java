@@ -229,7 +229,7 @@ public class MSGraphConnector implements Connector,
             while (morePages == true) {
                 JSONObject nextLinkJson = new JSONObject();
                 HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
-                LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
+                LOG.ok("nextLinkUriRequest {0}", nextLinkUriRequest);
                 nextLinkJson = endpoint.callRequest(nextLinkUriRequest, true);
                 if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null &&
                         !nextLinkJson.getString("@odata.nextLink").isEmpty()) {
@@ -256,10 +256,12 @@ public class MSGraphConnector implements Connector,
             SyncToken nextLinkSyncToken = new SyncToken(nextDeltaLink);
             int length = value.length();
             LOG.info("User JSONArray length for SyncOp: {0}", length);
+
             for (int i = 0; i < length; i++) {
                 JSONObject user = value.getJSONObject(i);
 
                 String userUID = userProcessor.getUIDIfExists(user);
+
                 LOG.info("Processing user json object, {0}", user);
 
                 ConnectorObjectBuilder userConnectorObjectBuilder;
@@ -276,7 +278,10 @@ public class MSGraphConnector implements Connector,
                 } else {
 
                     LOG.info("Sync operation -> Processing Create or Update delta for the User: {0} ", userUID);
+                    if (!userProcessor.isNamePresent(user)){
 
+                        continue;
+                    }
                     userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
                     builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
                     builder.setObject(userConnectorObjectBuilder.build());

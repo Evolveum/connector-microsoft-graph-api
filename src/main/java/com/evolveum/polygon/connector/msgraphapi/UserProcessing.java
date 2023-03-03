@@ -1102,4 +1102,20 @@ public class UserProcessing extends ObjectProcessing {
     }
 
 
+    public boolean isNamePresent(JSONObject object) {
+        if (object.has(ATTR_USERPRINCIPALNAME)) {
+
+            LOG.ok("Naming attribute present for the currently processed object");
+
+            return true;
+        }
+
+        String objectId= getUIDIfExists(object);
+
+        LOG.warn("Naming attribute not present for the currently processed object with the Id {0}. Most probably " +
+                "object already deleted, yet it might indicates potential consistency issues with the currently "+
+                "processed object.", objectId);
+
+        return false;
+    }
 }
