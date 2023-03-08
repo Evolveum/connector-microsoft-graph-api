@@ -31,6 +31,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -45,7 +46,8 @@ public class MSGraphConnector implements Connector,
         SchemaOp,
         UpdateOp,
         SyncOp,
-        UpdateAttributeValuesOp {
+        UpdateAttributeValuesOp,
+        DiscoverConfigurationOp{
 
     private static final Log LOG = Log.getLog(MSGraphConnector.class);
 
@@ -487,5 +489,16 @@ public class MSGraphConnector implements Connector,
     @Override
     public void checkAlive() {
         // do nothing here
+    }
+
+    @Override
+    public void testPartialConfiguration() {
+        //TODO
+    }
+
+    @Override
+    public Map<String, SuggestedValues> discoverConfiguration() {
+        //TODO
+        return null;
     }
 }
