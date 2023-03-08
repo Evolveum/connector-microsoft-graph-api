@@ -98,19 +98,35 @@ public interface ObjectConstants {
     String ATTR_ICF_ENABLED = "__ENABLE__";
 
 
+    // Role/Group common
+    String ATTR_DESCRIPTION = "description";
+    String ATTR_MEMBERS = "members";
     // Group
 
     String ATTR_ALLOWEXTERNALSENDERS = "allowExternalSenders";
     String ATTR_AUTOSUBSCRIBENEWMEMBERS = "autoSubscribeNewMembers";
     String ATTR_CLASSIFICATION = "classification";
     String ATTR_CREATEDDATETIME = "createdDateTime";
-    String ATTR_DESCRIPTION = "description";
     String ATTR_GROUPTYPES = "groupTypes";
     String ATTR_ISSUBSCRIBEDBYMAIL = "isSubscribedByMail";
     String ATTR_MAILENABLED = "mailEnabled";
     String ATTR_SECURITYENABLED = "securityEnabled";
     String ATTR_UNSEENCOUNT = "unseenCount";
     String ATTR_VISIBILITY = "visibility";
-    String ATTR_MEMBERS = "members";
     String ATTR_OWNERS = "owners";
+    
+    // Role
+    
+    String ATTR_IS_BUILT_IN = "isBuiltIn";
+    String ATTR_IS_ENABLED = "isEnabled";
+    String ATTR_RESOURCE_SCOPES = "resourceScopes";
+    String ATTR_TEMPLATE_ID = "templateId";
+    String ATTR_VERSION = "version";
+    String ATTR_ROLE_PERMISSIONS = "rolePermissions";
+    String ATTR_ALLOWED_RESOURCE_ACTIONS = "allowedResourceActions";
+    String ATTR_ROLE_PERMISSIONS_ALL = ATTR_ROLE_PERMISSIONS + "." + ATTR_ALLOWED_RESOURCE_ACTIONS;
+    String ATTR_INHERIT_PERMISSIONS_FROM_ODATA_CONTEXT = "inheritsPermissionsFrom@odata.context";
+    String ATTR_INHERIT_PERMISSIONS_FROM = "inheritsPermissionsFrom";
+    String ATTR_INHERIT_PERMISSIONS_FROM_ALL = ATTR_INHERIT_PERMISSIONS_FROM + "." + ATTR_ID;
+
 }

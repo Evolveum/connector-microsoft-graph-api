@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
+import static com.evolveum.polygon.connector.msgraphapi.RoleProcessing.ROLE_NAME;
 import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -253,5 +254,26 @@ public class FilteringTest extends BasicConfigurationForTests {
         deleteWaitAndRetry(objectClassGroup, groupBlue, options);
         deleteWaitAndRetry(objectClassGroup, groupYellow, options);
     }
+    
+    @Test(priority = 22)
+    public void filteringRoleObjectClass() throws Exception {
 
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultRoleOperationOptions();
+
+        ObjectClass objectClassRole = new ObjectClass(ROLE_NAME);
+
+        AttributeFilter containsFilterRole;
+        containsFilterRole = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", roleWhichExistsInTenantDisplayName));
+
+        TestSearchResultsHandler handlerRole = getResultHandler();
+        
+        msGraphConnector.executeQuery(objectClassRole, containsFilterRole, handlerRole, options);
+        
+        ArrayList<ConnectorObject> resultsRole = handlerRole.getResult();
+        Assert.assertTrue(!resultsRole.isEmpty());
+    }
 }

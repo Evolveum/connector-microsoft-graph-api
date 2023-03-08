@@ -106,6 +106,10 @@ public class MSGraphConnector implements Connector,
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
             return groupProcessing.createOrUpdateGroup(null, attributes);
 
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
+            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+            return roleProcessing.createOrUpdateRole(null, attributes);
+
         } else {
             throw new UnsupportedOperationException("Unsupported object class " + objectClass);
         }
@@ -134,6 +138,10 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
             GroupProcessing group = new GroupProcessing(getGraphEndpoint());
             group.delete(uid);
+
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
+            RoleProcessing role = new RoleProcessing(getGraphEndpoint());
+            role.delete(uid);
 
         }
     }
@@ -333,6 +341,9 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
             LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
             licenseProcessing.executeQueryForLicense(query, handler, options);
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
+            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+            roleProcessing.executeQueryForRole(query, handler, options);
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported.");
@@ -402,6 +413,13 @@ public class MSGraphConnector implements Connector,
             if (!attrsDeltaMultivalue.isEmpty()) {
                 new GroupProcessing(getGraphEndpoint()).updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
             }
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) { // __ROLE__
+            if (!attributeReplace.isEmpty()) {
+                new RoleProcessing(getGraphEndpoint()).createOrUpdateRole(uid, attributeReplace);
+            }
+            if (!attrsDeltaMultivalue.isEmpty()) {
+                new RoleProcessing(getGraphEndpoint()).updateDeltaMultiValuesForRole(uid, attrsDeltaMultivalue, options);
+            }
         } else {
             LOG.error("The value of the ObjectClass parameter is unsupported.");
             throw new UnsupportedOperationException("The value of the ObjectClass parameter is unsupported.");
@@ -420,6 +438,10 @@ public class MSGraphConnector implements Connector,
         if (objectClass.is(ObjectClass.GROUP_NAME)) {
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
             groupProcessing.addToGroup(uid, attributes);
+
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
+            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+            roleProcessing.addToRole(uid, attributes);
 
         }
 
@@ -444,6 +466,11 @@ public class MSGraphConnector implements Connector,
         if (objectClass.is(ObjectClass.GROUP_NAME)) {
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
             groupProcessing.removeFromGroup(uid, attributes);
+
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
+            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+            roleProcessing.removeFromRole(uid, attributes, operationOptions);
+
         }
 
         return uid;
@@ -465,7 +492,13 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
             groupProcessing.createOrUpdateGroup(uid, attributes);
+
+        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
+            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+            roleProcessing.createOrUpdateRole(uid, attributes);
+
         }
+
         return uid;
     }
 

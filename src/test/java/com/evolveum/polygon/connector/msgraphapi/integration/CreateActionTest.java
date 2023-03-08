@@ -1,23 +1,16 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
-import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
-import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.exceptions.InvalidPasswordException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
-import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 
 public class CreateActionTest extends BasicConfigurationForTests {
