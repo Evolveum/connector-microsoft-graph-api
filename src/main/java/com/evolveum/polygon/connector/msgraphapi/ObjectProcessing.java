@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
+
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
@@ -158,6 +159,23 @@ abstract class ObjectProcessing {
             if (valueObject != null) {
                 Object subValue = getValueFromItem((JSONObject)valueObject, subAttrName, type);
                 builder.addAttribute(attrName + "." + subAttrName, subValue);
+            }
+        }
+    }
+
+    protected void getJSONObjectItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONObject) {
+                    JSONObject jsonObject = (JSONObject) valueObject;
+
+                    if (subAttrName != null) {
+                        Object value = getValueFromItem(jsonObject, subAttrName, type);
+                        if (value != null)
+                            builder.addAttribute(attrName + "." + subAttrName, value);
+                    }
+                }
             }
         }
     }
