@@ -232,7 +232,7 @@ public class UserProcessing extends ObjectProcessing {
 
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
                 ATTR_PASSWORDPROFILE + "." + ATTR_FORCECHANGEPASSWORDNEXTSIGNIN)
-                .setRequired(true).setType(Boolean.class).setCreateable(true).setUpdateable(true).setReadable(true).build());
+                .setRequired(false).setType(Boolean.class).setCreateable(true).setUpdateable(true).setReadable(true).build());
 
 
 //        userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
