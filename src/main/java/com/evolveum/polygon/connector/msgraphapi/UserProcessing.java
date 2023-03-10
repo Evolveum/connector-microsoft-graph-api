@@ -915,6 +915,7 @@ public class UserProcessing extends ObjectProcessing {
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(USERS).append("/").append(uid.getUidValue()).append("/");
                 String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
+                LOG.ok("The constructed filter: {0}",  filter);
                 LOG.info("sbPath: {0}", sbPath);
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
@@ -958,6 +959,7 @@ public class UserProcessing extends ObjectProcessing {
                 }
                 String path = toGetURLByUserPrincipalName(nameValue);
                 String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
+                LOG.ok("The constructed filter: {0}",  filter);
                 LOG.info("path: {0}", path);
 
                 JSONObject user = endpoint.executeGetRequest(path, selectorSingle + '&' + filter, options, false);
@@ -980,6 +982,7 @@ public class UserProcessing extends ObjectProcessing {
             ) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String filter = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
+                LOG.ok("The constructed filter: {0}",  filter);
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
                 handleJSONArray(options, users, handler);
             }
@@ -992,6 +995,7 @@ public class UserProcessing extends ObjectProcessing {
                 final String attributeValue = getAttributeFirstValue(containsFilter);
                 LOG.info("value {0}", attributeValue);
                 final String filter = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
+                LOG.ok("The constructed filter: {0}",  filter);
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
                 handleJSONArray(options, users, handler);
