@@ -2,6 +2,7 @@
 
 package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.util.FilterHandler;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.methods.HttpRequestBase;
@@ -327,6 +328,22 @@ public class MSGraphConnector implements Connector,
             LOG.error("Attribute of type OperationOptions not provided.");
             throw new InvalidAttributeValueException("Attribute of type OperationOptions is not provided.");
         }
+
+        // Translating filter
+        String filterSnippet = "";
+
+        if (query == null) {
+
+            LOG.ok("Empty query parameter, returning full list of objects of the object class: {0}"
+                    , objectClass.getDisplayNameKey());
+        } else {
+
+            filterSnippet = query.accept(new FilterHandler(), "");
+
+            LOG.ok("Query will be executed with the following filter: {0}", filterSnippet);
+            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+        }
+
 
         LOG.info("executeQuery on {0}, filter: {1}, options: {2}", objectClass, query, options);
 
