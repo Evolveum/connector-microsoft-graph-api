@@ -564,10 +564,10 @@ public class UserProcessing extends ObjectProcessing {
         attrUserType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrUserType.build());
 
-        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID); // TODO return by default ????
+        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID);
         attrManager.setRequired(false)
                 .setType(String.class)
-                .setCreateable(true).setUpdateable(true).setReadable(true);
+                .setCreateable(true).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(attrManager.build());
 
 
@@ -914,14 +914,19 @@ public class UserProcessing extends ObjectProcessing {
                 }
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(USERS).append("/").append(uid.getUidValue()).append("/"); // TODO
-                String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
-                LOG.ok("The constructed filter: {0}",  filter);
-                LOG.info("sbPath: {0}", sbPath);
+                String filter = "";
+                if (shouldReturnSignInInfo(options).contains(ATTR_MANAGER_ID)){
+                filter = "$" + EXPAND + "=" + ATTR_MANAGER;
+                }
+                LOG.ok("The constructed additional filter clause: {0}",  filter.isEmpty() ? "Empty filter clause."
+                        : filter);
+
+                // LOG.info("sbPath: {0}", sbPath);
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" + filter, options, false);
-                if (shouldReturnSignInInfo(options)) {
+                if (shouldReturnSignInInfo(options).contains(ATTR_SIGN_IN)) {
                     sbPath = new StringBuilder()
                             .append("/auditLogs/signIns");
                     StringBuilder signInSelector = new StringBuilder()
@@ -994,9 +999,14 @@ public class UserProcessing extends ObjectProcessing {
                 final String attributeName = containsFilter.getAttribute().getName();
                 final String attributeValue = getAttributeFirstValue(containsFilter);
                 LOG.info("value {0}", attributeValue);
+                String exp="";
+                if (shouldReturnSignInInfo(options).contains(ATTR_MANAGER)){
+                    exp = "&$" + EXPAND + "=" + ATTR_MANAGER;
+                }
+
                 final String filter = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
                 LOG.ok("The constructed filter: {0}",  filter);
-                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
+                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter+exp, options, true);
                 LOG.info("JSONObject users {0}", users.toString());
                 handleJSONArray(options, users, handler);
             }
@@ -1008,31 +1018,22 @@ public class UserProcessing extends ObjectProcessing {
         }
     }
 
-    private boolean shouldReturnSignInInfo(OperationOptions options) {
+    private ArrayList<String> shouldReturnSignInInfo(OperationOptions options) {
         if (options == null) {
 
-            return false;
+            return null;
         }
 
-        String[] attrNameArray = options.getAttributesToGet();
+        ArrayList<String> attrNameArray = new ArrayList<String>(Arrays.asList(options.getAttributesToGet()));
 
-        if (attrNameArray == null || attrNameArray.length == 0) {
+        if (attrNameArray == null || attrNameArray.isEmpty()) {
 
-            return false;
+            return null;
         }
 
-        for (String attrName : attrNameArray) {
-            if (ATTR_SIGN_IN.equals(attrName)) {
-
-                return true;
-            } else {
-            }
-
-        }
-
-
-        return false;
+        return attrNameArray;
     }
+
 
     /**
      * When the userPrincipalName begins with a $ character, remove the slash (/) after /users and

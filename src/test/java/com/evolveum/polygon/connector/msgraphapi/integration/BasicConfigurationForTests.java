@@ -19,9 +19,9 @@ public class BasicConfigurationForTests implements ObjectConstants {
     protected Set<String> licenses, licenses2;
     protected String roleWhichExistsInTenantDisplayName;
 
-    protected static int _WAIT_INTERVAL = 2;
-    protected static int _REPEAT_COUNT = 5;
-    protected static long _REPEAT_INTERVAL = 6500;
+    protected static int _WAIT_INTERVAL = 3;
+    protected static int _REPEAT_COUNT = 10;
+    protected static long _REPEAT_INTERVAL = 10000;
 
     protected MSGraphConnector msGraphConnector;
     protected MSGraphConfiguration msGraphConfiguration;
@@ -58,7 +58,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
             ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
             ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
             ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-            ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID
+            ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID, ATTR_MANAGER_ID
         });
         OperationOptions options = new OperationOptions(operationOptions);
         return options;

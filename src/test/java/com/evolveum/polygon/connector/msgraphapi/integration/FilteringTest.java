@@ -77,6 +77,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "Pink"));
+        attributesAccount.add(AttributeBuilder.build("manager.id", "f7febd3d-8123-4abb-b38e-4a3a2ab1080d"));
         attributesAccount.add(AttributeBuilder.build("mail", "Pink@" + tenantId));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink"));
         attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink@" + tenantId));
