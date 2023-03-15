@@ -564,7 +564,7 @@ public class UserProcessing extends ObjectProcessing {
         attrUserType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrUserType.build());
 
-        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID);
+        AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID); // TODO return by default ????
         attrManager.setRequired(false)
                 .setType(String.class)
                 .setCreateable(true).setUpdateable(true).setReadable(true);
@@ -913,7 +913,7 @@ public class UserProcessing extends ObjectProcessing {
                     invalidAttributeValue("Uid", query);
                 }
                 StringBuilder sbPath = new StringBuilder();
-                sbPath.append(USERS).append("/").append(uid.getUidValue()).append("/");
+                sbPath.append(USERS).append("/").append(uid.getUidValue()).append("/"); // TODO
                 String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 LOG.ok("The constructed filter: {0}",  filter);
                 LOG.info("sbPath: {0}", sbPath);

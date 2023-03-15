@@ -130,7 +130,7 @@ public class FilteringTest extends BasicConfigurationForTests {
 
 
         AttributeFilter equalsFilterAccount1;
-        equalsFilterAccount1 = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("userPrincipalName", "Pink@" + tenantId));
+        equalsFilterAccount1 = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build(Uid.NAME, "Pink@" + tenantId));
         resultsAccount.clear();
 
         handlerAccount = getResultHandler();

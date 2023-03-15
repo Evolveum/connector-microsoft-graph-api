@@ -13,6 +13,7 @@ import org.apache.http.client.methods.HttpRequestBase;
 //import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 //import org.apache.http.client.*;
 //import org.apache.http.impl.client.*;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.spi.PoolableConnector;
 import org.json.JSONObject;
 import org.json.JSONArray;
@@ -330,7 +331,8 @@ public class MSGraphConnector implements Connector,
         }
 
         // Translating filter
-        String filterSnippet = "";
+        String filterSnippet;
+        Boolean fetchSpecificObject =false;
 
         if (query == null) {
 
@@ -338,7 +340,23 @@ public class MSGraphConnector implements Connector,
                     , objectClass.getDisplayNameKey());
         } else {
 
+            if (query instanceof EqualsFilter){
+
+                final EqualsFilter equalsFilter = (EqualsFilter) query;
+                        Attribute fAttr = equalsFilter.getAttribute();
+
+                if(Uid.NAME.equals(fAttr.getName()))
+                    {
+                        fetchSpecificObject = true;
+                        filterSnippet = ((Uid) fAttr).getUidValue();
+                    } else {
+
+                    filterSnippet = query.accept(new FilterHandler(), "");
+                }
+            }else{
+
             filterSnippet = query.accept(new FilterHandler(), "");
+            }
 
             LOG.ok("Query will be executed with the following filter: {0}", filterSnippet);
             LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
