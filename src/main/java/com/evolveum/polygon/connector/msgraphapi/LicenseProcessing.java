@@ -173,4 +173,14 @@ public class LicenseProcessing extends ObjectProcessing {
         return handler.handle(builder.build());
     }
 
+    public String getNameAttribute(){
+
+        return ATTR_SKUPAATNUMBER;
+    }
+
+    public String getUIDAttribute(){
+
+        return ATTR_ID;
+    }
+
 }

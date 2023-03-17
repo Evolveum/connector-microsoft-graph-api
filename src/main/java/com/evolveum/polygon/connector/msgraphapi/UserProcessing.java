@@ -1,7 +1,6 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
-import com.google.gson.JsonArray;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.CollectionUtil;
@@ -10,7 +9,6 @@ import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueE
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
-import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -869,7 +867,7 @@ public class UserProcessing extends ObjectProcessing {
     }
 
 
-    public void executeQueryForUser(Filter query, ResultsHandler handler, OperationOptions options) {
+    public void executeQueryForUser(String translatedQuery, Boolean fetchSpecific ,ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
@@ -902,37 +900,37 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
 
 
-        if (query instanceof EqualsFilter) {
-            final EqualsFilter equalsFilter = (EqualsFilter) query;
-            LOG.info("query instanceof EqualsFilter");
-            if (equalsFilter.getAttribute() instanceof Uid) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
+        if (translatedQuery !=null || !translatedQuery.isEmpty()) {
 
-                Uid uid = (Uid) ((EqualsFilter) query).getAttribute();
-                if (uid.getUidValue() == null) {
-                    invalidAttributeValue("Uid", query);
-                }
+            if (fetchSpecific) {
+
+                LOG.info("Fetching account info for account: {0}", translatedQuery);
                 StringBuilder sbPath = new StringBuilder();
-                sbPath.append(USERS).append("/").append(uid.getUidValue()).append("/"); // TODO
+                sbPath.append(toGetURLByUserPrincipalName(translatedQuery)).append("/");
                 String filter = "";
-                if (shouldReturnSignInInfo(options).contains(ATTR_MANAGER_ID)){
+                if (shouldReturnAttribute(options).contains(ATTR_MANAGER_ID)){
+
+                    LOG.info("Fetching manager info for account: {0}", translatedQuery);
+
                 filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 }
                 LOG.ok("The constructed additional filter clause: {0}",  filter.isEmpty() ? "Empty filter clause."
                         : filter);
 
-                // LOG.info("sbPath: {0}", sbPath);
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" + filter, options, false);
-                if (shouldReturnSignInInfo(options).contains(ATTR_SIGN_IN)) {
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" +
+                        filter, options, false);
+
+                if (shouldReturnAttribute(options).contains(ATTR_SIGN_IN)) {
+                    LOG.info("Fetching sing-in info for account: {0}", translatedQuery);
                     sbPath = new StringBuilder()
                             .append("/auditLogs/signIns");
                     StringBuilder signInSelector = new StringBuilder()
-                            .append("?&$filter=").append("userId").append(" eq ").append("'" + uid.getUidValue() + "'");
+                            .append("?&$filter=").append("userId").append(" eq ").append("'" + translatedQuery + "'");
 
-                    LOG.ok("TEST about to execute the sing in query with path: {0} and filter {1}", sbPath.toString(), signInSelector.toString());
+                    LOG.ok("Sign-in info query with path: {0} and filter {1}", sbPath.toString(), signInSelector.toString());
                     JSONObject signInObject = endpoint.executeGetRequest(sbPath.toString(), signInSelector.toString(), options, false);
                     if (signInObject != null && signInObject.has("value")) {
                         JSONArray signIns = (JSONArray) signInObject.get("value");
@@ -951,74 +949,34 @@ public class UserProcessing extends ObjectProcessing {
 
                 }
 
-                LOG.info("JSONObject user {0}", user.toString());
+                LOG.ok("The retrieved JSONObject for the account {0}: {1}",translatedQuery ,user.toString());
                 handleJSONObject(options, user, handler);
 
-            } else if (equalsFilter.getAttribute() instanceof Name) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
+            } else {
 
-                Name name = (Name) ((EqualsFilter) query).getAttribute();
-                String nameValue = name.getNameValue();
-                if (nameValue == null) {
-                    invalidAttributeValue("Name", query);
-                }
-                String path = toGetURLByUserPrincipalName(nameValue);
-                String filter = "$" + EXPAND + "=" + ATTR_MANAGER;
-                LOG.ok("The constructed filter: {0}",  filter);
-                LOG.info("path: {0}", path);
+                // TODO significance ?
+                //(Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
+                //(Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
 
-                JSONObject user = endpoint.executeGetRequest(path, selectorSingle + '&' + filter, options, false);
-                LOG.info("JSONObject user {0}", user.toString());
-                handleJSONObject(options, user, handler);
-
-            } else if (equalsFilter.getAttribute().getName().equals(ATTR_USERPRINCIPALNAME)) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof userPrincipalName");
-
-                final String attributeValue = getAttributeFirstValue(equalsFilter);
-                String path = toGetURLByUserPrincipalName(attributeValue);
-                LOG.info("path: {0}", path);
-
-                JSONObject user = endpoint.executeGetRequest(path, selectorSingle, options, false);
-                LOG.info("JSONObject user {0}", user.toString());
-                handleJSONObject(options, user, handler);
-
-            } else if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
-                    .contains(equalsFilter.getAttribute().getName())
-            ) {
-                final String attributeValue = getAttributeFirstValue(equalsFilter);
-                final String filter = "$filter=" + equalsFilter.getAttribute().getName() + " eq '" + attributeValue + "'";
+                final String filter = "$filter=" + translatedQuery;
                 LOG.ok("The constructed filter: {0}",  filter);
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
-                handleJSONArray(options, users, handler);
-            }
-        } else if (query instanceof ContainsFilter) {
-            final ContainsFilter containsFilter = (ContainsFilter) query;
-            if (Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
-                    .contains(containsFilter.getAttribute().getName())
-            ) {
-                final String attributeName = containsFilter.getAttribute().getName();
-                final String attributeValue = getAttributeFirstValue(containsFilter);
-                LOG.info("value {0}", attributeValue);
-                String exp="";
-                if (shouldReturnSignInInfo(options).contains(ATTR_MANAGER)){
-                    exp = "&$" + EXPAND + "=" + ATTR_MANAGER;
-                }
 
-                final String filter = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-                LOG.ok("The constructed filter: {0}",  filter);
-                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter+exp, options, true);
-                LOG.info("JSONObject users {0}", users.toString());
+                LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
                 handleJSONArray(options, users, handler);
             }
-        } else if (query == null) {
-            LOG.info("query==null");
+
+        } else {
+            LOG.info("Empty query, returning full list of objects for the '{0}' object class", ObjectClass.ACCOUNT_NAME);
+
             JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
-            LOG.info("JSONObject users {0}", users.toString());
+
+            LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
             handleJSONArray(options, users, handler);
         }
     }
 
-    private ArrayList<String> shouldReturnSignInInfo(OperationOptions options) {
+    private ArrayList<String> shouldReturnAttribute(OperationOptions options) {
         if (options == null) {
 
             return null;
@@ -1046,12 +1004,16 @@ public class UserProcessing extends ObjectProcessing {
     private String toGetURLByUserPrincipalName(String userPrincipalName) {
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(USERS);
+
+        userPrincipalName.replace("#", "%23"); // Escape
+
         if (userPrincipalName.startsWith("$")) {
             sbPath.append("('");
             sbPath.append(userPrincipalName);
             sbPath.append("')");
             return sbPath.toString();
         }
+
         sbPath.append("/");
         sbPath.append(userPrincipalName);
         return sbPath.toString();
@@ -1233,5 +1195,15 @@ public class UserProcessing extends ObjectProcessing {
                 "processed object.", objectId);
 
         return false;
+    }
+
+    public String getNameAttribute(){
+
+        return ATTR_USERPRINCIPALNAME;
+    }
+
+    public String getUIDAttribute(){
+
+        return ATTR_ID;
     }
 }

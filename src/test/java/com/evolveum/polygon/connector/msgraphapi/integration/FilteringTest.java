@@ -6,10 +6,7 @@ import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
-import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
-import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
-import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
+import org.identityconnectors.framework.common.objects.filter.*;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -100,7 +97,7 @@ public class FilteringTest extends BasicConfigurationForTests {
 
 
         AttributeFilter containsFilterAccount;
-        containsFilterAccount = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", "Pink"));
+        containsFilterAccount = (StartsWithFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", "Pink"));
 
         List<Uid> returnedObjectUid;
         if (firstUser != null && secondUser != null) {
