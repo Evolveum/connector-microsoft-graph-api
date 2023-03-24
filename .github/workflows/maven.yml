@@ -31,7 +31,8 @@ jobs:
           distribution: 'temurin'
       - name: Build Artifact
         run: mvn --batch-mode clean install -DskipTests=true
-      - name: Download math result
-        uses: actions/download-artifact@v3
+      - name: Upload Connector
+        uses: actions/upload-artifact@v3
         with:
           name: Graph API Connector
+          path: ./target/connector-msgraph-1.0.3.0-SNAPSHOT.jar
