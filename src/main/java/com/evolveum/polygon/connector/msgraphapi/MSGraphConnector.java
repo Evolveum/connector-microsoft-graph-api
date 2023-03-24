@@ -2,6 +2,8 @@
 
 package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.util.FilterHandler;
+import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.methods.HttpRequestBase;
@@ -12,6 +14,7 @@ import org.apache.http.client.methods.HttpRequestBase;
 //import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 //import org.apache.http.client.*;
 //import org.apache.http.impl.client.*;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.spi.PoolableConnector;
 import org.json.JSONObject;
 import org.json.JSONArray;
@@ -328,21 +331,89 @@ public class MSGraphConnector implements Connector,
             throw new InvalidAttributeValueException("Attribute of type OperationOptions is not provided.");
         }
 
+        // Translating filter
+        String filterSnippet = null;
+        Boolean fetchSpecificObject =false;
+
+        if (query == null) {
+
+            LOG.ok("Empty query parameter, returning full list of objects of the object class: {0}"
+                    , objectClass.getDisplayNameKey());
+        } else {
+
+            if (query instanceof EqualsFilter){
+
+                final EqualsFilter equalsFilter = (EqualsFilter) query;
+                        Attribute fAttr = equalsFilter.getAttribute();
+
+                if(Uid.NAME.equals(fAttr.getName()))
+                    {
+                        fetchSpecificObject = true;
+                        filterSnippet = ((Uid) fAttr).getUidValue();
+                    }
+            }
+
+        }
+
+
         LOG.info("executeQuery on {0}, filter: {1}, options: {2}", objectClass, query, options);
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
             UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
 
-            userProcessing.executeQueryForUser(query, handler, options);
+            if(!fetchSpecificObject){
+
+                if(query!=null){
+
+                filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                        userProcessing.getUIDAttribute(), userProcessing.getNameAttribute()));
+                }
+            }
+
+            LOG.ok("Query will be executed with the following filter: {0}", filterSnippet);
+            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+
+            userProcessing.executeQueryForUser(filterSnippet, fetchSpecificObject ,handler, options);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
+
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
+
+            if(!fetchSpecificObject){
+
+                if(query!=null){
+
+                    filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                            groupProcessing.getUIDAttribute(), groupProcessing.getNameAttribute()));
+                }
+            }
+
             groupProcessing.executeQueryForGroup(query, handler, options);
         } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
             LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
+
+            if(!fetchSpecificObject){
+
+                if(query!=null){
+
+                    filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                            licenseProcessing.getUIDAttribute(), licenseProcessing.getNameAttribute()));
+                }
+            }
+
             licenseProcessing.executeQueryForLicense(query, handler, options);
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
             RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+
+            if(!fetchSpecificObject){
+
+                if(query!=null){
+
+                    filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                            roleProcessing.getUIDAttribute(), roleProcessing.getNameAttribute()));
+                }
+            }
+
             roleProcessing.executeQueryForRole(query, handler, options);
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");

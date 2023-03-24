@@ -581,5 +581,14 @@ public class GroupProcessing extends ObjectProcessing {
         return builder;
     }
 
+    public String getNameAttribute(){
+
+        return ATTR_DISPLAYNAME;
+    }
+
+    public String getUIDAttribute(){
+
+        return ATTR_ID;
+    }
 
 }

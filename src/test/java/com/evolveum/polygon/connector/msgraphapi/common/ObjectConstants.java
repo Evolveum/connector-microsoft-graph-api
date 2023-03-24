@@ -14,7 +14,7 @@ public interface ObjectConstants {
 
     String ATTR_ABOUTME = "aboutMe"; // Need SPO license
 
-
+    String ATTR_MANAGER_ID = "manager.id";
     String ATTR_SIGN_IN = "signIn";
 
     //ASSIGNEDLICENSES

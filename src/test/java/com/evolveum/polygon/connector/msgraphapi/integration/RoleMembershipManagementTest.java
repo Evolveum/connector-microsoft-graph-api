@@ -47,7 +47,7 @@ public class RoleMembershipManagementTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "Yellow221122232457"));
         attributesAccount.add(AttributeBuilder.build("mail", "Yellow22112223457@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Yellow22112223457"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Yellow22112223457@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Yellow22112223457@" + domain));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
 
@@ -73,7 +73,7 @@ public class RoleMembershipManagementTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "Yellow88"));
         attributesAccount.add(AttributeBuilder.build("mail", "Yellow88@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Yellow88"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Yellow88@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Yellow88@" + domain));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
 
@@ -97,7 +97,7 @@ public class RoleMembershipManagementTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "Yellow182822222211222212111"));
         attributesAccount.add(AttributeBuilder.build("mail", "Yellow8811221222221122222112@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "Yellow812212222228122221111"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Yellow128212222281222122111@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Yellow128212222281222122111@" + domain));
         GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
 

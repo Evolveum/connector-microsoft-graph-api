@@ -26,6 +26,8 @@ public class PropertiesParser {
     private static final String DISABLED_PLANS = "disabledPlans";
     private static final String EXISTED_ROLE_DISPLAY_NAME = "existedRoleDisplayName";
 
+    private static final String DOMAIN = "domain";
+
     public PropertiesParser() {
 
         try {
@@ -77,5 +79,10 @@ public class PropertiesParser {
     
     public String getExistedRoleDisplayName() {
       return (String) PROPERTIES.get(EXISTED_ROLE_DISPLAY_NAME);
+    }
+
+    public String getDomain() {
+
+        return (String) PROPERTIES.get(DOMAIN);
     }
 }
