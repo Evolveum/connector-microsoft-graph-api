@@ -5,7 +5,7 @@ import org.identityconnectors.framework.common.objects.ObjectClass;
 public class ResourceQuery {
 
 
-    ObjectClass objectClass;
+    private ObjectClass objectClass;
 
     private String objectClassUidName;
 
@@ -13,10 +13,12 @@ public class ResourceQuery {
 
     private String searchExpression;
     private String filterExpression;
-    private Boolean hasSearchAndFilter=false;
-    private static final String $_SEARCH = "$search";
+    private Boolean useCount=false;
+    private static final String $_SEARCH = "$search=";
 
-    private static final String $_FILTER = "$filter";
+    private static final String $_FILTER = "$filter=";
+
+    private static final String $_COUNT = "&$count=true";
 
     private static final String _AMP = "&";
 
@@ -63,8 +65,17 @@ public class ResourceQuery {
                 !searchExpression.isEmpty());
     }
 
-    public Boolean getHasSearchAndFilter() {
-        return hasSearchAndFilter;
+    private String appendCount(){
+
+        if(useCount){
+
+            return $_COUNT;
+        }
+        return "";
+    }
+
+    public void setUseCount(Boolean useCount) {
+        this.useCount = useCount;
     }
 
     @Override
@@ -84,7 +95,7 @@ public class ResourceQuery {
 
         if (filterExpression!=null && !filterExpression.isEmpty()){
 
-            return $_FILTER+ filterExpression;
+            return $_FILTER+ filterExpression + appendCount();
         }
 
         return $_SEARCH+ searchExpression;

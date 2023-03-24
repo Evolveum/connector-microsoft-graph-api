@@ -900,7 +900,7 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
 
 
-        if (translatedQuery !=null || !translatedQuery.isEmpty()) {
+        if (translatedQuery !=null && !translatedQuery.isEmpty()) {
 
             if (fetchSpecific) {
 
@@ -958,7 +958,8 @@ public class UserProcessing extends ObjectProcessing {
                 //(Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
                 //(Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
 
-                final String filter = "$filter=" + translatedQuery;
+               // final String filter = "$filter=" + translatedQuery;
+                final String filter = translatedQuery;
                 LOG.ok("The constructed filter: {0}",  filter);
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
 

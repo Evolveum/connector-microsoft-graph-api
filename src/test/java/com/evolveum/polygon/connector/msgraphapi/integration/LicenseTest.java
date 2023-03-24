@@ -70,9 +70,9 @@ public class LicenseTest extends BasicConfigurationForTests {
         Set<Attribute> attributesAccount = new HashSet<>();
         attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
         attributesAccount.add(AttributeBuilder.build("displayName", "License Testing"));
-        attributesAccount.add(AttributeBuilder.build("mail", nickname + "@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("mail", nickname + "@" + domain));
         attributesAccount.add(AttributeBuilder.build("mailNickname", nickname));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", nickname + "@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", nickname + "@" + domain));
         attributesAccount.add(AttributeBuilder.build("usageLocation", "US")); // required for licenses
         GuardedString secret = new GuardedString("SpaghettiMonstersAreReal!".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", secret));
