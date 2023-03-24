@@ -41,7 +41,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
-          body: ./CHANGELOG.md
+          body: CHANGELOG.md
           draft: false
           prerelease: false
       - name: Upload Release Asset
