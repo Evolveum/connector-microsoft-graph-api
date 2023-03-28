@@ -24,6 +24,9 @@ public class PropertiesParser {
     private static final String LICENSES = "licenses";
     private static final String LICENSES2 = "licenses2";
     private static final String DISABLED_PLANS = "disabledPlans";
+    private static final String EXISTED_ROLE_DISPLAY_NAME = "existedRoleDisplayName";
+
+    private static final String DOMAIN = "domain";
 
     public PropertiesParser() {
 
@@ -37,7 +40,6 @@ public class PropertiesParser {
             LOGGER.error(e, "Properties file not found", e.getLocalizedMessage());
         }
     }
-
 
     public String getClientId() {
         return (String) PROPERTIES.get(CLIENT_ID);
@@ -73,5 +75,14 @@ public class PropertiesParser {
             return new String[]{(String) PROPERTIES.get(DISABLED_PLANS)};
         else
             return new String[0];
+    }
+    
+    public String getExistedRoleDisplayName() {
+      return (String) PROPERTIES.get(EXISTED_ROLE_DISPLAY_NAME);
+    }
+
+    public String getDomain() {
+
+        return (String) PROPERTIES.get(DOMAIN);
     }
 }

@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
+
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
@@ -63,6 +64,19 @@ abstract class ObjectProcessing {
         }
     }
 
+    protected void getRoleInheritPermissionsIfExists(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
+            if (type.equals(String.class)) {
+                String attrValue = String.valueOf(object.get(attrName));
+                attrValue = attrValue.replaceFirst("https://graph.microsoft.com/v1.0/\\$metadata#roleManagement/directory/roleDefinitions\\('", "");
+                attrValue = attrValue.replaceFirst("'\\)/inheritsPermissionsFrom", "");
+                addAttr(builder, attrName, attrValue);
+            } else {
+                addAttr(builder, attrName, object.get(attrName));
+            }
+        }
+    }
+
     protected void getAndRenameIfExists(JSONObject object, String jsonAttrName, Class<?> type, String icfAttrName, ConnectorObjectBuilder builder) {
         if (object.has(jsonAttrName) && object.get(jsonAttrName) != null && !JSONObject.NULL.equals(object.get(jsonAttrName)) && !String.valueOf(object.get(jsonAttrName)).isEmpty()) {
             if (type.equals(String.class)) {
@@ -110,12 +124,58 @@ abstract class ObjectProcessing {
         }
     }
 
+    protected Object getIdFromAssignmentObject(JSONObject object, String attrName, Class<?> type) {
+        JSONArray value;
+
+        try {
+            value = object.getJSONArray("value");
+        } catch (JSONException e) {
+            LOG.info("No objects in JSON Array");
+            return null;
+        }
+
+        int length = value.length();
+        LOG.info("JSON Object length: {0}", length);
+
+        if (length == 1) {
+            JSONObject assignmentObject = value.getJSONObject(0);
+            if (assignmentObject.has(attrName) && assignmentObject.get(attrName) != null && !JSONObject.NULL.equals(assignmentObject.get(attrName)) && !String.valueOf(assignmentObject.get(attrName)).isEmpty()) {
+                if (type.equals(String.class))
+                    return String.valueOf(assignmentObject.get(attrName));
+                else
+                    return assignmentObject.get(attrName);
+            } else {
+                return null;
+            }
+        } else {
+            LOG.info("JSON Object should have size exactly 1");
+            return null;
+        }
+    }
+
     protected void getFromItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
         if (object.has(attrName)) {
             Object valueObject = object.get(attrName);
             if (valueObject != null) {
                 Object subValue = getValueFromItem((JSONObject)valueObject, subAttrName, type);
                 builder.addAttribute(attrName + "." + subAttrName, subValue);
+            }
+        }
+    }
+
+    protected void getJSONObjectItemIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONObject) {
+                    JSONObject jsonObject = (JSONObject) valueObject;
+
+                    if (subAttrName != null) {
+                        Object value = getValueFromItem(jsonObject, subAttrName, type);
+                        if (value != null)
+                            builder.addAttribute(attrName + "." + subAttrName, value);
+                    }
+                }
             }
         }
     }
@@ -135,6 +195,42 @@ abstract class ObjectProcessing {
                         }
                     });
                     builder.addAttribute(attrName + "." + subAttrName, values.toArray());
+                }
+            }
+        }
+    }
+
+    protected void getRolePermissionsIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+        if (object.has(attrName)) {
+            Object valueObject = object.get(attrName);
+            if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
+                if (valueObject instanceof JSONArray) {
+                    JSONArray objectArray = (JSONArray)valueObject;
+                    List<String> workingValues = new ArrayList<>();
+                    List<String> returnValues = new ArrayList<>();
+                    objectArray.forEach(it -> {
+                        if (it instanceof JSONObject) {
+                            String subValue = (String) getValueFromItem((JSONObject)it, subAttrName, type);
+                            String conditionValue = (String) getValueFromItem((JSONObject)it, "condition", type);
+                            if (subValue != null)
+                                workingValues.addAll(
+                                        Arrays.asList(
+                                                subValue.replaceAll("\\[", "")
+                                                        .replaceAll("\\]", "")
+                                                        .replaceAll("\"", "")
+                                                        .split(",")
+                                        )
+                                );
+
+                            returnValues.addAll(workingValues.stream().map( value -> {
+                                if (conditionValue != null)
+                                    return  conditionValue + "|" + value;
+                                else
+                                    return value;
+                            }).collect(Collectors.toList()));
+                        }
+                    });
+                    builder.addAttribute(attrName + "." + subAttrName, returnValues.toArray());
                 }
             }
         }
@@ -202,6 +298,11 @@ abstract class ObjectProcessing {
     protected final JSONArray getJSONArray(JSONObject objectCollection, String attribute) {
         final JSONArray arr = objectCollection.getJSONArray("value");
         return new JSONArray(arr.toList().stream().map(i -> ((Map) i).get(attribute)).collect(Collectors.toList()));
+    }
+
+    protected final ArrayList<String> getArrayList(JSONObject objectCollection, String attribute) {
+        final JSONArray arr = objectCollection.getJSONArray("value");
+        return arr.toList().stream().map(i -> ((Map) i).get(attribute)).map(Object::toString).collect(Collectors.toCollection(ArrayList::new));
     }
 
     protected void invalidAttributeValue(String attrName, Filter query) {
@@ -424,12 +525,12 @@ abstract class ObjectProcessing {
      * @return Selector clause
      */
     protected static String selector(String... fields) {
-        if ( fields == null || fields.length <= 0)
+        if (fields == null || fields.length == 0)
             throw new ConfigurationException("Connector selector query is badly configured. This is likely a programming error.");
         if (Arrays.stream(fields).anyMatch(f ->
                 f == null || "".equals(f) || f.contains("&") || f.contains("?") || f.contains("$") || f.contains("=")
         )) throw new ConfigurationException("Connector selector fields contain invalid characters. This is likely a programming error.");
-        return "$select=" + Arrays.stream(fields).collect(Collectors.joining(","));
+        return "$select=" + String.join(",", fields);
     }
 
 }

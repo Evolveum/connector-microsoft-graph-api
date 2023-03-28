@@ -1,23 +1,16 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
-import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
-import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.exceptions.InvalidPasswordException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
-import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 
 public class CreateActionTest extends BasicConfigurationForTests {
@@ -68,7 +61,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "testing_noPass"));
         attributesAccount.add(AttributeBuilder.build("mail", "testing_noPass@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing_noPass"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing_noPass@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing_noPass@" + domain));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
         msGraphConnector.create(objectClassAccount, attributesAccount, options);
@@ -96,7 +89,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "create_testing"));
         attributesAccount.add(AttributeBuilder.build("mail", "create_testing@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "create_testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + domain));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
@@ -142,7 +135,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "create_testing"));
         attributesAccount.add(AttributeBuilder.build("mail", "create_testing@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "create_testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + domain));
         GuardedString pass = new GuardedString("passw".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
