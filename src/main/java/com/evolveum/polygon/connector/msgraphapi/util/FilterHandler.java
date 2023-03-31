@@ -105,6 +105,29 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
         Collection<Filter> filters = andFilter.getFilters();
 
+//        CategorizedFilter leftQuery = new CategorizedFilter(andFilter.getLeft(),
+//                andFilter.getLeft().accept(this, p));
+//
+//        CategorizedFilter rightQuery = new CategorizedFilter(andFilter.getRight(),
+//                andFilter.getRight().accept(this, p));
+//
+//        /// Left side
+//
+//        Boolean isSearchLeft = checkIfFilterOrChildHasSearch(leftQuery.getFilter());
+//        Boolean isSearchRight = checkIfFilterOrChildHasSearch(rightQuery.getFilter());
+//
+//        if(!wasFirst){
+//
+//
+//            if (leftQuery.getFilter() instanceof CompositeFilter || leftQuery.getFilter() instanceof NotFilter) {
+//
+//
+//            } else {
+//
+//            }
+//
+//        }
+
         Map<String, CategorizedFilter> snippets = processCompositeFilter(filters, p);
         Set<String> items = snippets.keySet();
         Iterator<String> keyIterator = items.iterator();
@@ -120,69 +143,66 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             CategorizedFilter filter = snippets.get(snipp);
             Boolean isSearch = filter.getIsSearch();
 
-            if (filter.getFilter() instanceof CompositeFilter || filter.getFilter() instanceof NotFilter) {
-
-                if (!isSearch) {
-
-                    isSearch = checkIfFilterOrChildHasSearch(filter.getFilter());
-                }
-
-                // if (!wasFirst || (wasFirst && !containsOpUsed)) {
-
-                if (!isLastItem) {
-                    query.append(wrapValue(snipp, _L_PAR, _R_PAR))
-                            .append(_PADDING);
-
-                    if (!isSearch) {
-
-                        query.append(AND_OP);
-                    } else {
-
-                        query.append(AND_S_OP);
-                    }
-
-                } else {
-
-                    query.append(_PADDING)
-                            .append(wrapValue(snipp, _L_PAR, _R_PAR));
-                }
-                // } else {
-                if (leftSideSnippet != null) {
-
-                    if ((wasSearch != isSearch) && wasFirst) {
-
-                        if (!isSearch) {
-
-                            p.setFilterExpression(snipp);
-                            p.setSearchExpression(leftSideSnippet);
-                        } else {
-
-                            p.setSearchExpression(snipp);
-                            p.setFilterExpression(leftSideSnippet);
-                        }
-                    } else if (wasFirst) {
-
-                        if (isSearch) {
-
-                            p.setSearchExpression(query.toString());
-                        } else {
-
-                            p.setFilterExpression(query.toString());
-                        }
-                    } else if ((wasSearch != isSearch) && !wasFirst){
-
-                        LOG.warn("Invalid filter combination, conjunction of other filters supported only with " +
-                                "contains filter as a left or right side of the first 'AND' filter clause. Please see documentation");
-                    }
-                } else {
-
-                    leftSideSnippet = snipp;
-                }
-                //}
-
-            } else {
+//            if (filter.getFilter() instanceof CompositeFilter || filter.getFilter() instanceof NotFilter) {
+//
+//                if (!isSearch) {
+//
+//                    wasSearch = checkIfFilterOrChildHasSearch(filter.getFilter());
+//                }
+//
+//                // if (!wasFirst || (wasFirst && !containsOpUsed)) {
+//// TODO ignored
+//                if (!isLastItem) {
+//                    query.append(wrapValue(snipp, _L_PAR, _R_PAR))
+//                            .append(_PADDING);
+//
+//                    if (!isSearch) {
+//
+//                        query.append(AND_OP);
+//                    } else {
+//
+//                        query.append(AND_S_OP);
+//                    }
+//
+//                } else {
+//
+//                    query.append(_PADDING)
+//                            .append(wrapValue(snipp, _L_PAR, _R_PAR));
+//                }
+//
+//                // TODO ignored
+//                // } else {
+//
+//
+//                    LOG.ok("### 0 ws:{0} , is:{1} , wf:{2}", wasSearch, isSearch , wasFirst);
+//                    LOG.ok("### 0 lss:{0} , ss:{1} ", leftSideSnippet, snipp );
+//                    if (!wasFirst) {
+//
+//                        if (!isSearch) {
+//
+//                            p.setFilterExpression(p.getSearchExpression() + snipp);
+//                        } else {
+//
+//                            p.setSearchExpression(p.getSearchExpression() + snipp);
+//                            p.setFilterExpression(leftSideSnippet);
+//                        }
+//                    } else {
+//
+//                        if (isSearch) {
+//
+//                            p.setSearchExpression(p.getSearchExpression() + query.toString());
+//                        } else {
+//
+//                            p.setFilterExpression(query.toString());
+//                        }
+//                    }
+//
+//
+//            } else {
 
                 //if (!wasFirst || (wasFirst && !containsOpUsed)) {
+
+
                 if (!isLastItem) {
                     query.append(snipp)
                             .append(_PADDING);
@@ -203,47 +223,56 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
                 // } else {
 
-                if (leftSideSnippet != null) {
 
-                    if ((wasSearch != isSearch) && wasFirst) {
+                    LOG.ok("### @ 0 ws:{0} , is:{1} , wf:{2}", wasSearch, isSearch , wasFirst);
+                    LOG.ok("### @ 0 lss:{0} , ss:{1} ", leftSideSnippet, snipp );
+                     if (!wasFirst){
 
-                        if (!isSearch) {
+                         if (filter.getFilter() instanceof CompositeFilter || filter.getFilter() instanceof NotFilter) {
 
-                            p.setFilterExpression(snipp);
-                            p.setSearchExpression(leftSideSnippet);
-                        } else {
+                             if(isSearch){
 
-                            p.setSearchExpression(snipp);
-                            p.setFilterExpression(leftSideSnippet);
-                        }
-                    } else if (wasFirst) {
+                                 p.setSearchExpression(snipp);
+                             } else {
 
-                        if (isSearch) {
+                                 p.setFilterExpression(snipp);
+                             }
 
-                            p.setSearchExpression(query.toString());
-                        } else {
+                         } else {
 
-                            p.setFilterExpression(query.toString());
-                        }
-                    } else if ((wasSearch != isSearch) && !wasFirst){
+                             LOG.ok("### 1");
+                             if (isSearch) {
 
-                        LOG.warn("Invalid filter combination, conjunction of other filters supported only with " +
-                                "contains filter as a left or right side of the first 'AND' filter clause. Please see documentation");
+                                 p.setSearchExpression(snipp);
+
+                                 LOG.ok("### 2");
+                                 return snipp;
+                             } else {
+
+                                 p.setSearchExpression(p.getSearchExpression() + " AND " + snipp);
+
+                                 LOG.ok("### 3");
+                                 return leftSideSnippet;
+                             }
+//
+//                        LOG.warn("Invalid filter combination, conjunction of other filters supported only with " +
+//                                "contains filter as a left or right side of the first 'AND' filter clause. Please see documentation");
+                         }
                     }
-                } else {
-
-                    leftSideSnippet = snipp;
-                }
-            }
-            wasSearch = isSearch;
         }
 
-        // }
+
 
         if (wasFirst) {
 
             LOG.ok("Generated query snippet: {0}", p.toString());
             return p.toString();
+        }
+
+        if(containsOpUsed){
+            p.setCompositeOrNotUsedInSearch(true);
+        } else {
+            p.setCompositeOrNotUsedInFilter(true);
         }
 
         LOG.ok("Generated query snippet: {0}", query);
@@ -526,6 +555,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
         }
 
         if (wasFirst && containsOpUsed) {
+
             p.setSearchExpression(query.toString());
 
             LOG.ok("Generated query snippet for negated contains operation: {0}", p.toString());
@@ -537,6 +567,12 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
             LOG.ok("Generated final query snippet: {0}", p.toString());
             return p.toString();
+        }
+
+        if(containsOpUsed){
+            p.setCompositeOrNotUsedInSearch(true);
+        } else {
+            p.setCompositeOrNotUsedInFilter(true);
         }
 
         LOG.ok("Generated query snippet: {0}", query);
@@ -621,6 +657,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
         }
 
+
         if (wasFirst && containsOpUsed) {
 
             p.setSearchExpression(query.toString());
@@ -633,6 +670,12 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
             LOG.ok("Generated final query snippet: {0}", p.toString());
             return p.toString();
+        }
+
+        if(containsOpUsed){
+            p.setCompositeOrNotUsedInSearch(true);
+        } else {
+            p.setCompositeOrNotUsedInFilter(true);
         }
 
         LOG.ok("Generated query snippet: {0}", query);
@@ -722,7 +765,8 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
         for (Filter filter : filters) {
 
-            snippets.put(filter.accept(this, p), new CategorizedFilter(filter));
+            String query =  filter.accept(this, p);
+            snippets.put(query, new CategorizedFilter(filter, query));
 
         }
 
@@ -737,7 +781,6 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
         return snippets;
     }
-
 
     private String processStringFilter(Attribute attr, String operator, ResourceQuery resourceQuery) {
 

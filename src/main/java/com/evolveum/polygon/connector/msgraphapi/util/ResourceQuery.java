@@ -1,10 +1,12 @@
 package com.evolveum.polygon.connector.msgraphapi.util;
 
+import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 
 public class ResourceQuery {
 
-
+    private static final Log LOG = Log.getLog(ResourceQuery.class);
+    private ResourceQuery aggregate;
     private ObjectClass objectClass;
 
     private String objectClassUidName;
@@ -13,7 +15,11 @@ public class ResourceQuery {
 
     private String searchExpression;
     private String filterExpression;
-    private Boolean useCount=false;
+    private Boolean useCount = false;
+
+    private static Boolean compositeOrNotUsedInSearch= false;
+
+    private static Boolean compositeOrNotUsedInFilter= false;
     private static final String $_SEARCH = "$search=";
 
     private static final String $_FILTER = "$filter=";
@@ -29,6 +35,14 @@ public class ResourceQuery {
         this.objectClassUidName = objectClassUidName;
         this.objectClassNameName = objectClassNameName;
     }
+
+//    public ResourceQuery(ResourceQuery aggregate){
+//        this.objectClass = aggregate.getObjectClass();
+//        this.objectClassUidName = aggregate.getObjectClassUidName();
+//        this.objectClassNameName = aggregate.getObjectClassNameName();
+//        this.useCount = aggregate.useCount;
+//        this.aggregate = aggregate;
+//    }
 
     public String getSearchExpression() {
         return searchExpression;
@@ -61,7 +75,7 @@ public class ResourceQuery {
 
     public boolean isEmpty() {
 
-       return  !(filterExpression!=null && !filterExpression.isEmpty()) && !(searchExpression!=null &&
+        return  !(filterExpression!=null && !filterExpression.isEmpty()) && !(searchExpression!=null &&
                 !searchExpression.isEmpty());
     }
 
@@ -78,8 +92,11 @@ public class ResourceQuery {
         this.useCount = useCount;
     }
 
+
     @Override
     public String toString() {
+
+     //   evaluateAggregated();
 
         if(!(filterExpression!=null && !filterExpression.isEmpty()) && !(searchExpression!=null &&
                 !searchExpression.isEmpty()) ){
@@ -99,5 +116,33 @@ public class ResourceQuery {
         }
 
         return $_SEARCH+ searchExpression;
+    }
+
+    private void evaluateAggregated() {
+
+        LOG.ok("Evaluating aggregated query snippets");
+        if (aggregate !=null ){
+
+            if(aggregate.hasAggregate()){
+
+                aggregate.evaluateAggregated();
+            }
+            LOG.ok("Evaluating aggregated query snippets, #: {0}", aggregate.getSearchExpression());
+
+               searchExpression = aggregate.getSearchExpression() + " " +searchExpression;
+
+        }
+    }
+
+    public boolean hasAggregate(){
+        return aggregate!=null;
+    }
+
+    public void setCompositeOrNotUsedInSearch(Boolean compositeOrNotUsedInSearch) {
+        this.compositeOrNotUsedInSearch = compositeOrNotUsedInSearch;
+    }
+
+    public void setCompositeOrNotUsedInFilter(Boolean compositeOrNotUsedInFilter) {
+        this.compositeOrNotUsedInFilter = compositeOrNotUsedInFilter;
     }
 }

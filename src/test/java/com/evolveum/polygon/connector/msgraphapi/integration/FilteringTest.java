@@ -437,14 +437,21 @@ public class FilteringTest extends BasicConfigurationForTests {
         AttributeFilter contains;
         contains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME, "Pink"));
 
+
         AttributeFilter negatedContains;
         negatedContains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "Development"));
+
+        AttributeFilter negatedContainsEx;
+        negatedContainsEx = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "Lecturing"));
+
 
         NotFilter not = (NotFilter) FilterBuilder.not(negatedContains);
 
         OrFilter or = (OrFilter) FilterBuilder.or(not,contains);
+        // TODO test
+        AndFilter andEx = (AndFilter) FilterBuilder.and(endsWith,negatedContainsEx);
 
-        AndFilter and = (AndFilter) FilterBuilder.and(or,endsWith);
+        AndFilter and = (AndFilter) FilterBuilder.and(or,andEx);
 
 
         ArrayList<ConnectorObject> resultsAccount;

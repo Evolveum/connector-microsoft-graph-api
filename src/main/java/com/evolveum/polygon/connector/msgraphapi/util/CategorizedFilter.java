@@ -10,15 +10,18 @@ public class CategorizedFilter {
     private Filter filter;
     private Boolean isSearch;
 
+    private String translatedQueryPart;
 
-    public CategorizedFilter(Filter filter, Boolean isSearch) {
+    public CategorizedFilter(Filter filter, String translatedQueryPart, Boolean isSearch) {
         this.filter = filter;
         this.isSearch = isSearch;
+        this.translatedQueryPart = translatedQueryPart;
     }
 
-    public CategorizedFilter(Filter filter) {
+    public CategorizedFilter(Filter filter, String translatedQueryPart) {
         this.filter = filter;
         this.isSearch = checkIfFilterIsSearch(filter);
+        this.translatedQueryPart = translatedQueryPart;
     }
 
     private Boolean checkIfFilterIsSearch(Filter filter) {
@@ -60,4 +63,9 @@ public class CategorizedFilter {
     public Boolean getIsSearch() {
         return isSearch;
     }
+
+    public String getTranslatedQueryPart() {
+        return translatedQueryPart;
+    }
 }
+
