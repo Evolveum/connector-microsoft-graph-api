@@ -45,7 +45,7 @@ public class ResourceQuery {
 //    }
 
     public String getSearchExpression() {
-        return searchExpression;
+        return searchExpression !=null ? searchExpression:"";
     }
 
     public void setSearchExpression(String searchExpression) {
@@ -54,7 +54,7 @@ public class ResourceQuery {
 
 
     public String getFilterExpression() {
-        return filterExpression;
+        return filterExpression !=null ? filterExpression:"";
     }
 
     public void setFilterExpression(String searchExpression) {
