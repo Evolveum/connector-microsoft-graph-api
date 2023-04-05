@@ -132,6 +132,11 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_SURNAME = "surname";
     private static final String ATTR_USAGELOCATION = "usageLocation";
     private static final String ATTR_USERTYPE = "userType";
+    private static final String ATTR_EMPLOYEE_HIRE_DATE = "employeeHireDate";
+    private static final String ATTR_EMPLOYEE_LEAVE_DATE_TIME = "employeeLeaveDateTime";
+    private static final String ATTR_EMPLOYEE_TYPE = "employeeType";
+    private static final String ATTR_FAX_NUMBER = "faxNumber";
+    private static final String ATTR_EMPLOYEE_ID = "employeeId";
 
     // INVITES
     private static final String ATTR_INVITED_USER = "invitedUser";
@@ -564,6 +569,26 @@ public class UserProcessing extends ObjectProcessing {
         attrUserType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrUserType.build());
 
+        AttributeInfoBuilder attrEmployeeHireDate = new AttributeInfoBuilder(ATTR_EMPLOYEE_HIRE_DATE);
+        attrEmployeeHireDate.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeHireDate.build());
+
+        AttributeInfoBuilder attrEmployeeLeaveDateTime = new AttributeInfoBuilder(ATTR_EMPLOYEE_LEAVE_DATE_TIME);
+        attrEmployeeLeaveDateTime.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeLeaveDateTime.build());
+
+        AttributeInfoBuilder attrEmployeeType = new AttributeInfoBuilder(ATTR_EMPLOYEE_TYPE);
+        attrEmployeeType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeType.build());
+
+        AttributeInfoBuilder attrFaxNumber = new AttributeInfoBuilder(ATTR_FAX_NUMBER);
+        attrFaxNumber.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrFaxNumber.build());
+
+        AttributeInfoBuilder attrEmployeeId = new AttributeInfoBuilder(ATTR_EMPLOYEE_ID);
+        attrEmployeeId.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeId.build());
+
         AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID);
         attrManager.setRequired(false)
                 .setType(String.class)
@@ -884,7 +909,9 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
                 ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
                 ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER));
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
+                ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
+                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID));
 
 
         final String selectorList = selector(
@@ -899,7 +926,9 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_PROXYADDRESSES,
                 ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
                 ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
+                ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
+                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID);
 
 
         if (query instanceof EqualsFilter) {
@@ -1193,6 +1222,11 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_SIGN_IN, String.class, builder);
         getIfExists(user, ATTR_EXTERNALUSERSTATE, String.class, builder);
         getIfExists(user, ATTR_EXTERNALUSERSTATECHANGEDATETIME, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_HIRE_DATE, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_LEAVE_DATE_TIME, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_TYPE, String.class, builder);
+        getIfExists(user, ATTR_FAX_NUMBER, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_ID, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
