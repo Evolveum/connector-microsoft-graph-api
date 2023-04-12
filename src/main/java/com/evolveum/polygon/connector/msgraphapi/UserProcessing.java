@@ -61,6 +61,7 @@ public class UserProcessing extends ObjectProcessing {
 
     //optional
     private static final String ATTR_ABOUTME = "aboutMe"; // Need SPO license
+    private static final String ATTR_USERPHOTO = "photo";
 
     //Sign in, auxiliary computed attribute representing the last sign in
     private static final String ATTR_SIGN_IN = "lastSignIn";
@@ -385,6 +386,9 @@ public class UserProcessing extends ObjectProcessing {
         ;
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
+        AttributeInfoBuilder userPhoto = new AttributeInfoBuilder(ATTR_USERPHOTO);
+        userPhoto.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(userPhoto.build());
 
         //supports $filter
         AttributeInfoBuilder attrJobTitle = new AttributeInfoBuilder(ATTR_JOBTITLE);
@@ -628,7 +632,6 @@ public class UserProcessing extends ObjectProcessing {
                         return false;
                     } else return !it.getName().equals(ATTR_MANAGER_ID);
                 }).collect(Collectors.toSet());
-
         // in case assignedLicences attribute is null we don't want to do anything with licences
         if (isLicenceAttrNull.get()) {
             return preparedAttributes;
@@ -764,7 +767,6 @@ public class UserProcessing extends ObjectProcessing {
         request = new HttpPatch(uri);
         final Set<AttributeDelta> deltas = new HashSet<>();
         Set<Attribute> updateAttributes = prepareAttributes(uid, attributes, deltas, false);
-
         final Attribute manager = attributes.stream()
                 .filter(a -> a.is(ATTR_MANAGER_ID))
                 .findFirst().orElse(null);
@@ -1087,7 +1089,7 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
-
+// pridat if na fotku
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_OWNER_OF_GROUP)) {
             user = saturateGroupOwnership(user);
         }
@@ -1095,7 +1097,9 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
             user = saturateRoleMembership(options, user);
         }
-
+        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
+            user = saturatePhoto(options, user);
+        }
         ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(user).build();
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
@@ -1157,7 +1161,6 @@ public class UserProcessing extends ObjectProcessing {
 
         if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_ROLE)) {
             LOG.info("[GET] - saturateRoleMembership(), for user with UID: {0}", uid);
-
             //get list of group members
             final String customQuery = "$filter=principalId eq '" + uid + "'";
             final JSONObject userMembership = endpoint.executeGetRequest(ROLE_ASSIGNMENT, customQuery, options, false);
@@ -1167,6 +1170,19 @@ public class UserProcessing extends ObjectProcessing {
         return user;
     }
 
+    private JSONObject saturatePhoto(OperationOptions options, JSONObject user) {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final String uid = user.getString(ATTR_ID);
+
+        if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_USERPHOTO)) {
+            LOG.info("[GET] - /photo/$value, for user with UID: {0}", uid);
+            String photoPath = USERS + "/" + uid + "/photo/$value";
+            final JSONObject userPhoto = endpoint.executeGetRequest(photoPath, null, options, false);
+            user.put(ATTR_USERPHOTO, getJSONArray(userPhoto, "photo"));
+        }
+
+        return user;
+    }
     public ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
@@ -1227,6 +1243,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_EMPLOYEE_TYPE, String.class, builder);
         getIfExists(user, ATTR_FAX_NUMBER, String.class, builder);
         getIfExists(user, ATTR_EMPLOYEE_ID, String.class, builder);
+        getIfExists(user, ATTR_USERPHOTO, String.class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);

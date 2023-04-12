@@ -276,7 +276,13 @@ public class GraphEndpoint {
             throw new InvalidAttributeValueException("Request not provided");
         }
         request.setHeader("Authorization", getAccessToken().getAccessToken());
-        request.setHeader("Content-Type", "application/json");
+        if (request.getURI().toString().contains("photo")){
+            request.setHeader("Content-Type", "image/jpg");
+        }
+        else
+            {
+                request.setHeader("Content-Type", "application/json");
+            }
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.ok("Request execution -> HtttpUriRequest: {0}", request);
         CloseableHttpResponse response;
@@ -524,6 +530,14 @@ public class GraphEndpoint {
                 uribuilder.setCustomQuery(customQuery);
                 LOG.info("setCustomQuery {0} ", uribuilder.toString());
             }
+//        } else {
+//            if (customQuery.contains("photo")){
+//                uribuilder.setCustomQuery("/photo/$value");
+//            }
+//            else {
+//                uribuilder.setCustomQuery(customQuery);
+//                LOG.info("setCustomQuery {0} ", uribuilder.toString());
+//            }}
 
         } else if (customQuery == null && options != null && paging) {
             Integer perPage = options.getPageSize();
