@@ -387,7 +387,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
         AttributeInfoBuilder userPhoto = new AttributeInfoBuilder(ATTR_USERPHOTO);
-        userPhoto.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userPhoto.setRequired(false).setType(byte[].class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(userPhoto.build());
 
         //supports $filter

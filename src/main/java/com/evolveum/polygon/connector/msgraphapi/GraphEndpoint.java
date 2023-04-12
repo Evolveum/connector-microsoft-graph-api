@@ -13,6 +13,7 @@ import org.apache.http.client.methods.*;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.HttpContext;
@@ -26,6 +27,7 @@ import org.identityconnectors.framework.common.objects.Uid;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.Proxy;
@@ -45,6 +47,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.*;
 import java.util.concurrent.*;
+
+import javax.imageio.ImageIO;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
@@ -437,6 +441,30 @@ public class GraphEndpoint {
             if (!parseResult) {
                 return null;
             }
+
+            // check for photo
+            if (
+                    ContentType.IMAGE_PNG.getMimeType().equals(ContentType.get(response.getEntity()).getMimeType()) ||
+                    ContentType.IMAGE_JPEG.getMimeType().equals(ContentType.get(response.getEntity()).getMimeType())
+            ) {
+                //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                //response.getEntity().writeTo(byteArrayOutputStream);
+                //byte[] responseArray = byteArrayOutputStream.toByteArray();
+                //result = Base64.encodeBase64String(responseArray);//.getEncoder().encodeToString(responseArray);
+
+                //byte[] responseArray = EntityUtils.toByteArray(response.getEntity());
+                //result = java.util.Base64.getEncoder().encodeToString(responseArray);
+
+                BufferedImage bufferedImage = ImageIO.read(response.getEntity().getContent());
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(bufferedImage, "jpg", baos);
+                baos.flush();
+                byte[] imageInByte = baos.toByteArray();
+                baos.close();
+                result = java.util.Base64.getEncoder().encodeToString(imageInByte);
+                return new JSONObject("{\"photo\":\"" + result + "\"}");
+            }
+
             return new JSONObject(result);
         } catch (IOException e) {
             throw new ConnectorIOException();
