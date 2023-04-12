@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.http.util.EntityUtils;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -58,6 +59,8 @@ abstract class ObjectProcessing {
         if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
             if (type.equals(String.class)) {
                 addAttr(builder, attrName, String.valueOf(object.get(attrName)));
+            } else if (type.equals(byte[].class)) {
+                addAttr(builder, attrName, java.util.Base64.getDecoder().decode(String.valueOf(object.get(attrName))));
             } else {
                 addAttr(builder, attrName, object.get(attrName));
             }

@@ -1178,11 +1178,12 @@ public class UserProcessing extends ObjectProcessing {
             LOG.info("[GET] - /photo/$value, for user with UID: {0}", uid);
             String photoPath = USERS + "/" + uid + "/photo/$value";
             final JSONObject userPhoto = endpoint.executeGetRequest(photoPath, null, options, false);
-            user.put(ATTR_USERPHOTO, getJSONArray(userPhoto, "photo"));
+            user.put(ATTR_USERPHOTO, userPhoto.get("data"));
         }
 
         return user;
     }
+
     public ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
@@ -1243,7 +1244,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_EMPLOYEE_TYPE, String.class, builder);
         getIfExists(user, ATTR_FAX_NUMBER, String.class, builder);
         getIfExists(user, ATTR_EMPLOYEE_ID, String.class, builder);
-        getIfExists(user, ATTR_USERPHOTO, String.class, builder);
+        getIfExists(user, ATTR_USERPHOTO, byte[].class, builder);
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);

@@ -437,35 +437,23 @@ public class GraphEndpoint {
                 LOG.ok("200 - OK");
                 return null;
             }
-            result = EntityUtils.toString(response.getEntity());
-            if (!parseResult) {
-                return null;
-            }
 
             // check for photo
             if (
                     ContentType.IMAGE_PNG.getMimeType().equals(ContentType.get(response.getEntity()).getMimeType()) ||
                     ContentType.IMAGE_JPEG.getMimeType().equals(ContentType.get(response.getEntity()).getMimeType())
             ) {
-                //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                //response.getEntity().writeTo(byteArrayOutputStream);
-                //byte[] responseArray = byteArrayOutputStream.toByteArray();
-                //result = Base64.encodeBase64String(responseArray);//.getEncoder().encodeToString(responseArray);
+                result = java.util.Base64.getEncoder().encodeToString(EntityUtils.toByteArray(response.getEntity()));
 
-                //byte[] responseArray = EntityUtils.toByteArray(response.getEntity());
-                //result = java.util.Base64.getEncoder().encodeToString(responseArray);
+                return new JSONObject(Collections.singletonMap("data", result));
+            } else {
+                result = EntityUtils.toString(response.getEntity());
+                if (!parseResult) {
+                    return null;
+                }
 
-                BufferedImage bufferedImage = ImageIO.read(response.getEntity().getContent());
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ImageIO.write(bufferedImage, "jpg", baos);
-                baos.flush();
-                byte[] imageInByte = baos.toByteArray();
-                baos.close();
-                result = java.util.Base64.getEncoder().encodeToString(imageInByte);
-                return new JSONObject("{\"photo\":\"" + result + "\"}");
+                return new JSONObject(result);
             }
-
-            return new JSONObject(result);
         } catch (IOException e) {
             throw new ConnectorIOException();
         }
