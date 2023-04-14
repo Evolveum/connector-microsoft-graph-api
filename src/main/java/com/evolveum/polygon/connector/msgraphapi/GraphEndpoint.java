@@ -390,8 +390,12 @@ public class GraphEndpoint {
             throw new PermissionDeniedException(message);
         }
         if (statusCode == 404 || statusCode == 410) {
-            LOG.info("Status code 404 or 410 caught in processResponseErrors {0}", message);
-            throw new UnknownUidException(message);
+            if (message.contains("ImageNotFound"))
+                return;
+            else {
+                LOG.info("Status code 404 or 410 caught in processResponseErrors {0}", message);
+                throw new UnknownUidException(message);
+            }
         }
         if (statusCode == 408) {
             throw new OperationTimeoutException(message);
@@ -428,6 +432,10 @@ public class GraphEndpoint {
         for (Header header : httpHeaders) {
             LOG.info("Headers.. name,value:" + header.getName() + "," + header.getValue());
         }
+        if (request.getURI().toString().contains("photo")){
+            // this uri check is necessary otherwise inspecting of shadow fails
+            return callRequestPhoto(request);
+        }
         try (CloseableHttpResponse response = executeRequest(request)) {
             processResponseErrors(response);
             if (response.getStatusLine().getStatusCode() == 204) {
@@ -436,16 +444,6 @@ public class GraphEndpoint {
             } else if (response.getStatusLine().getStatusCode() == 200 && !parseResult) {
                 LOG.ok("200 - OK");
                 return null;
-            }
-
-            // check for photo
-            if (
-                    ContentType.IMAGE_PNG.getMimeType().equals(ContentType.get(response.getEntity()).getMimeType()) ||
-                    ContentType.IMAGE_JPEG.getMimeType().equals(ContentType.get(response.getEntity()).getMimeType())
-            ) {
-                result = java.util.Base64.getEncoder().encodeToString(EntityUtils.toByteArray(response.getEntity()));
-
-                return new JSONObject(Collections.singletonMap("data", result));
             } else {
                 result = EntityUtils.toString(response.getEntity());
                 if (!parseResult) {
@@ -459,7 +457,23 @@ public class GraphEndpoint {
         }
 
     }
+    private JSONObject callRequestPhoto(HttpRequestBase request) {
+        String result;
 
+        try (CloseableHttpResponse response = executeRequest(request)) {
+            // response might be 404 so photo put request won't succeed while creating user but after reconcile
+            if (response.getStatusLine().getStatusCode() == 404){
+                return new JSONObject(Collections.singletonMap("data", null));
+            }
+            else {
+                processResponseErrors(response);
+                result = java.util.Base64.getEncoder().encodeToString(EntityUtils.toByteArray(response.getEntity()));
+                return new JSONObject(Collections.singletonMap("data", result));
+            }
+        } catch (IOException e) {
+            throw new ConnectorIOException();
+        }
+    }
 
     public JSONObject callRequest(HttpEntityEnclosingRequestBase request, JSONObject json, Boolean parseResult) {
         LOG.info("request URI: {0}", request.getURI());

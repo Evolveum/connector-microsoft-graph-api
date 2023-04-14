@@ -4,6 +4,7 @@ import com.evolveum.polygon.common.GuardedStringAccessor;
 import com.google.gson.JsonArray;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.ByteArrayEntity;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -624,10 +625,16 @@ public class UserProcessing extends ObjectProcessing {
         // filter out the assignedLicense.skuId attribute, which must be handled separately
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
                 .filter(it -> {
+                    String attributeName = it.getName();
+                    if (attributeName.contains(ATTR_USERPHOTO)) {
+                        return false;
+                    }
+//                    if (it.getName().equals(ATTR_USERPHOTO)){return false;}
                     if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
                         if (it.getValue() != null) {
                             isLicenceAttrNull.set(false);
                             addLicenses.addAll(it.getValue());
+                            // odtialto vyhodit prec
                         }
                         return false;
                     } else return !it.getName().equals(ATTR_MANAGER_ID);
@@ -770,11 +777,37 @@ public class UserProcessing extends ObjectProcessing {
         final Attribute manager = attributes.stream()
                 .filter(a -> a.is(ATTR_MANAGER_ID))
                 .findFirst().orElse(null);
-
+        final Attribute userPhoto = attributes.stream()
+                .filter(a -> a.is(ATTR_USERPHOTO))
+                .findFirst().orElse(null);
         List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
+//        if (!jsonObjectaccount.stream().anyMatch(attr -> attr instanceof Map && ((Map) attr).containsKey("photo"))) {
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
         assignManager(uid, manager);
+        if (userPhoto != null){
+        assignPhoto(uid, userPhoto);
+        }
+
+    }
+
+    private void assignPhoto(Uid uid, Attribute attribute) {
+        if (attribute == null) {
+            return;
+        }
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + "/" + ATTR_USERPHOTO + "/$value");
+        HttpEntityEnclosingRequestBase request = null;
+        URI uri = endpoint.getUri(uriBuilder);
+        request = new HttpPut(uri);
+        byte[] photoData = (byte[]) attribute.getValue().get(0);
+        try{
+            request.setHeader("Content-Type", "image/jpeg");
+            request.setEntity(new ByteArrayEntity(photoData));
+            endpoint.callRequest(request, false);
+        } catch (IllegalArgumentException e) {
+            LOG.error("Invalid Base64 encoded photo data");
+        }
     }
 
     public Uid createUser(Uid uid, Set<Attribute> attributes) {
@@ -841,7 +874,6 @@ public class UserProcessing extends ObjectProcessing {
 
         assignLicenses(new Uid(newUid), AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
         assignManager(new Uid(newUid), manager);
-
         return new Uid(newUid);
     }
 
@@ -1176,9 +1208,10 @@ public class UserProcessing extends ObjectProcessing {
 
         if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_USERPHOTO)) {
             LOG.info("[GET] - /photo/$value, for user with UID: {0}", uid);
-            String photoPath = USERS + "/" + uid + "/photo/$value";
+            String photoPath = USERS + "/" + uid + "/" + ATTR_USERPHOTO + "/$value";
             final JSONObject userPhoto = endpoint.executeGetRequest(photoPath, null, options, false);
-            user.put(ATTR_USERPHOTO, userPhoto.get("data"));
+            if (userPhoto.length() != 0)
+                user.put(ATTR_USERPHOTO, userPhoto.get("data"));
         }
 
         return user;
