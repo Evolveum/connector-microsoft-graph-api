@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.CollectionUtil;
@@ -635,7 +636,10 @@ public class UserProcessing extends ObjectProcessing {
             return new JSONArray();
 
         Map<String, List<String>> disabledPlansMap = new HashMap<>();
-        for (String licensePlans : getConfiguration().getDisabledPlans()) {
+
+       String[] disabledPlansList = parseDisabledPlans(getConfiguration().getDisabledPlans());
+
+        for (String licensePlans : disabledPlansList) {
             String a[] = licensePlans.split(":", 2);
             if (a.length != 2)
                 continue;
@@ -655,6 +659,37 @@ public class UserProcessing extends ObjectProcessing {
             json.put(jo);
         });
         return json;
+    }
+
+    private String[] parseDisabledPlans(String[] disabledPlans) {
+
+        List<String> list = new ArrayList<String>();
+
+        for (String licensePlan : disabledPlans) {
+
+            if (licensePlan.contains("[") && licensePlan.contains("]")) {
+
+                String[] divPlan = StringUtils.substringsBetween(licensePlan, "[", "]");
+
+                String potentialPlanId = divPlan[divPlan.length - 1];
+
+                if(potentialPlanId.contains(":")){
+                    LOG.ok("Adding following plan amongst disabled plans: {0}, formatted to {1}",licensePlan
+                            , potentialPlanId);
+
+                    list.add(potentialPlanId);
+                } else {
+
+                    LOG.warn("Potentially malformed plan ID detected on input: {0}", potentialPlanId);
+                }
+
+            } else {
+
+                list.add(licensePlan);
+            }
+        }
+
+        return list.toArray(new String[0]);
     }
 
     private void assignLicenses(Uid uid, AttributeDelta deltaLicense) {

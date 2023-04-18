@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -516,6 +517,26 @@ abstract class ObjectProcessing {
                 return false;
         }
         return true;
+    }
+
+    protected List<JSONObject> handleJSONArray(JSONObject object) {
+        JSONArray value;
+        List<JSONObject> objectList= CollectionUtil.newList();
+        try {
+            value = object.getJSONArray("value");
+        } catch (JSONException e) {
+            LOG.info("No objects in JSON Array");
+            return null;
+        }
+        int length = value.length();
+        LOG.ok("jsonObj length: {0}", length);
+
+        for (int i = 0; i < length; i++) {
+            JSONObject obj = value.getJSONObject(i);
+            objectList.add(obj);
+        }
+
+        return objectList;
     }
 
     /**
