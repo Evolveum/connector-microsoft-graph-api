@@ -967,7 +967,7 @@ public class UserProcessing extends ObjectProcessing {
             }
 
         } else {
-            LOG.info("Empty query, returning full list of objects for the '{0}' object class", ObjectClass.ACCOUNT_NAME);
+            LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.ACCOUNT_NAME);
 
             JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
 
@@ -1011,7 +1011,7 @@ public class UserProcessing extends ObjectProcessing {
 
     @Override
     protected boolean handleJSONObject(OperationOptions options, JSONObject user, ResultsHandler handler) {
-        LOG.info("processingObjectFromGET (Object)");
+        LOG.ok("processingObjectFromGET (Object)");
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }

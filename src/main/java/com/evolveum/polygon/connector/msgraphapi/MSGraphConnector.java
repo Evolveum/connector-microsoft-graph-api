@@ -387,8 +387,8 @@ public class MSGraphConnector implements Connector,
                             groupProcessing.getUIDAttribute(), groupProcessing.getNameAttribute()));
                 }
             }
-
-            groupProcessing.executeQueryForGroup(query, handler, options);
+                //TODO consolidate and use ResourceQuery, also as output of filterVisitor methods
+            groupProcessing.executeQueryForGroup(filterSnippet, fetchSpecificObject, query, handler, options);
         } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
             LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
 

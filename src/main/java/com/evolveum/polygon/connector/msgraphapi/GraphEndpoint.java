@@ -409,11 +409,11 @@ public class GraphEndpoint {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided or empty");
         }
-        LOG.info("callRequest");
+        LOG.ok("callRequest execution");
         String result = null;
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.ok("URL in request: {0}", request.getRequestLine().getUri());
-        LOG.info("Enumerating headers");
+        LOG.ok("Enumerating headers");
         List<Header> httpHeaders = Arrays.asList(request.getAllHeaders());
         for (Header header : httpHeaders) {
             LOG.info("Headers.. name,value:" + header.getName() + "," + header.getValue());
@@ -519,10 +519,10 @@ public class GraphEndpoint {
             String perPage = configuration.getPageSize();
             if (perPage != null) {
                 uribuilder.setCustomQuery(customQuery + "&" + TOP + "=" + perPage.toString());
-                LOG.info("setCustomQuery {0} ", uribuilder.toString());
+                LOG.ok("setCustomQuery {0} ", uribuilder.toString());
             } else {
                 uribuilder.setCustomQuery(customQuery);
-                LOG.info("setCustomQuery {0} ", uribuilder.toString());
+                LOG.ok("setCustomQuery {0} ", uribuilder.toString());
             }
 
         } else if (customQuery == null && options != null && paging) {
@@ -533,7 +533,7 @@ public class GraphEndpoint {
             }
         } else if (customQuery != null && options != null && !paging) {
             uribuilder.setCustomQuery(customQuery);
-            LOG.info("setCustomQuery {0} ", uribuilder.toString());
+            LOG.ok("setCustomQuery {0} ", uribuilder.toString());
         }
 
         uribuilder.setPath(path);
@@ -598,7 +598,7 @@ public class GraphEndpoint {
                     for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
                         value.put(firstCall.getJSONArray("value").get(i));
                     }
-                    LOG.info("firstCall: {0} ", firstCall);
+                    LOG.ok("firstCall: {0} ", firstCall);
                 } else {
                     LOG.info("firstCall contained no value object or the object was null");
                 }

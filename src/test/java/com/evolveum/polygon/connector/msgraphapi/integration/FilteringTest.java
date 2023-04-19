@@ -266,7 +266,416 @@ public class FilteringTest extends BasicConfigurationForTests {
         deleteWaitAndRetry(objectClassGroup, groupBlue, options);
         deleteWaitAndRetry(objectClassGroup, groupYellow, options);
     }
-    
+
+
+
+    @Test(priority = 31)
+    public void equalsFilterTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("groupTypes", "Unified"));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+
+        AttributeFilter equalsFilter;
+        equalsFilter = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("mail",
+                "diffusion-x"+"@"+domain));
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+
+        queryWaitAndRetry(objectClassGroup, equalsFilter, handlerGroup, options, groupYellow);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("ContainsFilter did not return group: "+ groupYellow);
+        }
+
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+    @Test(priority = 32)
+    public void startsWithFilterTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("groupTypes", "Unified"));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+
+        AttributeFilter startsWithFilterGroup;
+        startsWithFilterGroup = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("mail",
+                "diffusion"));
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+
+        queryWaitAndRetry(objectClassGroup, startsWithFilterGroup, handlerGroup, options, groupYellow);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("ContainsFilter did not return group: "+ groupYellow);
+        }
+
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+
+    @Test(priority = 33)
+    public void notStartsWithFilterTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("groupTypes", "Unified"));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+
+        AttributeFilter startsWithFilterGroup;
+        startsWithFilterGroup = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("mail",
+                "diffusion"));
+
+        NotFilter notFilter;
+
+        notFilter = (NotFilter) FilterBuilder.not(startsWithFilterGroup);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+
+        queryWaitAndRetry(objectClassGroup, notFilter, handlerGroup, options, groupYellow);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("Not filter did return group: "+ groupYellow);
+        }
+
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+
+
+    @Test(priority = 34)
+    public void containsFilterTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "diffusion-x"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("groupTypes", "Unified"));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+
+        AttributeFilter containsFilter;
+        containsFilter = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME,
+                "diffusion"));
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+
+        queryWaitAndRetry(objectClassGroup, containsFilter, handlerGroup, options, groupYellow);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("Not filter did return group: "+ groupYellow);
+        }
+
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+
+    @Test(priority = 35)
+    public void compositeAndSearchTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "GroupXYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "GroupXYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+        Set<Attribute> attributesCreatedGroup1 = new HashSet<>();
+        attributesCreatedGroup1.add(AttributeBuilder.build("displayName", "GroupXBlue"));
+        attributesCreatedGroup1.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup1.add(AttributeBuilder.build("mailNickname", "GroupXBlue"));
+        attributesCreatedGroup1.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupBlue = msGraphConnector.create(objectClassGroup, attributesCreatedGroup1, options);
+
+        AttributeFilter containsFilterGroupB;
+        containsFilterGroupB = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", "GroupX"));
+
+        AttributeFilter containsFilterGroupY;
+        containsFilterGroupY = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mailNickname", "Group"));
+
+        AndFilter andFilter = (AndFilter) FilterBuilder.and(containsFilterGroupB, containsFilterGroupY);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+        List<Uid> returnedObjectUid = null;
+        if (groupBlue != null && groupYellow != null) {
+            returnedObjectUid = Arrays.asList(groupBlue, groupYellow);
+        } else {
+
+            throw new InvalidAttributeValueException("No UID returned after account creation.");
+        }
+
+        queryWaitAndRetry(objectClassGroup, andFilter, handlerGroup, options, returnedObjectUid);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupBlue) || !listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupBlue, options);
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("ContainsFilter not return both group.");
+        }
+
+
+        deleteWaitAndRetry(objectClassGroup, groupBlue, options);
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+
+    @Test(priority = 35)
+    public void compositeOrSearchTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "GroupXYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "GroupXYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+        Set<Attribute> attributesCreatedGroup1 = new HashSet<>();
+        attributesCreatedGroup1.add(AttributeBuilder.build("displayName", "GroupXBlue"));
+        attributesCreatedGroup1.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup1.add(AttributeBuilder.build("mailNickname", "GroupXBlue"));
+        attributesCreatedGroup1.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupBlue = msGraphConnector.create(objectClassGroup, attributesCreatedGroup1, options);
+
+        AttributeFilter containsFilterGroupB;
+        containsFilterGroupB = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", "GroupXBlue"));
+
+        AttributeFilter containsFilterGroupY;
+        containsFilterGroupY = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mailNickname", "GroupXYellow"));
+
+        OrFilter orFilter = (OrFilter) FilterBuilder.or(containsFilterGroupB, containsFilterGroupY);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+        List<Uid> returnedObjectUid = null;
+        if (groupBlue != null && groupYellow != null) {
+            returnedObjectUid = Arrays.asList(groupBlue, groupYellow);
+        } else {
+
+            throw new InvalidAttributeValueException("No UID returned after account creation.");
+        }
+
+        queryWaitAndRetry(objectClassGroup, orFilter, handlerGroup, options, returnedObjectUid);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupBlue) || !listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupBlue, options);
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("ContainsFilter not return both group.");
+        }
+
+
+        deleteWaitAndRetry(objectClassGroup, groupBlue, options);
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+
+    @Test(priority = 35)
+    public void compositeAndFilteringTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "GroupXYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "GroupXYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+
+        AttributeFilter equals;
+        equals = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("displayName", "GroupXYellow"));
+
+        AttributeFilter startsW;
+        startsW = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("mailNickname", "GroupX"));
+
+        AndFilter andFilter = (AndFilter) FilterBuilder.and(equals, startsW);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+
+        queryWaitAndRetry(objectClassGroup, andFilter, handlerGroup, options, groupYellow);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+            Assert.fail("ContainsFilter not return both group.");
+        }
+
+
+        deleteWaitAndRetry(objectClassGroup, groupYellow, options);
+    }
+
+    @Test(priority = 36)
+    public void compositeFilteringAndSearchTestGroupObjectClass() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+//        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+//        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "GroupXYellow"));
+//        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", false));
+//        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "GroupXYellow"));
+//        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+//        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
+
+        Set<Attribute> attributesCreatedGroup1 = new HashSet<>();
+        attributesCreatedGroup1.add(AttributeBuilder.build("displayName", "GroupXBlue"));
+        attributesCreatedGroup1.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup1.add(AttributeBuilder.build("mailNickname", "GroupXBlue"));
+        attributesCreatedGroup1.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupBlue = msGraphConnector.create(objectClassGroup, attributesCreatedGroup1, options);
+
+        AttributeFilter containsFilter;
+        containsFilter = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", "XBlue"));
+
+        AttributeFilter startsWithFilter;
+        startsWithFilter = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("mailNickname", "Group"));
+
+        AndFilter andFilter = (AndFilter) FilterBuilder.and(containsFilter, startsWithFilter);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+
+
+        queryWaitAndRetry(objectClassGroup, andFilter, handlerGroup, options, groupBlue);
+        ArrayList<Uid> listUid = new ArrayList<>();
+        resultsGroup = handlerGroup.getResult();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupBlue)) {
+            deleteWaitAndRetry(objectClassGroup, groupBlue, options);
+            Assert.fail("ContainsFilter not return both group.");
+        }
+
+
+        deleteWaitAndRetry(objectClassGroup, groupBlue, options);
+    }
     @Test(priority = 22)
     public void filteringRoleObjectClass() throws Exception {
 

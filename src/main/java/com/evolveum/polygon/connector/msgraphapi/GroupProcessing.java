@@ -4,8 +4,6 @@ import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
-import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.json.JSONObject;
@@ -434,71 +432,100 @@ public class GroupProcessing extends ObjectProcessing {
     }
 
 
-    public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
-        LOG.info("executeQueryForGroup() Query: {0}", query);
+    public void executeQueryForGroup(String translatedQuery, Boolean fetchSpecific, Filter query ,ResultsHandler handler, OperationOptions options) {
+        LOG.ok("Processing executeQuery operation for the objectClass {0}", ObjectClass.GROUP_NAME );
         final GraphEndpoint endpoint = getGraphEndpoint();
-        if (query instanceof EqualsFilter) {
-            final EqualsFilter equalsFilter = (EqualsFilter) query;
-            final String attributeName = equalsFilter.getAttribute().getName();
-            LOG.info("Query is instance of EqualsFilter: {0}", query);
-            if (equalsFilter.getAttribute() instanceof Uid) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
 
-                Uid uid = (Uid) ((EqualsFilter) query).getAttribute();
-                if (uid.getUidValue() == null) {
-                    invalidAttributeValue("Uid", query);
-                }
+        if (translatedQuery != null && !translatedQuery.isEmpty()) {
+
+            if (fetchSpecific) {
+                LOG.info("Fetching object info for object: {0}", translatedQuery);
+
                 StringBuilder sbPath = new StringBuilder();
-                sbPath.append(GROUPS).append("/").append(uid.getUidValue());
 
+                sbPath.append(GROUPS).append("/").append(translatedQuery);
                 JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
                 handleJSONObject(options, group, handler);
-            } else if (equalsFilter.getAttribute() instanceof Name) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
+            } else {
+                if (query instanceof ContainsAllValuesFilter){
 
-                Name name = (Name) ((EqualsFilter) query).getAttribute();
-                String nameValue = name.getNameValue();
-                if (nameValue == null) {
-                    invalidAttributeValue("Name", query);
+                    LOG.ok("The constructed filter about to being used: {0}",  translatedQuery);
+                    JSONObject groups = endpoint.executeGetRequest(translatedQuery, null, options, true);
+                    handleJSONArray(options, groups, handler);
+
+                } else {
+
+                LOG.ok("The constructed filter about to being used: {0}",  translatedQuery);
+                JSONObject groups = endpoint.executeGetRequest(GROUPS, translatedQuery, options, true);
+                handleJSONArray(options, groups, handler);
                 }
-                final String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + nameValue + "'";
-                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(options, groups, handler);
-            } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
-                final String attributeValue = getAttributeFirstValue(equalsFilter);
-                final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
-                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(options, groups, handler);
             }
-        } else if (query instanceof ContainsFilter) {
-            LOG.info("Query is instance of ContainsFilter: {0}", query);
-            final ContainsFilter containsFilter = (ContainsFilter) query;
-            final String attributeName = containsFilter.getAttribute().getName();
-            final String attributeValue = getAttributeFirstValue(containsFilter);
-            if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_MAIL, ATTR_MAILNICKNAME).contains(attributeName)) {
-                String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(options, groups, handler);
-            }
-        } else if (query instanceof ContainsAllValuesFilter) {
-           LOG.info("Query is instance of ContainsAllValuesFilter: {0}", query);
-           final ContainsAllValuesFilter containsAllValuesFilter = (ContainsAllValuesFilter) query;
-           final String attributeName = containsAllValuesFilter.getAttribute().getName();
-           final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
-           LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
+//        if (query instanceof EqualsFilter) {
+//            final EqualsFilter equalsFilter = (EqualsFilter) query;
+//            final String attributeName = equalsFilter.getAttribute().getName();
+//            LOG.info("Query is instance of EqualsFilter: {0}", query);
+//            if (equalsFilter.getAttribute() instanceof Uid) {
+//                LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
+//
+//                Uid uid = (Uid) ((EqualsFilter) query).getAttribute();
+//                if (uid.getUidValue() == null) {
+//                    invalidAttributeValue("Uid", query);
+//                }
+//                StringBuilder sbPath = new StringBuilder();
+//                sbPath.append(GROUPS).append("/").append(uid.getUidValue());
+//
+//                JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
+//                handleJSONObject(options, group, handler);
+//            } else if (equalsFilter.getAttribute() instanceof Name) {
+//                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
+//
+//                Name name = (Name) ((EqualsFilter) query).getAttribute();
+//                String nameValue = name.getNameValue();
+//                if (nameValue == null) {
+//                    invalidAttributeValue("Name", query);
+//                }
+//                final String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + nameValue + "'";
+//                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
+//                handleJSONArray(options, groups, handler);
+//            } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
+//                final String attributeValue = getAttributeFirstValue(equalsFilter);
+//                final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
+//                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
+//                handleJSONArray(options, groups, handler);
+//            }
+//        } else if (query instanceof ContainsFilter) {
+//            LOG.info("Query is instance of ContainsFilter: {0}", query);
+//            final ContainsFilter containsFilter = (ContainsFilter) query;
+//            final String attributeName = containsFilter.getAttribute().getName();
+//            final String attributeValue = getAttributeFirstValue(containsFilter);
+//            if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_MAIL, ATTR_MAILNICKNAME).contains(attributeName)) {
+//                String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
+//                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
+//                handleJSONArray(options, groups, handler);
+//            }
+//        } else if (query instanceof ContainsAllValuesFilter) {
+//           LOG.info("Query is instance of ContainsAllValuesFilter: {0}", query);
+//           final ContainsAllValuesFilter containsAllValuesFilter = (ContainsAllValuesFilter) query;
+//           final String attributeName = containsAllValuesFilter.getAttribute().getName();
+//           final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
+//           LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
+//
+//           String pathSegmentFromAttrName;
+//           if (attributeName.equals("members")) {
+//               pathSegmentFromAttrName = "memberOf";
+//           } else {
+//               pathSegmentFromAttrName = "ownedObjects";
+//           }
+//
+//           String getPath = USERS + "/" + attributeValue + "/" + pathSegmentFromAttrName + "/microsoft.graph.group";
+//           JSONObject groups = endpoint.executeGetRequest(getPath, null, options,false);
+//           handleJSONArray(options, groups, handler);
+//        } else if (query == null) {
 
-           String pathSegmentFromAttrName;
-           if (attributeName.equals("members")) {
-               pathSegmentFromAttrName = "memberOf";
-           } else {
-               pathSegmentFromAttrName = "ownedObjects";
-           }
+        } else {
 
-           String getPath = USERS + "/" + attributeValue + "/" + pathSegmentFromAttrName + "/microsoft.graph.group";
-           JSONObject groups = endpoint.executeGetRequest(getPath, null, options,false);
-           handleJSONArray(options, groups, handler);
-        } else if (query == null) {
-           LOG.info("Query is null");
+            LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.GROUP_NAME);
+
             JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
             handleJSONArray(options, groups, handler);
         }
@@ -539,17 +566,17 @@ public class GroupProcessing extends ObjectProcessing {
 
     @Override
     protected boolean handleJSONObject(OperationOptions options, JSONObject group, ResultsHandler handler) {
-        LOG.info("processingObjectFromGET (Object)");
+        LOG.ok("processingObjectFromGET (Object)");
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
             group = saturateGroupMembership(options, group);
         }
         final ConnectorObject connectorObject = convertGroupJSONObjectToConnectorObject(group).build();
-        LOG.info("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
+        LOG.ok("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
     }
 
     private ConnectorObjectBuilder convertGroupJSONObjectToConnectorObject(JSONObject group) {
-        LOG.info("convertGroupJSONObjectToConnectorObject");
+        LOG.ok("convertGroupJSONObjectToConnectorObject execution");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(ObjectClass.GROUP);
 
