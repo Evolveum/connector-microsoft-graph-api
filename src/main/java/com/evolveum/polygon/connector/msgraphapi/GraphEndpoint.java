@@ -433,7 +433,7 @@ public class GraphEndpoint {
             LOG.info("Headers.. name,value:" + header.getName() + "," + header.getValue());
         }
         if (request.getURI().toString().contains("photo")){
-            // this uri check is necessary otherwise inspecting of shadow fails
+            // this uri check is necessary otherwise inspecting of shadow w/o photo returns 404
             return callRequestPhoto(request);
         }
         try (CloseableHttpResponse response = executeRequest(request)) {
@@ -461,7 +461,6 @@ public class GraphEndpoint {
         String result;
 
         try (CloseableHttpResponse response = executeRequest(request)) {
-            // response might be 404 so photo put request won't succeed while creating user but after reconcile
             if (response.getStatusLine().getStatusCode() == 404){
                 return new JSONObject(Collections.singletonMap("data", null));
             }
@@ -560,14 +559,6 @@ public class GraphEndpoint {
                 uribuilder.setCustomQuery(customQuery);
                 LOG.info("setCustomQuery {0} ", uribuilder.toString());
             }
-//        } else {
-//            if (customQuery.contains("photo")){
-//                uribuilder.setCustomQuery("/photo/$value");
-//            }
-//            else {
-//                uribuilder.setCustomQuery(customQuery);
-//                LOG.info("setCustomQuery {0} ", uribuilder.toString());
-//            }}
 
         } else if (customQuery == null && options != null && paging) {
             Integer perPage = options.getPageSize();

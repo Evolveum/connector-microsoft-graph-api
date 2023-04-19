@@ -622,7 +622,7 @@ public class UserProcessing extends ObjectProcessing {
         List<Object> addLicenses = new ArrayList<>();
 
         AtomicBoolean isLicenceAttrNull = new AtomicBoolean(true);
-        // filter out the assignedLicense.skuId attribute, which must be handled separately
+        // filter out the assignedLicense.skuId & ATTR_USERPHOTO attribute, which must be handled separately
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
                 .filter(it -> {
                     String attributeName = it.getName();
@@ -781,7 +781,6 @@ public class UserProcessing extends ObjectProcessing {
                 .filter(a -> a.is(ATTR_USERPHOTO))
                 .findFirst().orElse(null);
         List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
-//        if (!jsonObjectaccount.stream().anyMatch(attr -> attr instanceof Map && ((Map) attr).containsKey("photo"))) {
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
         assignManager(uid, manager);
@@ -1121,7 +1120,6 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
-// pridat if na fotku
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_OWNER_OF_GROUP)) {
             user = saturateGroupOwnership(user);
         }
