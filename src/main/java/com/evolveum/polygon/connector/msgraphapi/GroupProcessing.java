@@ -460,67 +460,6 @@ public class GroupProcessing extends ObjectProcessing {
                 handleJSONArray(options, groups, handler);
                 }
             }
-//        if (query instanceof EqualsFilter) {
-//            final EqualsFilter equalsFilter = (EqualsFilter) query;
-//            final String attributeName = equalsFilter.getAttribute().getName();
-//            LOG.info("Query is instance of EqualsFilter: {0}", query);
-//            if (equalsFilter.getAttribute() instanceof Uid) {
-//                LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
-//
-//                Uid uid = (Uid) ((EqualsFilter) query).getAttribute();
-//                if (uid.getUidValue() == null) {
-//                    invalidAttributeValue("Uid", query);
-//                }
-//                StringBuilder sbPath = new StringBuilder();
-//                sbPath.append(GROUPS).append("/").append(uid.getUidValue());
-//
-//                JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
-//                handleJSONObject(options, group, handler);
-//            } else if (equalsFilter.getAttribute() instanceof Name) {
-//                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
-//
-//                Name name = (Name) ((EqualsFilter) query).getAttribute();
-//                String nameValue = name.getNameValue();
-//                if (nameValue == null) {
-//                    invalidAttributeValue("Name", query);
-//                }
-//                final String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + nameValue + "'";
-//                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-//                handleJSONArray(options, groups, handler);
-//            } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
-//                final String attributeValue = getAttributeFirstValue(equalsFilter);
-//                final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
-//                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-//                handleJSONArray(options, groups, handler);
-//            }
-//        } else if (query instanceof ContainsFilter) {
-//            LOG.info("Query is instance of ContainsFilter: {0}", query);
-//            final ContainsFilter containsFilter = (ContainsFilter) query;
-//            final String attributeName = containsFilter.getAttribute().getName();
-//            final String attributeValue = getAttributeFirstValue(containsFilter);
-//            if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_MAIL, ATTR_MAILNICKNAME).contains(attributeName)) {
-//                String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-//                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-//                handleJSONArray(options, groups, handler);
-//            }
-//        } else if (query instanceof ContainsAllValuesFilter) {
-//           LOG.info("Query is instance of ContainsAllValuesFilter: {0}", query);
-//           final ContainsAllValuesFilter containsAllValuesFilter = (ContainsAllValuesFilter) query;
-//           final String attributeName = containsAllValuesFilter.getAttribute().getName();
-//           final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
-//           LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
-//
-//           String pathSegmentFromAttrName;
-//           if (attributeName.equals("members")) {
-//               pathSegmentFromAttrName = "memberOf";
-//           } else {
-//               pathSegmentFromAttrName = "ownedObjects";
-//           }
-//
-//           String getPath = USERS + "/" + attributeValue + "/" + pathSegmentFromAttrName + "/microsoft.graph.group";
-//           JSONObject groups = endpoint.executeGetRequest(getPath, null, options,false);
-//           handleJSONArray(options, groups, handler);
-//        } else if (query == null) {
 
         } else {
 
