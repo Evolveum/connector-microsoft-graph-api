@@ -98,7 +98,7 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20180130</version>
+            <version>20230227</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -113,5 +113,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
 
 </project>

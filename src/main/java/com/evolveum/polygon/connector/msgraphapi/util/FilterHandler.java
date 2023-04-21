@@ -15,7 +15,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
 
     //Equality operators
-
+    private final static String USERS = "/users";
     private static final String EQUALS_OP = "eq";
     private static final String NOT_EQUAL_OP = "ne";
     private static final String NOT_OP = "not";
@@ -332,42 +332,52 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
     @Override
     public String visitContainsAllValuesFilter(ResourceQuery p, ContainsAllValuesFilter containsAllValuesFilter) {
 
-/*        LOG.ok("Processing through CONTAINS ALL VALUES filter expression");
+        LOG.ok("Processing through CONTAINS ALL VALUES filter expression");
 
         if (afterFirtsOperation) {
 
-            checkFilterConditions();
+            throw new ConnectorException("Filter 'CONTAINS ALL VALUES' not implemented by the connector for the object " +
+                    "class: "+ p.getObjectClass() + "as a part of a complex filter.");
         }
 
         Attribute attr = containsAllValuesFilter.getAttribute();
+        String snippet = null;
 
-        if (ObjectClass.GROUP.equals(p.getObjectClass())){
+        if (ObjectClass.GROUP.equals(p.getObjectClass())) {
+            final String attributeName = containsAllValuesFilter.getAttribute().getName();
+            List<Object> cavL = containsAllValuesFilter.getAttribute().getValue();
 
-//TODO
+            if(cavL!=null && !cavL.isEmpty()){
+
+                Object attributeValue = cavL.get(0);
+                if(attributeValue!=null){
+
+                    String pathSegmentFromAttrName;
+
+                    if (attributeName.equals("members")) {
+                        pathSegmentFromAttrName = "memberOf";
+                    } else {
+                        pathSegmentFromAttrName = "ownedObjects";
+                    }
+
+                    snippet = USERS + "/" + attributeValue + "/" + pathSegmentFromAttrName + "/microsoft.graph.group";
+                }
+            } else {
+
+                throw new ConnectorException("Filter 'CONTAINS ALL VALUES' no attribute value present in filter");
+            }
+
+
+
         } else if (ObjectClass.ACCOUNT.equals(p.getObjectClass())){
 
-//TODO
+            throw new ConnectorException("Filter 'CONTAINS ALL VALUES' not implemented by the connector for the object " +
+                    "class: "+ p.getObjectClass());
         }
 
-
-        String snippet = processAnyFilter(attr, p);
-
-
-        if (!afterFirtsOperation) {
-
-            p.setFilterExpression(snippet);
-
-            LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
-        }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;*/
-
-        LOG.warn("WARNING: Filter 'CONTAINS ALL VALUES' not implemented by the connector for the object class: {0}, " +
-                "resulting query string will be NULL", p.getObjectClass());
-
-        return null;
+        return snippet;
 
     }
 

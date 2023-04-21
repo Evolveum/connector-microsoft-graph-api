@@ -7,8 +7,6 @@ import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
-import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -908,7 +906,8 @@ public class UserProcessing extends ObjectProcessing {
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(toGetURLByUserPrincipalName(translatedQuery)).append("/");
                 String filter = "";
-                if (shouldReturnAttribute(options).contains(ATTR_MANAGER_ID)){
+                Set<String> attributesToGet = getAttributesToGet(options);
+                if (attributesToGet.contains(ATTR_MANAGER_ID)){
 
                     LOG.info("Fetching manager info for account: {0}", translatedQuery);
 
@@ -923,7 +922,7 @@ public class UserProcessing extends ObjectProcessing {
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" +
                         filter, options, false);
 
-                if (shouldReturnAttribute(options).contains(ATTR_SIGN_IN)) {
+                if (attributesToGet.contains(ATTR_SIGN_IN)) {
                     LOG.info("Fetching sing-in info for account: {0}", translatedQuery);
                     sbPath = new StringBuilder()
                             .append("/auditLogs/signIns");
@@ -968,7 +967,7 @@ public class UserProcessing extends ObjectProcessing {
             }
 
         } else {
-            LOG.info("Empty query, returning full list of objects for the '{0}' object class", ObjectClass.ACCOUNT_NAME);
+            LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.ACCOUNT_NAME);
 
             JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
 
@@ -977,22 +976,12 @@ public class UserProcessing extends ObjectProcessing {
         }
     }
 
-    private ArrayList<String> shouldReturnAttribute(OperationOptions options) {
-        if (options == null) {
-
-            return null;
+    protected Set<String> getAttributesToGet(OperationOptions options) {
+        if (options == null || options.getAttributesToGet() == null) {
+            return Collections.emptySet();
         }
-
-        ArrayList<String> attrNameArray = new ArrayList<String>(Arrays.asList(options.getAttributesToGet()));
-
-        if (attrNameArray == null || attrNameArray.isEmpty()) {
-
-            return null;
-        }
-
-        return attrNameArray;
+        return new HashSet<>(Arrays.asList(options.getAttributesToGet()));
     }
-
 
     /**
      * When the userPrincipalName begins with a $ character, remove the slash (/) after /users and
@@ -1022,7 +1011,7 @@ public class UserProcessing extends ObjectProcessing {
 
     @Override
     protected boolean handleJSONObject(OperationOptions options, JSONObject user, ResultsHandler handler) {
-        LOG.info("processingObjectFromGET (Object)");
+        LOG.ok("processingObjectFromGET (Object)");
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
