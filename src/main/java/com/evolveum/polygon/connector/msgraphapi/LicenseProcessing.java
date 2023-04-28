@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.identityconnectors.framework.common.objects.Attribute;
@@ -131,6 +132,13 @@ public class LicenseProcessing extends ObjectProcessing {
         JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS, selector, options, false);
         LOG.info("JSONObject license {0}", json.toString());
         handleJSONArray(options, json, handler);
+    }
+
+    public List<JSONObject> list() {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS, SELECTOR_FULL, null, false);
+        LOG.info("JSONObject license {0}", json.toString());
+        return handleJSONArray(json);
     }
 
     public void executeQueryForLicense(Filter query, ResultsHandler handler, OperationOptions options) {

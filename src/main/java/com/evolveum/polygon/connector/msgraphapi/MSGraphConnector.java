@@ -14,8 +14,10 @@ import org.apache.http.client.methods.HttpRequestBase;
 //import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 //import org.apache.http.client.*;
 //import org.apache.http.impl.client.*;
+import org.identityconnectors.framework.common.exceptions.ConnectionFailedException;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.spi.PoolableConnector;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import org.identityconnectors.common.CollectionUtil;
@@ -32,9 +34,7 @@ import org.identityconnectors.framework.spi.operations.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 @ConnectorClass(displayNameKey = "msgraphconnector.connector.display", configurationClass = MSGraphConfiguration.class)
@@ -48,7 +48,8 @@ public class MSGraphConnector implements Connector,
         SchemaOp,
         UpdateOp,
         SyncOp,
-        UpdateAttributeValuesOp {
+        UpdateAttributeValuesOp,
+        DiscoverConfigurationOp{
 
     private static final Log LOG = Log.getLog(MSGraphConnector.class);
 
@@ -591,5 +592,126 @@ public class MSGraphConnector implements Connector,
     @Override
     public void checkAlive() {
         // do nothing here
+    }
+
+    @Override
+    public void testPartialConfiguration() {
+
+        LOG.info("Starting graph endpoint instance as part of Partial configuration test while leveraging default" +
+                " Java truststore in case of environment trustStore returns with exception");
+        graphEndpoint = new GraphEndpoint(configuration, true);
+        LOG.info("Execution of default test method");
+        test();
+    }
+
+    @Override
+    public Map<String, SuggestedValues> discoverConfiguration() {
+
+            Map<String, SuggestedValues> suggestions = new HashMap<>();
+
+            Boolean connectionFailed = false;
+            try {
+
+            configuration.setValidateWithFailoverTrust(false);
+            graphEndpoint = new GraphEndpoint(configuration);
+             } catch (ConnectionFailedException e){
+
+                configuration.setValidateWithFailoverTrust(true);
+                connectionFailed = true;
+            }
+
+            if (connectionFailed){
+
+                LOG.ok("Setting up discovery suggestion to use validation with native trust store");
+                suggestions.put("validateWithFailoverTrust", SuggestedValuesBuilder.build(true));
+            } else {
+
+                LOG.ok("Setting up discovery suggestion to not use validation with native trust store");
+                suggestions.put("validateWithFailoverTrust", SuggestedValuesBuilder.build(false));
+            }
+
+            String pageSize = configuration.getPageSize();
+            String throttlingRetryWait = configuration.getThrottlingRetryWait();
+            String pathToFailoverTrustStore  = configuration.getPathToFailoverTrustStore();
+            Integer throttlingRetryCount = configuration.getThrottlingRetryCount();
+
+
+
+            if(pageSize !=null && !pageSize.isEmpty()){
+
+                suggestions.put("pageSize", SuggestedValuesBuilder.buildOpen(pageSize));
+            } else {
+
+                // Default for page size
+                suggestions.put("pageSize", SuggestedValuesBuilder.buildOpen("100"));
+            }
+
+        if(throttlingRetryWait!=null && !throttlingRetryWait.isEmpty()){
+
+            suggestions.put("throttlingRetryWait", SuggestedValuesBuilder.buildOpen(throttlingRetryWait));
+        } else {
+
+            suggestions.put("throttlingRetryWait", SuggestedValuesBuilder.buildOpen("10"));
+        }
+
+        if(throttlingRetryCount != null){
+
+            suggestions.put("throttlingRetryCount", SuggestedValuesBuilder.buildOpen(throttlingRetryCount));
+        } else {
+
+            suggestions.put("throttlingRetryCount", SuggestedValuesBuilder.buildOpen(3));
+        }
+
+        if(pathToFailoverTrustStore !=null && !pathToFailoverTrustStore.isEmpty()){
+
+            suggestions.put("pathToFailoverTrustStore", SuggestedValuesBuilder.buildOpen(pathToFailoverTrustStore));
+        }
+
+        Set<String> availablePlans = fetchAvailablePlans();
+
+        if (availablePlans !=null && !availablePlans.isEmpty()){
+
+            suggestions.put("disabledPlans", SuggestedValuesBuilder.build(availablePlans));
+        }
+
+        return suggestions;
+    }
+
+    public Set<String> fetchAvailablePlans() {
+
+        LOG.ok("Fetching available license plans");
+        LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
+        List<JSONObject> licenses = licenseProcessing.list();
+        Set<String> parsedPlans = CollectionUtil.newSet();
+
+        for (JSONObject licence : licenses) {
+
+            if (licence != null) {
+
+                try {
+
+                    String skuId = licence.getString("skuId");
+                    String skuPartNumber = licence.getString("skuPartNumber");
+
+                    JSONArray planList = licence.getJSONArray("servicePlans");
+                    int length = planList.length();
+                    LOG.ok("Length of service plans list: {0}", length);
+
+                    for (int i = 0; i < length; i++) {
+                        JSONObject obj = planList.getJSONObject(i);
+                       String serviceName = (String) obj.get("servicePlanName");
+                        String servicePlanId = (String) obj.get("servicePlanId");
+
+                        parsedPlans.add(skuPartNumber+":"+serviceName+" "+"["+skuId+":"+servicePlanId+"]");
+                    }
+
+                } catch (JSONException e) {
+
+                    LOG.warn("Exception while fetching available service plans while analyzing licences: {0} ", e.getLocalizedMessage());
+                }
+            }
+
+        }
+        return parsedPlans;
     }
 }

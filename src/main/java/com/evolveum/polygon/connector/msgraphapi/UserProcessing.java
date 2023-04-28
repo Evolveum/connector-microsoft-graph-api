@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.CollectionUtil;
@@ -52,7 +53,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_USERPRINCIPALNAME = "userPrincipalName";
     private static final String ATTR_MEMBER_OF_GROUP = "memberOfGroup";
     private static final String ATTR_OWNER_OF_GROUP = "ownerOfGroup";
-    private static final String ATTR_MEMBER_OF_ROLE= "memberOfRole";
+    private static final String ATTR_MEMBER_OF_ROLE = "memberOfRole";
 
 
     //optional
@@ -227,7 +228,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrMailNickname.build());
 
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_PASSWORDPROFILE + "." + ATTR_FORCECHANGEPASSWORDNEXTSIGNIN)
+                        ATTR_PASSWORDPROFILE + "." + ATTR_FORCECHANGEPASSWORDNEXTSIGNIN)
                 .setRequired(false).setType(Boolean.class).setCreateable(true).setUpdateable(true).setReadable(true).build());
 
 
@@ -283,14 +284,14 @@ public class UserProcessing extends ObjectProcessing {
                 .build());
 
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDLICENSES__SKUID)
+                        ATTR_ASSIGNEDLICENSES__SKUID)
                 .setRequired(false)
                 //.setType(GUID.class)
                 .setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDLICENSES + "." + ATTR_DISABLEDPLANS)
+                        ATTR_ASSIGNEDLICENSES + "." + ATTR_DISABLEDPLANS)
                 .setRequired(false)
                 //.setType(GUID.class)
                 .setCreateable(false).setUpdateable(false).setReadable(true).setMultiValued(true).build());
@@ -298,24 +299,24 @@ public class UserProcessing extends ObjectProcessing {
 
         //not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDPLANS + "." + ATTR_ASSIGNEDDATETIME)
+                        ATTR_ASSIGNEDPLANS + "." + ATTR_ASSIGNEDDATETIME)
                 .setRequired(false)
                 //.setType(OffsetDateTime.class)
                 .setCreateable(false).setUpdateable(false).setReadable(true).build());
 
         //not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDPLANS + "." + ATTR_CAPABILITYSTATUS)
+                        ATTR_ASSIGNEDPLANS + "." + ATTR_CAPABILITYSTATUS)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true).build());
 
         //not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDPLANS + "." + ATTR_SERVICE)
+                        ATTR_ASSIGNEDPLANS + "." + ATTR_SERVICE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true).build());
 
         //not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_ASSIGNEDPLANS + "." + ATTR_SERVICEPLANID)
+                        ATTR_ASSIGNEDPLANS + "." + ATTR_SERVICEPLANID)
                 .setRequired(false)
                 //.setType(GUID.class)
                 .setCreateable(false).setUpdateable(false).setReadable(true).build());
@@ -389,57 +390,57 @@ public class UserProcessing extends ObjectProcessing {
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_EXTERNALAUDIENCE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_EXTERNALAUDIENCE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_EXTERNALREPLYMESSAGE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_EXTERNALREPLYMESSAGE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_INTERNALREPLYMESSAGE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_INTERNALREPLYMESSAGE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDENDDATETIME + "." + ATTR_DATETIME)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDENDDATETIME + "." + ATTR_DATETIME)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDENDDATETIME + "." + ATTR_TIMEZONE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDENDDATETIME + "." + ATTR_TIMEZONE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDSTARTDATETIME + "." + ATTR_DATETIME)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDSTARTDATETIME + "." + ATTR_DATETIME)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDSTARTDATETIME + "." + ATTR_TIMEZONE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_SCHEDULEDSTARTDATETIME + "." + ATTR_TIMEZONE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_STATUS)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_AUTOMATICREPLIESSETTING + "." + ATTR_STATUS)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_LANGUAGE + "." + ATTR_LOCALE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_LANGUAGE + "." + ATTR_LOCALE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_LANGUAGE + "." + ATTR_DISPLAYNAME)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_LANGUAGE + "." + ATTR_DISPLAYNAME)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_MAILBOXSETTINGS + "." + ATTR_TIMEZONE)
+                        ATTR_MAILBOXSETTINGS + "." + ATTR_TIMEZONE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).build());
 
 
@@ -504,17 +505,17 @@ public class UserProcessing extends ObjectProcessing {
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_PROVISIONEDPLANS + "." + ATTR_CAPABILITYSTATUS)
+                        ATTR_PROVISIONEDPLANS + "." + ATTR_CAPABILITYSTATUS)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true).build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_PROVISIONEDPLANS + "." + ATTR_PROVISIONINGSTATUS)
+                        ATTR_PROVISIONEDPLANS + "." + ATTR_PROVISIONINGSTATUS)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true).build());
 
         //read-only, not nullable
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                ATTR_PROVISIONEDPLANS + "." + ATTR_SERVICE)
+                        ATTR_PROVISIONEDPLANS + "." + ATTR_SERVICE)
                 .setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true).build());
 
 
@@ -629,18 +630,45 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     private JSONArray buildLicensesJSON(Collection<Object> licenses) {
+        LOG.ok("Building licence JSON");
         if (licenses == null)
             return new JSONArray();
 
         Map<String, List<String>> disabledPlansMap = new HashMap<>();
-        for (String licensePlans : getConfiguration().getDisabledPlans()) {
+
+        String[] disabledPlansList = parseDisabledPlans(getConfiguration().getDisabledPlans());
+        LOG.ok("About to construct disabled plans list");
+        for (String licensePlans : disabledPlansList) {
+
             String a[] = licensePlans.split(":", 2);
             if (a.length != 2)
                 continue;
             String skuId = a[0];
             String disabledPlans[] = a[1].split(",");
-            if (disabledPlans.length >= 1)
-                disabledPlansMap.put(skuId, Arrays.asList(disabledPlans));
+            if (disabledPlans.length >= 1) {
+                if (disabledPlansMap.isEmpty()) {
+
+                    disabledPlansMap.put(skuId, Arrays.asList(disabledPlans));
+                } else {
+
+                    if (disabledPlansMap.containsKey(skuId)) {
+
+                        LOG.ok("Found skuID {0} among disabled plans map, fetching and augmenting", skuId);
+                        ArrayList<String> plans = new ArrayList(disabledPlansMap.get(skuId));
+
+                        for (String plan : disabledPlans) {
+
+                            if (!plans.contains(plan)) {
+
+                                LOG.ok("Augmenting skuID: {0}, by plan: {1}", skuId, plan);
+                                plans.add(plan);
+                            }
+                        }
+
+                        disabledPlansMap.put(skuId, plans);
+                    }
+                }
+            }
         }
 
         JSONArray json = new JSONArray();
@@ -653,6 +681,37 @@ public class UserProcessing extends ObjectProcessing {
             json.put(jo);
         });
         return json;
+    }
+
+    private String[] parseDisabledPlans(String[] disabledPlans) {
+        LOG.ok("Parsing disabled plans");
+        List<String> list = new ArrayList<String>();
+
+        for (String licensePlan : disabledPlans) {
+            LOG.ok("Evaluating license plan: {0}", licensePlan);
+            if (licensePlan.contains("[") && licensePlan.contains("]")) {
+
+                String[] divPlan = StringUtils.substringsBetween(licensePlan, "[", "]");
+
+                String potentialPlanId = divPlan[divPlan.length - 1];
+
+                if (potentialPlanId.contains(":")) {
+                    LOG.ok("Adding following plan amongst disabled plans: {0}, formatted to {1}", licensePlan
+                            , potentialPlanId);
+
+                    list.add(potentialPlanId);
+                } else {
+
+                    LOG.warn("Potentially malformed plan ID detected on input: {0}", potentialPlanId);
+                }
+
+            } else {
+                LOG.ok("Adding license plan amongst parsed: {0}", licensePlan);
+                list.add(licensePlan);
+            }
+        }
+
+        return list.toArray(new String[0]);
     }
 
     private void assignLicenses(Uid uid, AttributeDelta deltaLicense) {
@@ -865,7 +924,7 @@ public class UserProcessing extends ObjectProcessing {
     }
 
 
-    public void executeQueryForUser(String translatedQuery, Boolean fetchSpecific ,ResultsHandler handler, OperationOptions options) {
+    public void executeQueryForUser(String translatedQuery, Boolean fetchSpecific, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
@@ -898,7 +957,7 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
 
 
-        if (translatedQuery !=null && !translatedQuery.isEmpty()) {
+        if (translatedQuery != null && !translatedQuery.isEmpty()) {
 
             if (fetchSpecific) {
 
@@ -906,14 +965,15 @@ public class UserProcessing extends ObjectProcessing {
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(toGetURLByUserPrincipalName(translatedQuery)).append("/");
                 String filter = "";
+
                 Set<String> attributesToGet = getAttributesToGet(options);
                 if (attributesToGet.contains(ATTR_MANAGER_ID)){
 
                     LOG.info("Fetching manager info for account: {0}", translatedQuery);
 
-                filter = "$" + EXPAND + "=" + ATTR_MANAGER;
+                    filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 }
-                LOG.ok("The constructed additional filter clause: {0}",  filter.isEmpty() ? "Empty filter clause."
+                LOG.ok("The constructed additional filter clause: {0}", filter.isEmpty() ? "Empty filter clause."
                         : filter);
 
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
@@ -948,7 +1008,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 }
 
-                LOG.ok("The retrieved JSONObject for the account {0}: {1}",translatedQuery ,user.toString());
+                LOG.ok("The retrieved JSONObject for the account {0}: {1}", translatedQuery, user.toString());
                 handleJSONObject(options, user, handler);
 
             } else {
@@ -957,9 +1017,9 @@ public class UserProcessing extends ObjectProcessing {
                 //(Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
                 //(Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
 
-               // final String filter = "$filter=" + translatedQuery;
+                // final String filter = "$filter=" + translatedQuery;
                 final String filter = translatedQuery;
-                LOG.ok("The constructed filter: {0}",  filter);
+                LOG.ok("The constructed filter: {0}", filter);
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
 
                 LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
@@ -1056,8 +1116,8 @@ public class UserProcessing extends ObjectProcessing {
     private JSONObject saturateGroupMembership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
         final List<String> groups = getGraphEndpoint().executeGetRequest(
-                String.format("/users/%s/memberOf", uid), "$select=id", null, false
-        ).getJSONArray("value").toList().stream()
+                        String.format("/users/%s/memberOf", uid), "$select=id", null, false
+                ).getJSONArray("value").toList().stream()
                 .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
                 .map(o -> (String) ((Map) o).get(ATTR_ID))
                 .collect(Collectors.toList());
@@ -1178,21 +1238,21 @@ public class UserProcessing extends ObjectProcessing {
             return true;
         }
 
-        String objectId= getUIDIfExists(object);
+        String objectId = getUIDIfExists(object);
 
         LOG.warn("Naming attribute not present for the currently processed object with the Id {0}. Most probably " +
-                "object already deleted, yet it might indicate potential consistency issues with the currently "+
+                "object already deleted, yet it might indicate potential consistency issues with the currently " +
                 "processed object.", objectId);
 
         return false;
     }
 
-    public String getNameAttribute(){
+    public String getNameAttribute() {
 
         return ATTR_USERPRINCIPALNAME;
     }
 
-    public String getUIDAttribute(){
+    public String getUIDAttribute() {
 
         return ATTR_ID;
     }

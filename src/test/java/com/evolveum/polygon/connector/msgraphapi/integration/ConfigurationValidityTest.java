@@ -3,6 +3,8 @@ package com.evolveum.polygon.connector.msgraphapi.integration;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.testng.annotations.Test;
 
+import java.util.Properties;
+
 
 public class ConfigurationValidityTest extends BasicConfigurationForTests {
 
@@ -23,5 +25,13 @@ public class ConfigurationValidityTest extends BasicConfigurationForTests {
         msGraphConnector.init(msGraphConfiguration);
 
             msGraphConnector.test();
+    }
+
+    @Test
+    public void testPartialConfiguration() {
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        msGraphConnector.testPartialConfiguration();
     }
 }
