@@ -667,7 +667,7 @@ public class MSGraphConnector implements Connector,
             suggestions.put("pathToFailoverTrustStore", SuggestedValuesBuilder.buildOpen(pathToFailoverTrustStore));
         }
 
-        Set<String> availablePlans = fetchAvaliablePlans();
+        Set<String> availablePlans = fetchAvailablePlans();
 
         if (availablePlans !=null && !availablePlans.isEmpty()){
 
@@ -677,7 +677,8 @@ public class MSGraphConnector implements Connector,
         return suggestions;
     }
 
-    public Set<String> fetchAvaliablePlans() {
+    public Set<String> fetchAvailablePlans() {
+
         LOG.ok("Fetching available license plans");
         LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
         List<JSONObject> licenses = licenseProcessing.list();
