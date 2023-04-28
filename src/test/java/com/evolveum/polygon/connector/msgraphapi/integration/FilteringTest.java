@@ -634,13 +634,6 @@ public class FilteringTest extends BasicConfigurationForTests {
 
         ObjectClass objectClassGroup = ObjectClass.GROUP;
 
-//        Set<Attribute> attributesCreatedGroup = new HashSet<>();
-//        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "GroupXYellow"));
-//        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", false));
-//        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "GroupXYellow"));
-//        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
-//        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, options);
-
         Set<Attribute> attributesCreatedGroup1 = new HashSet<>();
         attributesCreatedGroup1.add(AttributeBuilder.build("displayName", "GroupXBlue"));
         attributesCreatedGroup1.add(AttributeBuilder.build("mailEnabled", false));
@@ -819,7 +812,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         attributesAccountPg.add(AttributeBuilder.build("displayName", "PinkAndGreen-support"));
         attributesAccountPg.add(AttributeBuilder.build("mail", "PinkAndGreen-support@" + domain));
         attributesAccountPg.add(AttributeBuilder.build("mailNickname", "PinkAndGreen-support"));
-        attributesAccount.add(AttributeBuilder.build("department", "IT Support"));
+        attributesAccountPg.add(AttributeBuilder.build("department", "IT Support"));
         attributesAccountPg.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen-support@" + domain));
         GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccountPg.add(AttributeBuilder.build("__PASSWORD__", pass1));
@@ -840,7 +833,7 @@ public class FilteringTest extends BasicConfigurationForTests {
         }
 
         AttributeFilter endsWith;
-        endsWith = (EndsWithFilter) FilterBuilder.endsWith(AttributeBuilder.build(Name.NAME,
+        endsWith = (EndsWithFilter) FilterBuilder.endsWith(AttributeBuilder.build("mail",
                 "support@"+domain));
 
         AttributeFilter contains;
@@ -848,17 +841,17 @@ public class FilteringTest extends BasicConfigurationForTests {
 
 
         AttributeFilter negatedContains;
-        negatedContains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "Development"));
+        negatedContains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("userPrincipalName", "Blue"));
 
-        AttributeFilter negatedContainsEx;
-        negatedContainsEx = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "Lecturing"));
+        AttributeFilter containsEx;
+        containsEx = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "IT"));
 
 
         NotFilter not = (NotFilter) FilterBuilder.not(negatedContains);
 
         OrFilter or = (OrFilter) FilterBuilder.or(not,contains);
-        // TODO test
-        AndFilter andEx = (AndFilter) FilterBuilder.and(endsWith,negatedContainsEx);
+
+        AndFilter andEx = (AndFilter) FilterBuilder.and(endsWith,containsEx);
 
         AndFilter and = (AndFilter) FilterBuilder.and(or,andEx);
 
@@ -878,13 +871,15 @@ public class FilteringTest extends BasicConfigurationForTests {
             /// Best effort cleanup
             deleteWaitAndRetry(objectClassAccount, firstUser, options);
             deleteWaitAndRetry(objectClassAccount, secondUser, options);
-            Assert.fail("Composite filter + search did not return both users");
+            Assert.fail("Composite filter + search did not return user");
         }
 
         deleteWaitAndRetry(objectClassAccount, firstUser, options);
         deleteWaitAndRetry(objectClassAccount, secondUser, options);
 
     }
+
+
 
     @Test(priority = 25)
     public void filteringAccountCompositeFilter() throws Exception {
@@ -1385,6 +1380,464 @@ public class FilteringTest extends BasicConfigurationForTests {
         }
 
         deleteWaitAndRetry(objectClassAccount, firstUser, options);
+
+    }
+
+    @Test(priority = 37)
+    public void filteringAccountCompositeSearchAndAggregation() throws Exception {
+
+
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultAccountOperationOptions();
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "Pink-Dev"));
+        // attributesAccount.add(AttributeBuilder.build("manager.id", "f7febd3d-8123-4abb-b38e-4a3a2ab1080d"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink-Dev@" + domain));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink-Dev"));
+        attributesAccount.add(AttributeBuilder.build("department", "Development"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink-Dev@" + domain));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+        Uid firstUser = null;
+        try{
+
+            firstUser = msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                firstUser = fetchUidAtFalseValidationException("Pink-Dev@" + domain);
+            }
+        }
+        Set<Attribute> attributesAccountPg = new HashSet<>();
+        attributesAccountPg.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccountPg.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccountPg.add(AttributeBuilder.build("displayName", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("mail", "PinkAndGreen-support@" + domain));
+        attributesAccountPg.add(AttributeBuilder.build("mailNickname", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("department", "IT Support"));
+        attributesAccountPg.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen-support@" + domain));
+        GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccountPg.add(AttributeBuilder.build("__PASSWORD__", pass1));
+
+        Uid secondUser =null;
+
+
+        try{
+
+            secondUser = msGraphConnector.create(objectClassAccount, attributesAccountPg, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                secondUser = fetchUidAtFalseValidationException("PinkAndGreen-support@" + domain);
+            }
+        }
+
+        AttributeFilter co1;
+        co1 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mail",
+                "PinkAndGreen"));
+
+        AttributeFilter co2;
+        co2 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mail",
+                "Pink"));
+
+        AttributeFilter co3;
+        co3 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME, "Pink"));
+
+
+        AttributeFilter co4;
+        co4 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "IT"));
+
+
+        AndFilter first = (AndFilter) FilterBuilder.and(co1,co2);
+
+        AndFilter second = (AndFilter) FilterBuilder.and(co3,co4);
+
+        AndFilter third = (AndFilter) FilterBuilder.and(first,second);
+
+
+        ArrayList<ConnectorObject> resultsAccount;
+        TestSearchResultsHandler handlerAccount = getResultHandler();
+
+        queryWaitAndRetry(objectClassAccount, third, handlerAccount, options, secondUser);
+        resultsAccount = handlerAccount.getResult();
+
+        ArrayList<Uid> listUid = new ArrayList<>();
+        for (ConnectorObject obj : resultsAccount) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+        if (!listUid.contains(secondUser)) {
+            /// Best effort cleanup
+            deleteWaitAndRetry(objectClassAccount, firstUser, options);
+            deleteWaitAndRetry(objectClassAccount, secondUser, options);
+            Assert.fail("Composite filter + search did not return user");
+        }
+
+        deleteWaitAndRetry(objectClassAccount, firstUser, options);
+        deleteWaitAndRetry(objectClassAccount, secondUser, options);
+
+    }
+
+    @Test(priority = 38)
+    public void filteringAccountCompositeSearchOrAggregation() throws Exception {
+
+
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultAccountOperationOptions();
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "Pink-Dev"));
+        // attributesAccount.add(AttributeBuilder.build("manager.id", "f7febd3d-8123-4abb-b38e-4a3a2ab1080d"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink-Dev@" + domain));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink-Dev"));
+        attributesAccount.add(AttributeBuilder.build("department", "Development"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink-Dev@" + domain));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+        Uid firstUser = null;
+        try{
+
+            firstUser = msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                firstUser = fetchUidAtFalseValidationException("Pink-Dev@" + domain);
+            }
+        }
+        Set<Attribute> attributesAccountPg = new HashSet<>();
+        attributesAccountPg.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccountPg.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccountPg.add(AttributeBuilder.build("displayName", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("mail", "PinkAndGreen-support@" + domain));
+        attributesAccountPg.add(AttributeBuilder.build("mailNickname", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("department", "IT Support"));
+        attributesAccountPg.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen-support@" + domain));
+        GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccountPg.add(AttributeBuilder.build("__PASSWORD__", pass1));
+
+        Uid secondUser =null;
+
+
+        try{
+
+            secondUser = msGraphConnector.create(objectClassAccount, attributesAccountPg, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                secondUser = fetchUidAtFalseValidationException("PinkAndGreen-support@" + domain);
+            }
+        }
+
+        AttributeFilter co1;
+        co1 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mail",
+                "PinkAndGreen"));
+
+        AttributeFilter co2;
+        co2 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mail",
+                "Pink"));
+
+        AttributeFilter co3;
+        co3 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME, "Pink"));
+
+
+        AttributeFilter co4;
+        co4 = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "IT"));
+
+        OrFilter first = (OrFilter) FilterBuilder.or(co1,co2);
+
+        OrFilter second = (OrFilter) FilterBuilder.or(co3,co4);
+
+        OrFilter third = (OrFilter) FilterBuilder.or(first,second);
+
+
+        ArrayList<ConnectorObject> resultsAccount;
+        TestSearchResultsHandler handlerAccount = getResultHandler();
+
+        queryWaitAndRetry(objectClassAccount, third, handlerAccount, options, secondUser);
+        resultsAccount = handlerAccount.getResult();
+
+        ArrayList<Uid> listUid = new ArrayList<>();
+        for (ConnectorObject obj : resultsAccount) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+        if (!listUid.contains(secondUser)) {
+            /// Best effort cleanup
+            deleteWaitAndRetry(objectClassAccount, firstUser, options);
+            deleteWaitAndRetry(objectClassAccount, secondUser, options);
+            Assert.fail("Composite filter + search did not return user");
+        }
+
+        deleteWaitAndRetry(objectClassAccount, firstUser, options);
+        deleteWaitAndRetry(objectClassAccount, secondUser, options);
+
+    }
+
+    @Test(priority = 39)
+    public void filteringAccountAggregateCompositeFilterAndSearch() throws Exception {
+
+
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultAccountOperationOptions();
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "Pink-Dev"));
+        // attributesAccount.add(AttributeBuilder.build("manager.id", "f7febd3d-8123-4abb-b38e-4a3a2ab1080d"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink-Dev@" + domain));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink-Dev"));
+        attributesAccount.add(AttributeBuilder.build("department", "Development"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink-Dev@" + domain));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+        Uid firstUser = null;
+        try{
+
+            firstUser = msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                firstUser = fetchUidAtFalseValidationException("Pink-Dev@" + domain);
+            }
+        }
+        Set<Attribute> attributesAccountPg = new HashSet<>();
+        attributesAccountPg.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccountPg.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccountPg.add(AttributeBuilder.build("displayName", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("mail", "PinkAndGreen-support@" + domain));
+        attributesAccountPg.add(AttributeBuilder.build("mailNickname", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("department", "IT Support"));
+        attributesAccountPg.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen-support@" + domain));
+        GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccountPg.add(AttributeBuilder.build("__PASSWORD__", pass1));
+
+        Uid secondUser =null;
+
+
+        try{
+
+            secondUser = msGraphConnector.create(objectClassAccount, attributesAccountPg, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                secondUser = fetchUidAtFalseValidationException("PinkAndGreen-support@" + domain);
+            }
+        }
+
+        AttributeFilter endsWith;
+        endsWith = (EndsWithFilter) FilterBuilder.endsWith(AttributeBuilder.build("mail",
+                "support@"+domain));
+
+        AttributeFilter sWith;
+        sWith = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("mail",
+                "Pink@"+domain));
+
+        AttributeFilter eq;
+        eq = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build("department",
+                "IT Support"));
+
+        AttributeFilter contains;
+        contains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME, "Pink"));
+
+
+       // AttributeFilter negatedContains;
+       // negatedContains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("userPrincipalName", "Blue"));
+
+        AttributeFilter containsEx;
+        containsEx = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "IT"));
+
+
+        //NotFilter not = (NotFilter) FilterBuilder.not(negatedContains);
+
+        OrFilter or = (OrFilter) FilterBuilder.or(sWith,endsWith);
+
+        AndFilter first = (AndFilter) FilterBuilder.and(or,contains);
+
+        AndFilter second = (AndFilter) FilterBuilder.and(first,eq);
+
+        AndFilter third = (AndFilter) FilterBuilder.and(second,containsEx);
+
+
+        ArrayList<ConnectorObject> resultsAccount;
+        TestSearchResultsHandler handlerAccount = getResultHandler();
+
+        queryWaitAndRetry(objectClassAccount, third, handlerAccount, options, secondUser);
+        resultsAccount = handlerAccount.getResult();
+
+        ArrayList<Uid> listUid = new ArrayList<>();
+        for (ConnectorObject obj : resultsAccount) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+        if (!listUid.contains(secondUser)) {
+            /// Best effort cleanup
+            deleteWaitAndRetry(objectClassAccount, firstUser, options);
+            deleteWaitAndRetry(objectClassAccount, secondUser, options);
+            Assert.fail("Composite filter + search did not return user");
+        }
+
+        deleteWaitAndRetry(objectClassAccount, firstUser, options);
+        deleteWaitAndRetry(objectClassAccount, secondUser, options);
+
+    }
+
+    @Test(priority = 40)
+    public void filteringCustomAggregateAccountCompositeFilterAndSearch() throws Exception {
+
+
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions options = getDefaultAccountOperationOptions();
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "Pink-Dev"));
+        // attributesAccount.add(AttributeBuilder.build("manager.id", "f7febd3d-8123-4abb-b38e-4a3a2ab1080d"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink-Dev@" + domain));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink-Dev"));
+        attributesAccount.add(AttributeBuilder.build("department", "Development"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink-Dev@" + domain));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+        Uid firstUser = null;
+        try{
+
+            firstUser = msGraphConnector.create(objectClassAccount, attributesAccount, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                firstUser = fetchUidAtFalseValidationException("Pink-Dev@" + domain);
+            }
+        }
+        Set<Attribute> attributesAccountPg = new HashSet<>();
+        attributesAccountPg.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccountPg.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccountPg.add(AttributeBuilder.build("displayName", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("mail", "PinkAndGreen-support@" + domain));
+        attributesAccountPg.add(AttributeBuilder.build("mailNickname", "PinkAndGreen-support"));
+        attributesAccountPg.add(AttributeBuilder.build("department", "IT Support"));
+        attributesAccountPg.add(AttributeBuilder.build("userPrincipalName", "PinkAndGreen-support@" + domain));
+        GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccountPg.add(AttributeBuilder.build("__PASSWORD__", pass1));
+
+        Uid secondUser =null;
+
+
+        try{
+
+            secondUser = msGraphConnector.create(objectClassAccount, attributesAccountPg, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False 'netId is invalid error' again, ignoring. Executing search to retrieve UID.");
+                secondUser = fetchUidAtFalseValidationException("PinkAndGreen-support@" + domain);
+            }
+        }
+
+        ///
+
+        AttributeFilter ew;
+        ew = (EndsWithFilter) FilterBuilder.endsWith(AttributeBuilder.build("userPrincipalName", "Dev@" + domain));
+
+        NotFilter noew;
+        noew=(NotFilter) FilterBuilder.not(ew);
+
+        AttributeFilter sw;
+        sw = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("userPrincipalName", "Pink-Dev"));
+
+        NotFilter nosw;
+        nosw=(NotFilter) FilterBuilder.not(sw);
+
+        AttributeFilter containsDeptF;
+        containsDeptF = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "Devel"));
+
+        NotFilter noDeptF;
+        noDeptF=(NotFilter) FilterBuilder.not(containsDeptF);
+
+        AttributeFilter containsDeptB;
+        containsDeptB = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("department", "Development"));
+
+        NotFilter noDeptB;
+        noDeptB=(NotFilter) FilterBuilder.not(containsDeptB);
+
+        AttributeFilter containsA;
+        containsA = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME, "PinkAndGreen"));
+
+        AttributeFilter containsB;
+        containsB = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build(Name.NAME, "Pink"));
+
+
+        AndFilter andNeg = (AndFilter) FilterBuilder.and(noew,nosw);
+
+        AndFilter andContNegF = (AndFilter) FilterBuilder.and(andNeg,noDeptF);
+
+        AndFilter andContNegB = (AndFilter) FilterBuilder.and(andContNegF,noDeptB);
+
+        AndFilter andCont = (AndFilter) FilterBuilder.and(containsA,containsB);
+
+
+        AndFilter finalAnd = (AndFilter) FilterBuilder.and(andContNegB,andCont);
+        ///
+
+
+        ArrayList<ConnectorObject> resultsAccount;
+        TestSearchResultsHandler handlerAccount = getResultHandler();
+
+        queryWaitAndRetry(objectClassAccount, finalAnd, handlerAccount, options, secondUser);
+        resultsAccount = handlerAccount.getResult();
+
+        ArrayList<Uid> listUid = new ArrayList<>();
+        for (ConnectorObject obj : resultsAccount) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+        if (!listUid.contains(secondUser)) {
+            /// Best effort cleanup
+            deleteWaitAndRetry(objectClassAccount, firstUser, options);
+            deleteWaitAndRetry(objectClassAccount, secondUser, options);
+            Assert.fail("Composite filter + search did not return user");
+
+        }
+
+        deleteWaitAndRetry(objectClassAccount, firstUser, options);
+        deleteWaitAndRetry(objectClassAccount, secondUser, options);
 
     }
 

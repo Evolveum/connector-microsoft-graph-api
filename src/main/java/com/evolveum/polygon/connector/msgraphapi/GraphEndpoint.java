@@ -427,8 +427,8 @@ public class GraphEndpoint {
                 LOG.ok("200 - OK");
                 return null;
             }
-            // TODO add logging for response and test
-            // LOG.ok("Response before evaluation: {0}", response.getEntity());
+
+             LOG.ok("Response before evaluation: {0}", response.getEntity());
 
             result = EntityUtils.toString(response.getEntity());
             if (!parseResult) {
