@@ -522,6 +522,7 @@ public class GroupProcessing extends ObjectProcessing {
         getUIDIfExists(group, ATTR_ID, builder);
         getNAMEIfExists(group, ATTR_DISPLAYNAME, builder);
 
+        getIfExists(group, ATTR_DISPLAYNAME, String.class, builder);
         getIfExists(group, ATTR_DESCRIPTION, String.class, builder);
         getMultiIfExists(group, ATTR_GROUPTYPES, builder); //?
         getIfExists(group, ATTR_MAIL, String.class, builder);
