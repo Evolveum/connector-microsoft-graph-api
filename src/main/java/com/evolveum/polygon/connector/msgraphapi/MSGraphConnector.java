@@ -332,8 +332,7 @@ public class MSGraphConnector implements Connector,
             throw new InvalidAttributeValueException("Attribute of type OperationOptions is not provided.");
         }
 
-        // Translating filter
-        String filterSnippet = null;
+        ResourceQuery translatedQuery= new ResourceQuery();
         Boolean fetchSpecificObject =false;
 
         if (query == null) {
@@ -349,13 +348,17 @@ public class MSGraphConnector implements Connector,
 
                 if(Uid.NAME.equals(fAttr.getName()))
                     {
+                        LOG.ok("Processing Equals Query based on UID.");
+
                         fetchSpecificObject = true;
-                        filterSnippet = ((Uid) fAttr).getUidValue();
+                        translatedQuery.setIdOrMembershipExpression(((Uid) fAttr).getUidValue());
+
+                        LOG.info("Query will fetch specific object with the uid: {0}",
+                                translatedQuery.getIdOrMembershipExpression());
                     }
             }
 
         }
-
 
         LOG.info("executeQuery on {0}, filter: {1}, options: {2}", objectClass, query, options);
 
@@ -366,15 +369,18 @@ public class MSGraphConnector implements Connector,
 
                 if(query!=null){
 
-                filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                 translatedQuery = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
                         userProcessing.getUIDAttribute(), userProcessing.getNameAttribute()));
+
                 }
             }
 
-            LOG.ok("Query will be executed with the following filter: {0}", filterSnippet);
+            LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString() != null ?
+                    translatedQuery.toString() : translatedQuery.getIdOrMembershipExpression());
+
             LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
 
-            userProcessing.executeQueryForUser(filterSnippet, fetchSpecificObject ,handler, options);
+            userProcessing.executeQueryForUser(translatedQuery, fetchSpecificObject ,handler, options);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
 
@@ -384,38 +390,46 @@ public class MSGraphConnector implements Connector,
 
                 if(query!=null){
 
-                    filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                    translatedQuery = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
                             groupProcessing.getUIDAttribute(), groupProcessing.getNameAttribute()));
                 }
             }
-                //TODO consolidate and use ResourceQuery, also as output of filterVisitor methods
-            groupProcessing.executeQueryForGroup(filterSnippet, fetchSpecificObject, query, handler, options);
+
+            LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString());
+            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+
+            groupProcessing.executeQueryForGroup(translatedQuery, fetchSpecificObject, handler, options);
+
         } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
             LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
 
-            if(!fetchSpecificObject){
-
-                if(query!=null){
-
-                    filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
-                            licenseProcessing.getUIDAttribute(), licenseProcessing.getNameAttribute()));
-                }
-            }
+            // TODO TEST only currently
+//            if(!fetchSpecificObject){
+//
+//                if(query!=null){
+//
+//                    translatedQuery = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+//                            licenseProcessing.getUIDAttribute(), licenseProcessing.getNameAttribute()));
+//                }
+//            }
 
             licenseProcessing.executeQueryForLicense(query, handler, options);
+
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
             RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
 
-            if(!fetchSpecificObject){
-
-                if(query!=null){
-
-                    filterSnippet = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
-                            roleProcessing.getUIDAttribute(), roleProcessing.getNameAttribute()));
-                }
-            }
+            // TODO TEST only currently
+//            if(!fetchSpecificObject){
+//
+//                if(query!=null){
+//
+//                    translatedQuery  = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+//                            roleProcessing.getUIDAttribute(), roleProcessing.getNameAttribute()));
+//                }
+//            }
 
             roleProcessing.executeQueryForRole(query, handler, options);
+
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported.");

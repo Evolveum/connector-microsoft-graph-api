@@ -107,8 +107,20 @@ public class FilteringTest extends BasicConfigurationForTests {
         GuardedString pass1 = new GuardedString("HelloPassword99".toCharArray());
         attributesAccount1.add(AttributeBuilder.build("__PASSWORD__", pass1));
 
-        Uid secondUser = msGraphConnector.create(objectClassAccount, attributesAccount1, options);
+        Uid secondUser = null;
 
+
+        try{
+
+            secondUser = msGraphConnector.create(objectClassAccount, attributesAccount1, options);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False netId is invalid error again, ignoring.");
+                firstUser = fetchUidAtFalseValidationException("Pink@" + domain);
+            }
+        }
 
         AttributeFilter containsFilterAccount;
         containsFilterAccount = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("displayName", "Pink"));
@@ -142,7 +154,7 @@ public class FilteringTest extends BasicConfigurationForTests {
 
 
         AttributeFilter equalsFilterAccount1;
-        equalsFilterAccount1 = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build(Uid.NAME, "Pink@" + domain));
+        equalsFilterAccount1 = (EqualsFilter) FilterBuilder.equalTo(AttributeBuilder.build(Uid.NAME, firstUser.getUidValue()));
         resultsAccount.clear();
 
         handlerAccount = getResultHandler();
@@ -1839,6 +1851,173 @@ public class FilteringTest extends BasicConfigurationForTests {
         deleteWaitAndRetry(objectClassAccount, firstUser, options);
         deleteWaitAndRetry(objectClassAccount, secondUser, options);
 
+    }
+
+    @Test(priority = 41)
+    public void filteringGroupContainsAllValuesCompositeSearch() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions goptions = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        OperationOptions aoptions = getDefaultAccountOperationOptions();
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "testGroupYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "testGroupYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("groupTypes", "Unified"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, goptions);
+
+
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "Pink"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink@" + domain));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink@" + domain));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+        Uid firstUser = null;
+
+        try{
+
+            firstUser = msGraphConnector.create(objectClassAccount, attributesAccount, aoptions);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False netId is invalid error again, ignoring.");
+                firstUser = fetchUidAtFalseValidationException("Pink@" + domain);
+            }
+        }
+
+        Set<AttributeDelta> attributesUpdateGroup = new HashSet<>();
+
+        attributesUpdateGroup.add(AttributeDeltaBuilder.build("members", CollectionUtil.newList(firstUser.getUidValue()),null));
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+        queryWaitAndRetry(objectClassGroup, new EqualsFilter(AttributeBuilder.build(Uid.NAME, "GroupYellow")),
+                handlerGroup , goptions, groupYellow);
+
+        msGraphConnector.updateDelta(ObjectClass.GROUP, groupYellow, attributesUpdateGroup, goptions);
+
+
+
+
+        ContainsFilter contains = (ContainsFilter) FilterBuilder.contains(AttributeBuilder.build("mail", "test"));
+        AttributeFilter containsAll = (ContainsAllValuesFilter) FilterBuilder.containsAllValues(AttributeBuilder.build("members", firstUser.getUidValue()));
+        AndFilter and = (AndFilter) FilterBuilder.and(containsAll, contains);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        handlerGroup = getResultHandler();
+
+        queryWaitAndRetry(objectClassGroup, and, handlerGroup, goptions, groupYellow);
+        resultsGroup = handlerGroup.getResult();
+
+        ArrayList<Uid> listUid = new ArrayList<>();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, goptions);
+            Assert.fail("Contains all values filter did not return group");
+        }
+
+        deleteWaitAndRetry(objectClassAccount, firstUser, aoptions);
+        deleteWaitAndRetry(objectClassGroup, groupYellow, goptions);
+    }
+
+    @Test(priority = 42)
+    public void filteringGroupContainsAllValuesCompositeFilter() throws Exception {
+
+        msGraphConnector = new MSGraphConnector();
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+
+        OperationOptions goptions = getDefaultGroupOperationOptions();
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+
+        OperationOptions aoptions = getDefaultAccountOperationOptions();
+
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
+
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "testGroupYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "testGroupYellow"));
+        attributesCreatedGroup.add(AttributeBuilder.build("groupTypes", "Unified"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        Uid groupYellow = msGraphConnector.create(objectClassGroup, attributesCreatedGroup, goptions);
+
+
+
+        Set<Attribute> attributesAccount = new HashSet<>();
+        attributesAccount.add(AttributeBuilder.build("accountEnabled", true));
+        attributesAccount.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attributesAccount.add(AttributeBuilder.build("displayName", "Pink"));
+        attributesAccount.add(AttributeBuilder.build("mail", "Pink@" + domain));
+        attributesAccount.add(AttributeBuilder.build("mailNickname", "Pink"));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "Pink@" + domain));
+        GuardedString pass = new GuardedString("HelloPassword99".toCharArray());
+        attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
+        Uid firstUser = null;
+
+        try{
+
+            firstUser = msGraphConnector.create(objectClassAccount, attributesAccount, aoptions);
+
+        } catch (InvalidAttributeValueException e){
+            if (e.getLocalizedMessage().contains("Property netId is invalid")){
+
+                LOG.warn("False netId is invalid error again, ignoring.");
+                firstUser = fetchUidAtFalseValidationException("Pink@" + domain);
+            }
+        }
+
+        Set<AttributeDelta> attributesUpdateGroup = new HashSet<>();
+
+        attributesUpdateGroup.add(AttributeDeltaBuilder.build("members", CollectionUtil.newList(firstUser.getUidValue()),null));
+        TestSearchResultsHandler handlerGroup = getResultHandler();
+        queryWaitAndRetry(objectClassGroup, new EqualsFilter(AttributeBuilder.build(Uid.NAME, "GroupYellow")),
+                handlerGroup , goptions, groupYellow);
+
+        msGraphConnector.updateDelta(ObjectClass.GROUP, groupYellow, attributesUpdateGroup, goptions);
+
+        StartsWithFilter starts = (StartsWithFilter) FilterBuilder.startsWith(AttributeBuilder.build("mail", "test"));
+        AttributeFilter containsAll = (ContainsAllValuesFilter) FilterBuilder.containsAllValues(AttributeBuilder.build("members", firstUser.getUidValue()));
+        AndFilter and = (AndFilter) FilterBuilder.and(containsAll, starts);
+
+        ArrayList<ConnectorObject> resultsGroup;
+        handlerGroup = getResultHandler();
+
+        queryWaitAndRetry(objectClassGroup, and, handlerGroup, goptions, groupYellow);
+        resultsGroup = handlerGroup.getResult();
+
+        ArrayList<Uid> listUid = new ArrayList<>();
+        for (ConnectorObject obj : resultsGroup) {
+            listUid.add((Uid) obj.getAttributeByName(Uid.NAME));
+        }
+
+
+        if (!listUid.contains(groupYellow)) {
+            deleteWaitAndRetry(objectClassGroup, groupYellow, goptions);
+            Assert.fail("Contains all values filter did not return group");
+        }
+
+        deleteWaitAndRetry(objectClassAccount, firstUser, aoptions);
+        deleteWaitAndRetry(objectClassGroup, groupYellow, goptions);
     }
 
    private Uid fetchUidAtFalseValidationException(String upn) throws InterruptedException {

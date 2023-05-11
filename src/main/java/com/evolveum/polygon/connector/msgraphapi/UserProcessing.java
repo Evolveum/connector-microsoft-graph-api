@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
@@ -924,7 +925,8 @@ public class UserProcessing extends ObjectProcessing {
     }
 
 
-    public void executeQueryForUser(String translatedQuery, Boolean fetchSpecific, ResultsHandler handler, OperationOptions options) {
+    public void executeQueryForUser(ResourceQuery translatedQuery, Boolean fetchSpecific, ResultsHandler handler,
+                                    OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
@@ -956,20 +958,45 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
                 ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
 
+        String query = null;
+        Boolean fetchAll = false;
 
-        if (translatedQuery != null && !translatedQuery.isEmpty()) {
+        if (translatedQuery != null){
+
+            query = translatedQuery.toString();
+
+            if (query != null && !query.isEmpty()) {
+
+            } else {
+
+                if (translatedQuery.hasIdOrMembershipExpression()) {
+                    query = translatedQuery.getIdOrMembershipExpression();
+                } else {
+
+                    fetchAll = true;
+                }
+
+            }
+
+        } else {
+
+            fetchAll = true;
+
+        }
+
+        if (!fetchAll) {
 
             if (fetchSpecific) {
 
-                LOG.info("Fetching account info for account: {0}", translatedQuery);
+                LOG.info("Fetching account info for account: {0}", query);
                 StringBuilder sbPath = new StringBuilder();
-                sbPath.append(toGetURLByUserPrincipalName(translatedQuery)).append("/");
+                sbPath.append(toGetURLByUserPrincipalName(query)).append("/");
                 String filter = "";
 
                 Set<String> attributesToGet = getAttributesToGet(options);
                 if (attributesToGet.contains(ATTR_MANAGER_ID)){
 
-                    LOG.info("Fetching manager info for account: {0}", translatedQuery);
+                    LOG.info("Fetching manager info for account: {0}", query);
 
                     filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 }
@@ -983,11 +1010,11 @@ public class UserProcessing extends ObjectProcessing {
                         filter, options, false);
 
                 if (attributesToGet.contains(ATTR_SIGN_IN)) {
-                    LOG.info("Fetching sing-in info for account: {0}", translatedQuery);
+                    LOG.info("Fetching sing-in info for account: {0}", query);
                     sbPath = new StringBuilder()
                             .append("/auditLogs/signIns");
                     StringBuilder signInSelector = new StringBuilder()
-                            .append("?&$filter=").append("userId").append(" eq ").append("'" + translatedQuery + "'");
+                            .append("?&$filter=").append("userId").append(" eq ").append("'" + query + "'");
 
                     LOG.ok("Sign-in info query with path: {0} and filter {1}", sbPath.toString(), signInSelector.toString());
                     JSONObject signInObject = endpoint.executeGetRequest(sbPath.toString(), signInSelector.toString(), options, false);
@@ -1008,7 +1035,7 @@ public class UserProcessing extends ObjectProcessing {
 
                 }
 
-                LOG.ok("The retrieved JSONObject for the account {0}: {1}", translatedQuery, user.toString());
+                LOG.ok("The retrieved JSONObject for the account {0}: {1}", query, user.toString());
                 handleJSONObject(options, user, handler);
 
             } else {
@@ -1018,9 +1045,8 @@ public class UserProcessing extends ObjectProcessing {
                 //(Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
 
                 // final String filter = "$filter=" + translatedQuery;
-                final String filter = translatedQuery;
-                LOG.ok("The constructed filter: {0}", filter);
-                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + filter, options, true);
+                LOG.ok("The constructed filter: {0}", query);
+                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + query, options, true);
 
                 LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
                 handleJSONArray(options, users, handler);
