@@ -1,6 +1,5 @@
 package com.evolveum.polygon.connector.msgraphapi.util;
 
-import com.evolveum.polygon.connector.msgraphapi.UserProcessing;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.objects.*;
@@ -9,7 +8,7 @@ import org.identityconnectors.common.CollectionUtil;
 
 import java.util.*;
 
-public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
+public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery> {
 
     private static final Log LOG = Log.getLog(FilterHandler.class);
 
@@ -87,7 +86,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
 
     @Override
-    public String visitAndFilter(ResourceQuery p, AndFilter andFilter) {
+    public ResourceQuery visitAndFilter(ResourceQuery p, AndFilter andFilter) {
         Boolean wasFirst = false;
 
         conjuctionInitial = !afterFirtsOperation;
@@ -113,17 +112,17 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
             String snipp = keyIterator.next();
 
-            CategorizedFilter filter = snippets.get(snipp);
-            Boolean isSearch = filter.getIsSearch();
+            CategorizedFilter categorizedFilter = snippets.get(snipp);
+            Boolean isSearch = categorizedFilter.getIsSearch();
+            Filter filter = categorizedFilter.getFilter();
+                         if (filter instanceof CompositeFilter || filter instanceof ContainsAllValuesFilter) {
 
-                         if (filter.getFilter() instanceof CompositeFilter) {
-
-                         } else if ( filter.getFilter() instanceof NotFilter && snipp.isEmpty()){
+                         } else if ( filter instanceof NotFilter && snipp.isEmpty()){
 
                          } else {
 
-                             if(filter.getFilter() instanceof NotFilter){
-                                 isSearch = checkIfFilterOrChildHasSearch(filter.getFilter());
+                             if(filter instanceof NotFilter){
+                                 isSearch = checkIfFilterOrChildHasSearch(categorizedFilter.getFilter());
                              }
 
                              if (isSearch) {
@@ -169,7 +168,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
         if (wasFirst) {
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         if(containsOpUsed){
@@ -179,12 +178,12 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
         }
 
         LOG.ok("And filter returned as empty (Aggregated handling)");
-        return "";
+        return new ResourceQuery();
     }
 
 
     @Override
-    public String visitContainsFilter(ResourceQuery p, ContainsFilter containsFilter) {
+    public ResourceQuery visitContainsFilter(ResourceQuery p, ContainsFilter containsFilter) {
 
         if (afterFirtsOperation) {
 
@@ -204,24 +203,25 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setSearchExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+
+        return new ResourceQuery(null , snippet);
     }
 
 
     @Override
-    public String visitContainsAllValuesFilter(ResourceQuery p, ContainsAllValuesFilter containsAllValuesFilter) {
+    public ResourceQuery visitContainsAllValuesFilter(ResourceQuery p, ContainsAllValuesFilter containsAllValuesFilter) {
 
         LOG.ok("Processing through CONTAINS ALL VALUES filter expression");
 
-        if (afterFirtsOperation) {
-
-            throw new ConnectorException("Filter 'CONTAINS ALL VALUES' not implemented by the connector for the object " +
-                    "class: "+ p.getObjectClass() + "as a part of a complex filter.");
-        }
+//        if (afterFirtsOperation) {
+//
+//            throw new ConnectorException("Filter 'CONTAINS ALL VALUES' not implemented by the connector for the object " +
+//                    "class: "+ p.getObjectClass() + "as a part of a complex filter.");
+//        }
 
         Attribute attr = containsAllValuesFilter.getAttribute();
         String snippet = null;
@@ -256,14 +256,16 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
                     "class: "+ p.getObjectClass());
         }
 
-
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+
+           p.setIdOrMembershipExpression(snippet);
+           p.setUseCount(true);
+            return p;
 
     }
 
     @Override
-    public String visitEqualsFilter(ResourceQuery p, EqualsFilter equalsFilter) {
+    public ResourceQuery visitEqualsFilter(ResourceQuery p, EqualsFilter equalsFilter) {
 
         LOG.ok("Processing through EQUALS filter expression");
 
@@ -281,22 +283,23 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+
+        return new ResourceQuery(snippet,null);
     }
 
 
     @Override
-    public String visitExtendedFilter(ResourceQuery p, Filter filter) {
+    public ResourceQuery visitExtendedFilter(ResourceQuery p, Filter filter) {
 
        throw new ConnectorException("Filter 'EXTENDED FILTER' not implemented by the connector");
     }
 
     @Override
-    public String visitGreaterThanFilter(ResourceQuery p, GreaterThanFilter greaterThanFilter) {
+    public ResourceQuery visitGreaterThanFilter(ResourceQuery p, GreaterThanFilter greaterThanFilter) {
 
         LOG.ok("Processing through GREATER THAN FILTER filter expression");
 
@@ -315,15 +318,15 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+        return new ResourceQuery(null, snippet);
     }
 
     @Override
-    public String visitGreaterThanOrEqualFilter(ResourceQuery p, GreaterThanOrEqualFilter greaterThanOrEqualFilter) {
+    public ResourceQuery visitGreaterThanOrEqualFilter(ResourceQuery p, GreaterThanOrEqualFilter greaterThanOrEqualFilter) {
 
         LOG.ok("Processing through GREATER THAN OR EQUAL FILTER filter expression");
 
@@ -340,15 +343,15 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+        return new ResourceQuery(null, snippet);
     }
 
     @Override
-    public String visitLessThanFilter(ResourceQuery p, LessThanFilter lessThanFilter) {
+    public ResourceQuery visitLessThanFilter(ResourceQuery p, LessThanFilter lessThanFilter) {
 
         LOG.ok("Processing through LESS THAN FILTER filter expression");
 
@@ -366,15 +369,15 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+        return new ResourceQuery(null, snippet);
     }
 
     @Override
-    public String visitLessThanOrEqualFilter(ResourceQuery p, LessThanOrEqualFilter lessThanOrEqualFilter) {
+    public ResourceQuery visitLessThanOrEqualFilter(ResourceQuery p, LessThanOrEqualFilter lessThanOrEqualFilter) {
 
         LOG.ok("Processing through LESS THAN OR EQUAL FILTER filter expression"
                 , p);
@@ -393,15 +396,15 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+        return new ResourceQuery(null, snippet);
     }
 
     @Override
-    public String visitNotFilter(ResourceQuery p, NotFilter notFilter) {
+    public ResourceQuery visitNotFilter(ResourceQuery p, NotFilter notFilter) {
 
         LOG.ok("Processing through NOT filter expression {0}:", notFilter);
 
@@ -453,7 +456,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
                         p.setSearchExpression(query.toString());
                     }
 
-                    return "";
+                    return new ResourceQuery();
                 } else {
 
                     if (!hasSearch) {
@@ -488,21 +491,25 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(query.toString());
 
             LOG.ok("Generated final query snippet: {0}", p.toString());
-            return p.toString();
-        }
-
-        if(containsOpUsed){
-            p.setCompositeOrNotUsedInSearch(true);
-        } else {
-            p.setCompositeOrNotUsedInFilter(true);
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", query);
-        return query.toString();
+
+        if(containsOpUsed){
+            p.setCompositeOrNotUsedInSearch(true);
+
+            return new ResourceQuery(null, query.toString());
+        } else {
+            p.setCompositeOrNotUsedInFilter(true);
+
+            return new ResourceQuery(query.toString(), null);
+        }
+
     }
 
     @Override
-    public String visitOrFilter(ResourceQuery p, OrFilter orFilter) {
+    public ResourceQuery visitOrFilter(ResourceQuery p, OrFilter orFilter) {
 
         Boolean isSearch = checkIfFilterOrChildHasSearch(orFilter);
 
@@ -589,10 +596,8 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
         if (wasFirst) {
 
-            String returned = p.toString();
-
-            LOG.ok("Generated query snippet for OR OP used: {0}", returned);
-            return returned;
+            LOG.ok("Generated query snippet for OR OP used: {0}", p.toString());
+            return p;
         }
 
         if(containsOpUsed){
@@ -601,11 +606,11 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setCompositeOrNotUsedInFilter(true);
         }
 
-        return "";
+        return new ResourceQuery();
     }
 
     @Override
-    public String visitStartsWithFilter(ResourceQuery p, StartsWithFilter startsWithFilter) {
+    public ResourceQuery visitStartsWithFilter(ResourceQuery p, StartsWithFilter startsWithFilter) {
 
         LOG.ok("Processing through STARTS WITH filter expression");
 
@@ -623,15 +628,15 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+        return new ResourceQuery(snippet, null);
     }
 
     @Override
-    public String visitEndsWithFilter(ResourceQuery p, EndsWithFilter endsWithFilter) {
+    public ResourceQuery visitEndsWithFilter(ResourceQuery p, EndsWithFilter endsWithFilter) {
         LOG.ok("Processing through ENDS WITH filter expression");
 
         if (afterFirtsOperation) {
@@ -650,15 +655,15 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
             p.setFilterExpression(snippet);
 
             LOG.ok("Generated query snippet: {0}", p.toString());
-            return p.toString();
+            return p;
         }
 
         LOG.ok("Generated query snippet: {0}", snippet);
-        return snippet;
+        return new ResourceQuery(snippet, null);
     }
 
     @Override
-    public String visitEqualsIgnoreCaseFilter(ResourceQuery p, EqualsIgnoreCaseFilter equalsIgnoreCaseFilter) {
+    public ResourceQuery visitEqualsIgnoreCaseFilter(ResourceQuery p, EqualsIgnoreCaseFilter equalsIgnoreCaseFilter) {
 
         throw new ConnectorException("Filter 'EQUALS IGNORE CASE FILTER' not implemented by the connector. ");
 
@@ -685,7 +690,7 @@ public class FilterHandler implements FilterVisitor<String, ResourceQuery> {
 
         for (Filter filter : filters) {
 
-            String query =  filter.accept(this, p);
+            String query =  filter.accept(this, p).fetchSnippet();
             snippets.put(query, new CategorizedFilter(filter, query));
 
         }

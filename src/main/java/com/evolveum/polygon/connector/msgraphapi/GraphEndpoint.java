@@ -589,6 +589,8 @@ public class GraphEndpoint {
             LOG.ok("setCustomQuery {0} ", uribuilder.toString());
         }
 
+        LOG.ok("Query parts for URI build:  customQuery: {0}, path {1}", customQuery, path);
+
         uribuilder.setPath(path);
 
         try {

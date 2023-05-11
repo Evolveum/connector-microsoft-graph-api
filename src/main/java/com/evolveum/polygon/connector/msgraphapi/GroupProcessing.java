@@ -1,11 +1,10 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.Filter;
-import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -432,32 +431,59 @@ public class GroupProcessing extends ObjectProcessing {
     }
 
 
-    public void executeQueryForGroup(String translatedQuery, Boolean fetchSpecific, Filter query ,ResultsHandler handler, OperationOptions options) {
-        LOG.ok("Processing executeQuery operation for the objectClass {0}", ObjectClass.GROUP_NAME );
+    public void executeQueryForGroup(ResourceQuery translatedQuery, Boolean fetchSpecific, ResultsHandler handler, OperationOptions options) {
+        LOG.ok("Processing executeQuery operation for the objectClass {0}", ObjectClass.GROUP_NAME);
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        if (translatedQuery != null && !translatedQuery.isEmpty()) {
+        String query = null;
+        Boolean fetchAll = false;
+
+        if (translatedQuery != null) {
+
+            query = translatedQuery.toString();
+
+            if (query != null && !query.isEmpty()) {
+
+            } else {
+                if (translatedQuery.hasIdOrMembershipExpression()) {
+
+                } else {
+
+                    fetchAll = true;
+                }
+
+            }
+
+        } else {
+
+            fetchAll = true;
+
+        }
+
+        if (!fetchAll) {
 
             if (fetchSpecific) {
-                LOG.info("Fetching object info for object: {0}", translatedQuery);
+                LOG.info("Fetching object info for object: {0}", query);
 
                 StringBuilder sbPath = new StringBuilder();
 
-                sbPath.append(GROUPS).append("/").append(translatedQuery);
+                sbPath.append(GROUPS).append("/").append(query);
                 JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
                 handleJSONObject(options, group, handler);
             } else {
-                if (query instanceof ContainsAllValuesFilter){
 
-                    LOG.ok("The constructed filter about to being used: {0}",  translatedQuery);
-                    JSONObject groups = endpoint.executeGetRequest(translatedQuery, null, options, true);
+                if (translatedQuery.hasIdOrMembershipExpression()) {
+
+                    LOG.ok("The constructed filter to be used: {0}", query);
+                    JSONObject groups = endpoint.executeGetRequest(translatedQuery.getIdOrMembershipExpression(), query, options,
+                            true);
                     handleJSONArray(options, groups, handler);
 
                 } else {
 
-                LOG.ok("The constructed filter about to being used: {0}",  translatedQuery);
-                JSONObject groups = endpoint.executeGetRequest(GROUPS, translatedQuery, options, true);
-                handleJSONArray(options, groups, handler);
+                    LOG.ok("The constructed filter about to being used: {0}", query);
+                    JSONObject groups = endpoint.executeGetRequest(GROUPS, query, options, true);
+                    handleJSONArray(options, groups, handler);
                 }
             }
 
@@ -474,8 +500,7 @@ public class GroupProcessing extends ObjectProcessing {
      * Query a group's members and owners, add them to the group's JSON attributes (multivalue)
      *
      * @param options Operation options
-     * @param group Group to query for (JSON object resulting from previous API call)
-     *
+     * @param group   Group to query for (JSON object resulting from previous API call)
      * @return Original JSON, enriched with member/owner information
      */
     private JSONObject saturateGroupMembership(OperationOptions options, JSONObject group) {
@@ -548,12 +573,12 @@ public class GroupProcessing extends ObjectProcessing {
         return builder;
     }
 
-    public String getNameAttribute(){
+    public String getNameAttribute() {
 
         return ATTR_DISPLAYNAME;
     }
 
-    public String getUIDAttribute(){
+    public String getUIDAttribute() {
 
         return ATTR_ID;
     }
