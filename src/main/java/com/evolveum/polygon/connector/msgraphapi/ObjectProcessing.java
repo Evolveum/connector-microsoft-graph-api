@@ -30,7 +30,7 @@ abstract class ObjectProcessing {
     protected static final String SKIP = "$skip";
     protected static final String TOP = "$top";
     protected static final String STARTSWITH = "startswith";
-
+    protected static final String O_DELTA = "@delta";
     private ICFPostMapper postMapper;
     private GraphEndpoint graphEndpoint;
 
@@ -158,7 +158,7 @@ abstract class ObjectProcessing {
         if (object.has(attrName)) {
             Object valueObject = object.get(attrName);
             if (valueObject != null) {
-                Object subValue = getValueFromItem((JSONObject)valueObject, subAttrName, type);
+                Object subValue = getValueFromItem((JSONObject) valueObject, subAttrName, type);
                 builder.addAttribute(attrName + "." + subAttrName, subValue);
             }
         }
@@ -182,20 +182,46 @@ abstract class ObjectProcessing {
     }
 
     protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, Class<?> type, ConnectorObjectBuilder builder) {
+
+        getFromArrayIfExists(object, attrName, subAttrName, null, type, builder, false);
+    }
+
+    protected void getFromArrayIfExists(JSONObject object, String attrName, String subAttrName, String omitTag,
+                                        Class<?> type, ConnectorObjectBuilder builder, Boolean isDelta) {
+
+        String originalName = attrName;
+
+        if(isDelta){
+
+            attrName = attrName+ O_DELTA;
+        }
+
         if (object.has(attrName)) {
             Object valueObject = object.get(attrName);
             if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
                 if (valueObject instanceof JSONArray) {
-                    JSONArray objectArray = (JSONArray)valueObject;
+                    JSONArray objectArray = (JSONArray) valueObject;
                     List<Object> values = new ArrayList<>();
                     objectArray.forEach(it -> {
                         if (it instanceof JSONObject) {
-                            Object subValue = getValueFromItem((JSONObject)it, subAttrName, type);
-                            if (subValue != null)
-                                values.add(subValue);
+
+                            if (omitTag != null) {
+
+                                if (!object.has(omitTag)) {
+
+                                    Object subValue = getValueFromItem((JSONObject) it, subAttrName, type);
+                                    if (subValue != null)
+                                        values.add(subValue);
+                                }
+                            } else {
+
+                                Object subValue = getValueFromItem((JSONObject) it, subAttrName, type);
+                                if (subValue != null)
+                                    values.add(subValue);
+                            }
                         }
                     });
-                    builder.addAttribute(attrName + "." + subAttrName, values.toArray());
+                    builder.addAttribute(originalName + "." + subAttrName, values.toArray());
                 }
             }
         }
@@ -206,13 +232,13 @@ abstract class ObjectProcessing {
             Object valueObject = object.get(attrName);
             if (valueObject != null && !JSONObject.NULL.equals(valueObject)) {
                 if (valueObject instanceof JSONArray) {
-                    JSONArray objectArray = (JSONArray)valueObject;
+                    JSONArray objectArray = (JSONArray) valueObject;
                     List<String> workingValues = new ArrayList<>();
                     List<String> returnValues = new ArrayList<>();
                     objectArray.forEach(it -> {
                         if (it instanceof JSONObject) {
-                            String subValue = (String) getValueFromItem((JSONObject)it, subAttrName, type);
-                            String conditionValue = (String) getValueFromItem((JSONObject)it, "condition", type);
+                            String subValue = (String) getValueFromItem((JSONObject) it, subAttrName, type);
+                            String conditionValue = (String) getValueFromItem((JSONObject) it, "condition", type);
                             if (subValue != null)
                                 workingValues.addAll(
                                         Arrays.asList(
@@ -223,9 +249,9 @@ abstract class ObjectProcessing {
                                         )
                                 );
 
-                            returnValues.addAll(workingValues.stream().map( value -> {
+                            returnValues.addAll(workingValues.stream().map(value -> {
                                 if (conditionValue != null)
-                                    return  conditionValue + "|" + value;
+                                    return conditionValue + "|" + value;
                                 else
                                     return value;
                             }).collect(Collectors.toList()));
@@ -521,7 +547,7 @@ abstract class ObjectProcessing {
 
     protected List<JSONObject> handleJSONArray(JSONObject object) {
         JSONArray value;
-        List<JSONObject> objectList= CollectionUtil.newList();
+        List<JSONObject> objectList = CollectionUtil.newList();
         try {
             value = object.getJSONArray("value");
         } catch (JSONException e) {
@@ -550,7 +576,8 @@ abstract class ObjectProcessing {
             throw new ConfigurationException("Connector selector query is badly configured. This is likely a programming error.");
         if (Arrays.stream(fields).anyMatch(f ->
                 f == null || "".equals(f) || f.contains("&") || f.contains("?") || f.contains("$") || f.contains("=")
-        )) throw new ConfigurationException("Connector selector fields contain invalid characters. This is likely a programming error.");
+        ))
+            throw new ConfigurationException("Connector selector fields contain invalid characters. This is likely a programming error.");
         return "$select=" + String.join(",", fields);
     }
 

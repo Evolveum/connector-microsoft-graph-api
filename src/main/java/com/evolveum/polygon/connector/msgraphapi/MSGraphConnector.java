@@ -35,6 +35,7 @@ import org.identityconnectors.framework.spi.operations.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 @ConnectorClass(displayNameKey = "msgraphconnector.connector.display", configurationClass = MSGraphConfiguration.class)
@@ -169,14 +170,22 @@ public class MSGraphConnector implements Connector,
             }
         };
     }
+    public SyncToken getLatestSyncToken(ObjectClass objectClass, OperationOptions oo) {
 
-    @Override
-    public SyncToken getLatestSyncToken(ObjectClass objectClass) {
+        LOG.ok("Evaluation of getLatestSyncToken method with operation options set to: {0}", oo);
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
+
             String getPath = USERS + "/microsoft.graph.delta";
             String customQuery = "$deltaToken=latest";
             GraphEndpoint endpoint = getGraphEndpoint();
+            UserProcessing up = new UserProcessing(endpoint, getSchemaTranslator());
+
+            String selector = up.getSelectorSingle(oo);
+
+           // LOG.ok("Fetching latest token with following selector: {0}", selector);
+
             URIBuilder uriBuilder = endpoint.createURIBuilder().clearParameters();
+            uriBuilder.setCustomQuery(customQuery + "&" + selector);
             uriBuilder.setCustomQuery(customQuery);
             uriBuilder.setPath(getPath);
             LOG.info("Get latest sync token uri is {0} ", uriBuilder.toString());
@@ -202,18 +211,30 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public void sync(ObjectClass objectClass, SyncToken fromToken, SyncResultsHandler handler, OperationOptions oo) {
+
+        LOG.ok("Evaluation of SYNC op method regarding the object class {0} with the following options: {1}",objectClass
+                , oo);
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
             if (fromToken == null) {
-                fromToken = getLatestSyncToken(objectClass);
+
+                LOG.ok("Empty token, fetching latest sync token");
+                fromToken = getLatestSyncToken(objectClass, oo);
             }
-            LOG.info("starting sync");
+            LOG.info("Starting sync operation");
             LOG.info("ObjectClass.ACCOUNT_NAME is " + ObjectClass.ACCOUNT_NAME);
             LOG.info("sync ObjectClass is " + objectClass.getObjectClassValue() + "--");
             LOG.ok("fromToken value is " + fromToken);
+
             GraphEndpoint endpoint = getGraphEndpoint();
             UserProcessing userProcessor = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
+            String selector = userProcessor.getSelectorSingle(oo);
             String nextDeltaLink = new String();
-            HttpRequestBase request = new HttpGet((String) fromToken.getValue());
+            String tokenValue = (String) fromToken.getValue();
+            LOG.ok("Selector value: " +selector);
+
+            LOG.ok("Token and selector pair:" + tokenValue+"&"+selector);
+
+            HttpRequestBase request = new HttpGet(tokenValue+"&"+selector);
             //request.setRetryHandler(new StandardHttpRequestRetryHandler(5, true));
             JSONObject firstCall = endpoint.callRequest(request, true);
             JSONArray value = new JSONArray();
@@ -240,7 +261,7 @@ public class MSGraphConnector implements Connector,
             }
             while (morePages == true) {
                 JSONObject nextLinkJson = new JSONObject();
-                HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
+                HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink+"&"+selector);
                 LOG.ok("nextLinkUriRequest {0}", nextLinkUriRequest);
                 nextLinkJson = endpoint.callRequest(nextLinkUriRequest, true);
                 if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null &&
@@ -282,21 +303,41 @@ public class MSGraphConnector implements Connector,
 
                 if (userProcessor.isDeleteDelta(user)){
 
-                    LOG.info("Sync operation -> Processing Delete delta for the User: {0} ", userUID);
+                    LOG.info("Sync operation: Processing Delete delta for the User: {0} ", userUID);
 
                     builder.setDeltaType(SyncDeltaType.DELETE);
                     builder.setUid(new Uid(userUID));
 
                 } else {
 
-                    LOG.info("Sync operation -> Processing Create or Update delta for the User: {0} ", userUID);
+                    LOG.info("Sync operation: Processing Create or Update delta for the User: {0} ", userUID);
                     if (!userProcessor.isNamePresent(user)){
 
                         continue;
                     }
-                    userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+
+
+                    Set<String> deltableItems = userProcessor.getObjectDeltaItems();
+                    AtomicReference<Boolean> fetchedConainsDeltables = new AtomicReference<>(false);
+                    deltableItems.forEach(item -> fetchedConainsDeltables.set(user.has(item)));
+
+                    Boolean hasToGetManager = userProcessor.getAttributesToGet(oo).contains("manager.id");
+                    if (hasToGetManager && !fetchedConainsDeltables.get()) {
+
+                        userConnectorObjectBuilder = userProcessor.
+                                evaluateAndFetchAttributesToGet(new Uid(userUID), oo);
+                    } else {
+
+                        userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+                        if (hasToGetManager) {
+
+                            userProcessor.enhanceConnectorObjectWithDeltaItems(user, userConnectorObjectBuilder);
+                        }
+                    }
+
                     builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
                     builder.setObject(userConnectorObjectBuilder.build());
+
                 }
 
                 builder.setToken(nextLinkSyncToken);
@@ -313,6 +354,25 @@ public class MSGraphConnector implements Connector,
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported. Only Account objectclass is supported for SyncOp currently.");
         }
 
+    }
+
+    //TODO remove
+//    private void evaluateAndFetchAttributesToGet(ConnectorObjectBuilder userConnectorObjectBuilder,
+//                                                 ObjectClass oc ,OperationOptions oo) {
+//
+//        ConnectorObject intermediaryObject = userConnectorObjectBuilder.build();
+//
+//      Set<String> attrsToGet =   getSchemaTranslator().getAttributesToGet(oc.getDisplayNameKey(), oo);
+//
+//      if (attrsToGet.contains()) {
+//
+//      }
+//
+//    }
+
+    @Override
+    public SyncToken getLatestSyncToken(ObjectClass objectClass) {
+        return getLatestSyncToken(objectClass, null);
     }
 
     @Override

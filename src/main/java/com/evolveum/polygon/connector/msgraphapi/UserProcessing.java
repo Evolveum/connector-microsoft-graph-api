@@ -152,13 +152,11 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
 
+    private static final String O_REMOVED = "@removed";
 
     // technical constants
     private static final String TYPE = "@odata.type";
     private static final String TYPE_GROUP = "#microsoft.graph.group";
-
-    private static final String O_REMOVED = "@removed";
-
     private static final Set<String> OPTIONAL_ATTRS = Stream.of(
             ATTR_ABOUTME,
             ATTR_BIRTHDAY,
@@ -929,21 +927,7 @@ public class UserProcessing extends ObjectProcessing {
                                     OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
-        final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
-                ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
-                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
-                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
-                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
-                ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
-                ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER));
-
-
+        final String selectorSingle = getSelectorSingle(options);
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                 ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
@@ -961,7 +945,7 @@ public class UserProcessing extends ObjectProcessing {
         String query = null;
         Boolean fetchAll = false;
 
-        if (translatedQuery != null){
+        if (translatedQuery != null) {
 
             query = translatedQuery.toString();
 
@@ -994,7 +978,7 @@ public class UserProcessing extends ObjectProcessing {
                 String filter = "";
 
                 Set<String> attributesToGet = getAttributesToGet(options);
-                if (attributesToGet.contains(ATTR_MANAGER_ID)){
+                if (attributesToGet.contains(ATTR_MANAGER_ID)) {
 
                     LOG.info("Fetching manager info for account: {0}", query);
 
@@ -1006,6 +990,7 @@ public class UserProcessing extends ObjectProcessing {
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
+                //TODO
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" +
                         filter, options, false);
 
@@ -1114,6 +1099,30 @@ public class UserProcessing extends ObjectProcessing {
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
     }
+
+    public ConnectorObjectBuilder evaluateAndFetchAttributesToGet(Uid uid,
+                                                                  OperationOptions oo){
+
+        Set<String> attributesToGet = getAttributesToGet(oo);
+        String query = uid.getUidValue();
+        String filter = "";
+
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final String selectorSingle = getSelectorSingle(oo);
+
+        if (attributesToGet.contains(ATTR_MANAGER_ID)) {
+
+            LOG.info("Fetching manager info for account: {0}", query);
+
+            filter = "$" + EXPAND + "=" + ATTR_MANAGER;
+        }
+
+        JSONObject user = endpoint.executeGetRequest(toGetURLByUserPrincipalName(query)+"/",
+                selectorSingle + "&" + filter, oo, false);
+
+        return  convertUserJSONObjectToConnectorObject(user);
+    }
+
 
     private JSONObject buildInvitation(Set<Attribute> attributes) {
         final String displayName = getStringValue(attributes, ATTR_DISPLAYNAME);
@@ -1243,6 +1252,14 @@ public class UserProcessing extends ObjectProcessing {
         return builder;
     }
 
+    public ConnectorObjectBuilder enhanceConnectorObjectWithDeltaItems(JSONObject user,
+                                                                       ConnectorObjectBuilder builder) {
+        LOG.info("Evaluating Account delta items conversion.");
+
+        getFromArrayIfExists(user, ATTR_MANAGER, ATTR_ID, O_REMOVED, String.class, builder, true);
+        return builder;
+    }
+
     protected String getUIDIfExists(JSONObject object) {
         if (object.has(ATTR_ID)) {
             String uid = object.getString(ATTR_ID);
@@ -1255,6 +1272,40 @@ public class UserProcessing extends ObjectProcessing {
         }
     }
 
+    public String getSelectorSingle(OperationOptions options) {
+
+        if (options != null) {
+
+            return selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
+                    ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+                    ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
+                    ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                    ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
+                    ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
+                    ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                    ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
+                    ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
+                    ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
+                    ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                    ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
+                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER));
+        } else {
+
+            return selector(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+                    ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
+                    ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                    ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
+                    ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
+                    ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                    ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES,
+                    ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
+                    ATTR_PROXYADDRESSES, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                    ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
+                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
+
+        }
+
+    }
 
     public boolean isNamePresent(JSONObject object) {
         if (object.has(ATTR_USERPRINCIPALNAME)) {
@@ -1281,5 +1332,10 @@ public class UserProcessing extends ObjectProcessing {
     public String getUIDAttribute() {
 
         return ATTR_ID;
+    }
+
+    public Set<String> getObjectDeltaItems() {
+
+        return new HashSet<>(Arrays.asList(ATTR_MANAGER+O_DELTA));
     }
 }
