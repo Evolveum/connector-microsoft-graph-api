@@ -161,6 +161,39 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_ICF_PASSWORD = "__PASSWORD__";
     private static final String ATTR_ICF_ENABLED = "__ENABLE__";
 
+    // extend
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES = "onPremisesExtensionAttributes";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute1";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute2";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute3";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute4";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE5 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute5";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE6 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute6";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE7 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute7";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE8 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute8";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE9 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute9";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE10 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute10";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE11 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute11";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE12 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute12";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE13 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute13";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE14 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute14";
+
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE15 = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute15";
+
 
     // technical constants
     private static final String TYPE = "@odata.type";
@@ -400,6 +433,14 @@ public class UserProcessing extends ObjectProcessing {
         AttributeInfoBuilder attrMail = new AttributeInfoBuilder(ATTR_MAIL);
         attrMail.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrMail.build());
+
+        //
+        for (int i = 1; i <= 15; i++) {
+            String attributeName = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute" + i;
+            AttributeInfoBuilder attrExtensionAttribute = new AttributeInfoBuilder(attributeName);
+            attrExtensionAttribute.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(false);
+            userObjClassBuilder.addAttributeInfo(attrExtensionAttribute.build());
+        }
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
@@ -944,7 +985,21 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
                 ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
                 ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
-                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID));
+                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID, ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE5,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE6,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE7,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE8,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE9,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE10,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE11,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE12,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE13,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE14,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE15));
 
 
         final String selectorList = selector(
@@ -961,7 +1016,21 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
                 ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
                 ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
-                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID);
+                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID, ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE5,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE6,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE7,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE8,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE9,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE10,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE11,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE12,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE13,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE14,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE15);
 
 
         if (query instanceof EqualsFilter) {
@@ -1124,6 +1193,7 @@ public class UserProcessing extends ObjectProcessing {
             user = saturateGroupOwnership(user);
         }
 
+
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
             user = saturateRoleMembership(options, user);
         }
@@ -1276,6 +1346,14 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_FAX_NUMBER, String.class, builder);
         getIfExists(user, ATTR_EMPLOYEE_ID, String.class, builder);
         getIfExists(user, ATTR_USERPHOTO, byte[].class, builder);
+
+        for (int i = 1; i <= 15; i++) {
+            String attributeName = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + "extensionAttribute" + i;
+            getIfExists(user, attributeName, byte[].class, builder);
+        }
+
+
+
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
