@@ -6,22 +6,28 @@ import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
 import com.evolveum.polygon.connector.msgraphapi.common.ObjectConstants;
 import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
+import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
+import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 public class BasicConfigurationForTests implements ObjectConstants {
 
+
+    private static final Log LOG = Log.getLog(BasicConfigurationForTests.class);
     private PropertiesParser parser = new PropertiesParser();
     protected String tenantId;
+    protected String domain;
     protected Set<String> licenses, licenses2;
     protected String roleWhichExistsInTenantDisplayName;
 
-    protected static int _WAIT_INTERVAL = 2;
-    protected static int _REPEAT_COUNT = 5;
-    protected static long _REPEAT_INTERVAL = 6500;
+    protected static int _WAIT_INTERVAL = 3;
+    protected static int _REPEAT_COUNT = 10;
+    protected static long _REPEAT_INTERVAL = 10000;
 
     protected MSGraphConnector msGraphConnector;
     protected MSGraphConfiguration msGraphConfiguration;
@@ -39,6 +45,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         msGraphConfiguration.setTenantId(parser.getTenantId());
         msGraphConfiguration.setDisabledPlans(parser.getDisabledPlans());
         this.tenantId = parser.getTenantId();
+        this.domain = parser.getDomain();
         licenses = parser.getLicenses();
         licenses2 = parser.getLicenses2();
         roleWhichExistsInTenantDisplayName = parser.getExistedRoleDisplayName();
@@ -58,7 +65,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
             ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
             ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
             ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-            ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID
+            ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID, ATTR_MANAGER_ID
         });
         OperationOptions options = new OperationOptions(operationOptions);
         return options;
@@ -187,17 +194,11 @@ public class BasicConfigurationForTests implements ObjectConstants {
         }
     }
 
-    protected void queryWaitAndRetry(ObjectClass objectClass, AttributeFilter filter, TestSearchResultsHandler handler,
-            OperationOptions oOptions, Uid uid) throws InterruptedException {
+    protected void queryWaitAndRetry(ObjectClass objectClass, EqualsFilter filter, TestSearchResultsHandler handler,
+                                     OperationOptions oOptions) throws InterruptedException {
 
-        queryWaitAndRetry(objectClass, filter, handler, oOptions, Collections.singletonList(uid));
-    }
-
-    protected void queryWaitAndRetry(ObjectClass objectClass, AttributeFilter filter, TestSearchResultsHandler handler,
-            OperationOptions oOptions, List<Uid> uid) throws InterruptedException {
         int iterator = 0;
-        for (Uid i : uid) {
-        }
+
         while (_REPEAT_COUNT > iterator) {
 
             try {
@@ -208,6 +209,34 @@ public class BasicConfigurationForTests implements ObjectConstants {
             ArrayList resultsAccount = handler.getResult();
 
             if (resultsAccount.isEmpty()) {
+
+                Thread.sleep(_REPEAT_INTERVAL);
+            }
+
+            iterator++;
+        }
+    }
+
+    protected void queryWaitAndRetry(ObjectClass objectClass, Filter filter, TestSearchResultsHandler handler,
+            OperationOptions oOptions, Uid uid) throws InterruptedException {
+
+        queryWaitAndRetry(objectClass, filter, handler, oOptions, Collections.singletonList(uid));
+    }
+
+    protected void queryWaitAndRetry(ObjectClass objectClass, Filter filter, TestSearchResultsHandler handler,
+                                     OperationOptions oOptions, List<Uid> uid) throws InterruptedException {
+        int iterator = 0;
+
+        while (_REPEAT_COUNT > iterator) {
+
+            try {
+                msGraphConnector.executeQuery(objectClass, filter, handler, oOptions);
+            } catch (UnknownUidException e) {
+
+            }
+            ArrayList resultsAccount = handler.getResult();
+
+            if (resultsAccount.isEmpty() || resultsAccount.size() != uid.size()) {
 
                 Thread.sleep(_REPEAT_INTERVAL);
             } else {
@@ -225,6 +254,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         boolean match = false;
 
         for (Uid uid : uidToCompare) {
+            LOG.ok("Uid to compare in matcher: {0}", uid);
 
             match = false;
             for (ConnectorObject o : resultsAccount) {
@@ -232,15 +262,19 @@ public class BasicConfigurationForTests implements ObjectConstants {
                 match = o.getUid().equals(uid);
                 if (match) {
 
+                    LOG.ok("Match found for uid: {0}", uid);
                     break;
                 }
             }
+
             if (!match) {
 
+                LOG.ok("Returning full match as: {0}", match);
                 return match;
             }
         }
 
+        LOG.ok("Returning full match as: {0}", match);
         return match;
     }
 

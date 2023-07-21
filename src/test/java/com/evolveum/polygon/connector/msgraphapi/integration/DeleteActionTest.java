@@ -34,7 +34,7 @@ public class DeleteActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "del_testing"));
         attributesAccount.add(AttributeBuilder.build("mail", "del_testing@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "del_testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "del_testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "del_testing@" + domain));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;

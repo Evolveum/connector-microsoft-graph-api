@@ -434,5 +434,14 @@ public class RoleProcessing extends ObjectProcessing {
         return builder;
     }
 
+    public String getNameAttribute(){
+
+        return ATTR_DISPLAY_NAME;
+    }
+
+    public String getUIDAttribute(){
+
+        return ATTR_ID;
+    }
 
 }

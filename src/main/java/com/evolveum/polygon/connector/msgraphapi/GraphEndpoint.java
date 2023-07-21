@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
+import com.evolveum.polygon.connector.msgraphapi.util.PolyTrustManager;
 import com.microsoft.aad.adal4j.AsymmetricKeyCredential;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
@@ -12,6 +13,7 @@ import org.apache.http.client.ServiceUnavailableRetryStrategy;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -28,6 +30,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.awt.image.BufferedImage;
+
+import javax.net.ssl.*;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.Proxy;
@@ -35,10 +39,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
+import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -73,14 +74,23 @@ public class GraphEndpoint {
 
     private final long SKEW = TimeUnit.MINUTES.toMillis(5);
 
+    private Boolean validateWithCustomAndDefaultTrust = false;
+
     GraphEndpoint(MSGraphConfiguration configuration) {
+
+        this(configuration,false);
+    }
+
+    GraphEndpoint(MSGraphConfiguration configuration, boolean validateWithCustomAndDefaultTrust) {
         this.configuration = configuration;
         this.uriBuilder = createURIBuilder();
+        this.validateWithCustomAndDefaultTrust = validateWithCustomAndDefaultTrust;
 
         authenticate();
         initSchema();
         initHttpClient();
     }
+
 
     public MSGraphConfiguration getConfiguration() {
         return configuration;
@@ -93,18 +103,31 @@ public class GraphEndpoint {
     private void authenticate() {
         AuthenticationResult result = null;
         ExecutorService service = null;
-        LOG.info("authenticate");
+        LOG.ok("Processing through authenticate method");
 
         try {
             service = Executors.newFixedThreadPool(1);
+
+            LOG.ok("Loading authentication context");
+
             AuthenticationContext context = new AuthenticationContext(AUTHORITY + configuration.getTenantId()
                     + "/oauth2/authorize", false, service);
+
+            if(getConfiguration().isValidateWithFailoverTrust() || validateWithCustomAndDefaultTrust){
+
+                context.setSslSocketFactory(createCustomSSLSocketFactory());
+            }
+
+
             if (configuration.hasProxy()) {
+
                 LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
                 context.setProxy(createProxy());
             }
             Future<AuthenticationResult> future;
             if (configuration.isCertificateBasedAuthentication()) {
+
+                LOG.ok("Processing through certificate based authentication flow");
                 X509Certificate certificate = getCertificate(configuration.getCertificatePath());
 
                 PrivateKey privateKey;
@@ -121,23 +144,42 @@ public class GraphEndpoint {
                 GuardedStringAccessor accessorSecret = new GuardedStringAccessor();
                 clientSecret.access(accessorSecret);
                 ClientCredential credential = new ClientCredential(configuration.getClientId(), accessorSecret.getClearString());
+
+                LOG.ok("About to acquire security token from the authority");
                 future = context.acquireToken(RESOURCE, credential, null);
             }
+            LOG.ok("Fetching authentication result");
+
             result = future.get();
         } catch (InterruptedException | ExecutionException | GeneralSecurityException e) {
-            throw new ConnectionFailedException(e);
+//
+//            if (e.getCause() instanceof SSLException){
+//
+//                if(useCustomTrustStore && !initialTrustAttemptFailed){
+//
+//                    LOG.ok("Auth round trip");
+//
+//                    initialTrustAttemptFailed = true;
+//                    authenticate();
+//                }
+//            }
+
+            throw new ConnectionFailedException("Exception while authenticating to the service provider: "+ e.getLocalizedMessage());
         } catch (IOException e) {
+
             LOG.error(e.toString());
         } finally {
             service.shutdown();
         }
 
         if (result == null) {
-            throw new ConnectionFailedException("Failed to authenticate GitHub API");
+            throw new ConnectionFailedException("Failed to authenticate");
         }
 
         this.authenticateResult = result;
     }
+
+
 
     private static X509Certificate getCertificate(String certificationPath) throws IOException, CertificateException {
         InputStream input = new FileInputStream(certificationPath);
@@ -205,6 +247,18 @@ public class GraphEndpoint {
                     new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
             );
         }
+
+        if(configuration.isValidateWithFailoverTrust()){
+
+        clientBuilder.setSSLSocketFactory(new SSLConnectionSocketFactory(createCustomSSLSocketFactory(),
+                new HostnameVerifier() {
+                    @Override
+                    public boolean verify(String hostname, SSLSession session) {
+                        return hostname!=null ? hostname.equals(session.getPeerHost()) : false;
+                    }
+                }));
+        }
+
         httpClient = clientBuilder.build();
     }
 
@@ -280,13 +334,13 @@ public class GraphEndpoint {
             throw new InvalidAttributeValueException("Request not provided");
         }
         request.setHeader("Authorization", getAccessToken().getAccessToken());
-        if (request.getURI().toString().contains("photo")){
+        if (request.getURI().toString().contains("photo")) {
             request.setHeader("Content-Type", "image/jpg");
         }
-        else
-            {
-                request.setHeader("Content-Type", "application/json");
-            }
+        else {
+            request.setHeader("Content-Type", "application/json");
+        }
+
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.ok("Request execution -> HtttpUriRequest: {0}", request);
         CloseableHttpResponse response;
@@ -423,11 +477,11 @@ public class GraphEndpoint {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided or empty");
         }
-        LOG.info("callRequest");
+        LOG.ok("callRequest execution");
         String result = null;
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.ok("URL in request: {0}", request.getRequestLine().getUri());
-        LOG.info("Enumerating headers");
+        LOG.ok("Enumerating headers");
         List<Header> httpHeaders = Arrays.asList(request.getAllHeaders());
         for (Header header : httpHeaders) {
             LOG.info("Headers.. name,value:" + header.getName() + "," + header.getValue());
@@ -444,19 +498,21 @@ public class GraphEndpoint {
             } else if (response.getStatusLine().getStatusCode() == 200 && !parseResult) {
                 LOG.ok("200 - OK");
                 return null;
-            } else {
-                result = EntityUtils.toString(response.getEntity());
-                if (!parseResult) {
-                    return null;
-                }
-
-                return new JSONObject(result);
             }
+
+             LOG.ok("Response before evaluation: {0}", response.getEntity());
+
+            result = EntityUtils.toString(response.getEntity());
+            if (!parseResult) {
+                return null;
+            }
+            return new JSONObject(result);
         } catch (IOException e) {
             throw new ConnectorIOException();
         }
 
     }
+    
     private JSONObject callRequestPhoto(HttpRequestBase request) {
         String result;
 
@@ -554,10 +610,10 @@ public class GraphEndpoint {
             String perPage = configuration.getPageSize();
             if (perPage != null) {
                 uribuilder.setCustomQuery(customQuery + "&" + TOP + "=" + perPage.toString());
-                LOG.info("setCustomQuery {0} ", uribuilder.toString());
+                LOG.ok("setCustomQuery {0} ", uribuilder.toString());
             } else {
                 uribuilder.setCustomQuery(customQuery);
-                LOG.info("setCustomQuery {0} ", uribuilder.toString());
+                LOG.ok("setCustomQuery {0} ", uribuilder.toString());
             }
 
         } else if (customQuery == null && options != null && paging) {
@@ -568,8 +624,10 @@ public class GraphEndpoint {
             }
         } else if (customQuery != null && options != null && !paging) {
             uribuilder.setCustomQuery(customQuery);
-            LOG.info("setCustomQuery {0} ", uribuilder.toString());
+            LOG.ok("setCustomQuery {0} ", uribuilder.toString());
         }
+
+        LOG.ok("Query parts for URI build:  customQuery: {0}, path {1}", customQuery, path);
 
         uribuilder.setPath(path);
 
@@ -633,7 +691,7 @@ public class GraphEndpoint {
                     for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
                         value.put(firstCall.getJSONArray("value").get(i));
                     }
-                    LOG.info("firstCall: {0} ", firstCall);
+                    LOG.ok("firstCall: {0} ", firstCall);
                 } else {
                     LOG.info("firstCall contained no value object or the object was null");
                 }
@@ -749,6 +807,80 @@ public class GraphEndpoint {
             }
 
         }
+    }
+
+    private SSLSocketFactory createCustomSSLSocketFactory() {
+
+        LOG.ok("Initializing custom SSLSocketFactory method");
+
+
+        SSLContext sslContext;
+        try {
+
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init((KeyStore) null);
+
+            X509TrustManager defaultTm = null;
+
+            for (TrustManager tm : trustManagerFactory.getTrustManagers()) {
+                if (tm instanceof X509TrustManager) {
+                    defaultTm = (X509TrustManager) tm;
+                    break;
+                }
+            }
+
+            X509TrustManager customManager = buildCustomManager(configuration.getPathToFailoverTrustStore());
+
+            PolyTrustManager polyTrustManager;
+            if(validateWithCustomAndDefaultTrust){
+
+                 polyTrustManager = new PolyTrustManager(defaultTm, customManager) ;
+            } else {
+
+                 polyTrustManager = new PolyTrustManager(customManager) ;
+            }
+
+
+            LOG.info("Attempt to initialize custom SSL context, using custom trust manager");
+            sslContext = SSLContext.getInstance("TLS");
+
+            sslContext.init(null, new TrustManager[]{polyTrustManager}, null);
+
+        } catch (IOException | NoSuchAlgorithmException | CertificateException | KeyStoreException | KeyManagementException e) {
+
+            LOG.error("Exception while loading custom trustStore" + e);
+
+            return null;
+        }
+
+        LOG.info("SSL context initialize, about to return custom SSL socket factory");
+        return sslContext.getSocketFactory();
+    }
+
+    private X509TrustManager buildCustomManager(String path) throws KeyStoreException, IOException, CertificateException,
+            NoSuchAlgorithmException {
+
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());;
+
+        FileInputStream trustStoreIs = new FileInputStream(path);
+
+        /// Providing empty password ro read CA certificates
+        keyStore.load(trustStoreIs, null);
+        trustStoreIs.close();
+
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(keyStore);
+
+
+        X509TrustManager customManager = null;
+        for (TrustManager tm : trustManagerFactory.getTrustManagers()) {
+            if (tm instanceof X509TrustManager) {
+                customManager = (X509TrustManager) tm;
+                break;
+            }
+        }
+
+        return customManager;
     }
 
     public void close() {

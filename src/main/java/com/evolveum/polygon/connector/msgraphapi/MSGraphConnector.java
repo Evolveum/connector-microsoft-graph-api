@@ -2,6 +2,8 @@
 
 package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.util.FilterHandler;
+import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.methods.HttpRequestBase;
@@ -12,7 +14,10 @@ import org.apache.http.client.methods.HttpRequestBase;
 //import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 //import org.apache.http.client.*;
 //import org.apache.http.impl.client.*;
+import org.identityconnectors.framework.common.exceptions.ConnectionFailedException;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.spi.PoolableConnector;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import org.identityconnectors.common.CollectionUtil;
@@ -29,9 +34,8 @@ import org.identityconnectors.framework.spi.operations.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 @ConnectorClass(displayNameKey = "msgraphconnector.connector.display", configurationClass = MSGraphConfiguration.class)
@@ -45,7 +49,8 @@ public class MSGraphConnector implements Connector,
         SchemaOp,
         UpdateOp,
         SyncOp,
-        UpdateAttributeValuesOp {
+        UpdateAttributeValuesOp,
+        DiscoverConfigurationOp{
 
     private static final Log LOG = Log.getLog(MSGraphConnector.class);
 
@@ -165,14 +170,22 @@ public class MSGraphConnector implements Connector,
             }
         };
     }
+    public SyncToken getLatestSyncToken(ObjectClass objectClass, OperationOptions oo) {
 
-    @Override
-    public SyncToken getLatestSyncToken(ObjectClass objectClass) {
+        LOG.ok("Evaluation of getLatestSyncToken method with operation options set to: {0}", oo);
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
+
             String getPath = USERS + "/microsoft.graph.delta";
             String customQuery = "$deltaToken=latest";
             GraphEndpoint endpoint = getGraphEndpoint();
+            UserProcessing up = new UserProcessing(endpoint, getSchemaTranslator());
+
+            String selector = up.getSelectorSingle(oo);
+
+           // LOG.ok("Fetching latest token with following selector: {0}", selector);
+
             URIBuilder uriBuilder = endpoint.createURIBuilder().clearParameters();
+            uriBuilder.setCustomQuery(customQuery + "&" + selector);
             uriBuilder.setCustomQuery(customQuery);
             uriBuilder.setPath(getPath);
             LOG.info("Get latest sync token uri is {0} ", uriBuilder.toString());
@@ -198,18 +211,30 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public void sync(ObjectClass objectClass, SyncToken fromToken, SyncResultsHandler handler, OperationOptions oo) {
+
+        LOG.ok("Evaluation of SYNC op method regarding the object class {0} with the following options: {1}",objectClass
+                , oo);
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
             if (fromToken == null) {
-                fromToken = getLatestSyncToken(objectClass);
+
+                LOG.ok("Empty token, fetching latest sync token");
+                fromToken = getLatestSyncToken(objectClass, oo);
             }
-            LOG.info("starting sync");
+            LOG.info("Starting sync operation");
             LOG.info("ObjectClass.ACCOUNT_NAME is " + ObjectClass.ACCOUNT_NAME);
             LOG.info("sync ObjectClass is " + objectClass.getObjectClassValue() + "--");
             LOG.ok("fromToken value is " + fromToken);
+
             GraphEndpoint endpoint = getGraphEndpoint();
             UserProcessing userProcessor = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
+            String selector = userProcessor.getSelectorSingle(oo);
             String nextDeltaLink = new String();
-            HttpRequestBase request = new HttpGet((String) fromToken.getValue());
+            String tokenValue = (String) fromToken.getValue();
+            LOG.ok("Selector value: " +selector);
+
+            LOG.ok("Token and selector pair:" + tokenValue+"&"+selector);
+
+            HttpRequestBase request = new HttpGet(tokenValue+"&"+selector);
             //request.setRetryHandler(new StandardHttpRequestRetryHandler(5, true));
             JSONObject firstCall = endpoint.callRequest(request, true);
             JSONArray value = new JSONArray();
@@ -236,7 +261,7 @@ public class MSGraphConnector implements Connector,
             }
             while (morePages == true) {
                 JSONObject nextLinkJson = new JSONObject();
-                HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
+                HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink+"&"+selector);
                 LOG.ok("nextLinkUriRequest {0}", nextLinkUriRequest);
                 nextLinkJson = endpoint.callRequest(nextLinkUriRequest, true);
                 if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null &&
@@ -278,21 +303,41 @@ public class MSGraphConnector implements Connector,
 
                 if (userProcessor.isDeleteDelta(user)){
 
-                    LOG.info("Sync operation -> Processing Delete delta for the User: {0} ", userUID);
+                    LOG.info("Sync operation: Processing Delete delta for the User: {0} ", userUID);
 
                     builder.setDeltaType(SyncDeltaType.DELETE);
                     builder.setUid(new Uid(userUID));
 
                 } else {
 
-                    LOG.info("Sync operation -> Processing Create or Update delta for the User: {0} ", userUID);
+                    LOG.info("Sync operation: Processing Create or Update delta for the User: {0} ", userUID);
                     if (!userProcessor.isNamePresent(user)){
 
                         continue;
                     }
-                    userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+
+
+                    Set<String> deltableItems = userProcessor.getObjectDeltaItems();
+                    AtomicReference<Boolean> fetchedConainsDeltables = new AtomicReference<>(false);
+                    deltableItems.forEach(item -> fetchedConainsDeltables.set(user.has(item)));
+
+                    Boolean hasToGetManager = userProcessor.getAttributesToGet(oo).contains("manager.id");
+                    if (hasToGetManager && !fetchedConainsDeltables.get()) {
+
+                        userConnectorObjectBuilder = userProcessor.
+                                evaluateAndFetchAttributesToGet(new Uid(userUID), oo);
+                    } else {
+
+                        userConnectorObjectBuilder = userProcessor.convertUserJSONObjectToConnectorObject(user);
+                        if (hasToGetManager) {
+
+                            userProcessor.enhanceConnectorObjectWithDeltaItems(user, userConnectorObjectBuilder);
+                        }
+                    }
+
                     builder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
                     builder.setObject(userConnectorObjectBuilder.build());
+
                 }
 
                 builder.setToken(nextLinkSyncToken);
@@ -309,6 +354,25 @@ public class MSGraphConnector implements Connector,
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported. Only Account objectclass is supported for SyncOp currently.");
         }
 
+    }
+
+    //TODO remove
+//    private void evaluateAndFetchAttributesToGet(ConnectorObjectBuilder userConnectorObjectBuilder,
+//                                                 ObjectClass oc ,OperationOptions oo) {
+//
+//        ConnectorObject intermediaryObject = userConnectorObjectBuilder.build();
+//
+//      Set<String> attrsToGet =   getSchemaTranslator().getAttributesToGet(oc.getDisplayNameKey(), oo);
+//
+//      if (attrsToGet.contains()) {
+//
+//      }
+//
+//    }
+
+    @Override
+    public SyncToken getLatestSyncToken(ObjectClass objectClass) {
+        return getLatestSyncToken(objectClass, null);
     }
 
     @Override
@@ -328,22 +392,104 @@ public class MSGraphConnector implements Connector,
             throw new InvalidAttributeValueException("Attribute of type OperationOptions is not provided.");
         }
 
+        ResourceQuery translatedQuery= new ResourceQuery();
+        Boolean fetchSpecificObject =false;
+
+        if (query == null) {
+
+            LOG.ok("Empty query parameter, returning full list of objects of the object class: {0}"
+                    , objectClass.getDisplayNameKey());
+        } else {
+
+            if (query instanceof EqualsFilter){
+
+                final EqualsFilter equalsFilter = (EqualsFilter) query;
+                        Attribute fAttr = equalsFilter.getAttribute();
+
+                if(Uid.NAME.equals(fAttr.getName()))
+                    {
+                        LOG.ok("Processing Equals Query based on UID.");
+
+                        fetchSpecificObject = true;
+                        translatedQuery.setIdOrMembershipExpression(((Uid) fAttr).getUidValue());
+
+                        LOG.info("Query will fetch specific object with the uid: {0}",
+                                translatedQuery.getIdOrMembershipExpression());
+                    }
+            }
+
+        }
+
         LOG.info("executeQuery on {0}, filter: {1}, options: {2}", objectClass, query, options);
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
             UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
 
-            userProcessing.executeQueryForUser(query, handler, options);
+            if(!fetchSpecificObject){
+
+                if(query!=null){
+
+                 translatedQuery = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                        userProcessing.getUIDAttribute(), userProcessing.getNameAttribute()));
+
+                }
+            }
+
+            LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString() != null ?
+                    translatedQuery.toString() : translatedQuery.getIdOrMembershipExpression());
+
+            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+
+            userProcessing.executeQueryForUser(translatedQuery, fetchSpecificObject ,handler, options);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
+
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
-            groupProcessing.executeQueryForGroup(query, handler, options);
+
+            if(!fetchSpecificObject){
+
+                if(query!=null){
+
+                    translatedQuery = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+                            groupProcessing.getUIDAttribute(), groupProcessing.getNameAttribute()));
+                }
+            }
+
+            LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString());
+            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+
+            groupProcessing.executeQueryForGroup(translatedQuery, fetchSpecificObject, handler, options);
+
         } else if (objectClass.is(LicenseProcessing.OBJECT_CLASS_NAME)) {
             LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
+
+            // TODO TEST only currently
+//            if(!fetchSpecificObject){
+//
+//                if(query!=null){
+//
+//                    translatedQuery = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+//                            licenseProcessing.getUIDAttribute(), licenseProcessing.getNameAttribute()));
+//                }
+//            }
+
             licenseProcessing.executeQueryForLicense(query, handler, options);
+
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
             RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+
+            // TODO TEST only currently
+//            if(!fetchSpecificObject){
+//
+//                if(query!=null){
+//
+//                    translatedQuery  = query.accept(new FilterHandler(), new ResourceQuery(objectClass,
+//                            roleProcessing.getUIDAttribute(), roleProcessing.getNameAttribute()));
+//                }
+//            }
+
             roleProcessing.executeQueryForRole(query, handler, options);
+
         } else {
             LOG.error("Attribute of type ObjectClass is not supported.");
             throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported.");
@@ -520,5 +666,126 @@ public class MSGraphConnector implements Connector,
     @Override
     public void checkAlive() {
         // do nothing here
+    }
+
+    @Override
+    public void testPartialConfiguration() {
+
+        LOG.info("Starting graph endpoint instance as part of Partial configuration test while leveraging default" +
+                " Java truststore in case of environment trustStore returns with exception");
+        graphEndpoint = new GraphEndpoint(configuration, true);
+        LOG.info("Execution of default test method");
+        test();
+    }
+
+    @Override
+    public Map<String, SuggestedValues> discoverConfiguration() {
+
+            Map<String, SuggestedValues> suggestions = new HashMap<>();
+
+            Boolean connectionFailed = false;
+            try {
+
+            configuration.setValidateWithFailoverTrust(false);
+            graphEndpoint = new GraphEndpoint(configuration);
+             } catch (ConnectionFailedException e){
+
+                configuration.setValidateWithFailoverTrust(true);
+                connectionFailed = true;
+            }
+
+            if (connectionFailed){
+
+                LOG.ok("Setting up discovery suggestion to use validation with native trust store");
+                suggestions.put("validateWithFailoverTrust", SuggestedValuesBuilder.build(true));
+            } else {
+
+                LOG.ok("Setting up discovery suggestion to not use validation with native trust store");
+                suggestions.put("validateWithFailoverTrust", SuggestedValuesBuilder.build(false));
+            }
+
+            String pageSize = configuration.getPageSize();
+            String throttlingRetryWait = configuration.getThrottlingRetryWait();
+            String pathToFailoverTrustStore  = configuration.getPathToFailoverTrustStore();
+            Integer throttlingRetryCount = configuration.getThrottlingRetryCount();
+
+
+
+            if(pageSize !=null && !pageSize.isEmpty()){
+
+                suggestions.put("pageSize", SuggestedValuesBuilder.buildOpen(pageSize));
+            } else {
+
+                // Default for page size
+                suggestions.put("pageSize", SuggestedValuesBuilder.buildOpen("100"));
+            }
+
+        if(throttlingRetryWait!=null && !throttlingRetryWait.isEmpty()){
+
+            suggestions.put("throttlingRetryWait", SuggestedValuesBuilder.buildOpen(throttlingRetryWait));
+        } else {
+
+            suggestions.put("throttlingRetryWait", SuggestedValuesBuilder.buildOpen("10"));
+        }
+
+        if(throttlingRetryCount != null){
+
+            suggestions.put("throttlingRetryCount", SuggestedValuesBuilder.buildOpen(throttlingRetryCount));
+        } else {
+
+            suggestions.put("throttlingRetryCount", SuggestedValuesBuilder.buildOpen(3));
+        }
+
+        if(pathToFailoverTrustStore !=null && !pathToFailoverTrustStore.isEmpty()){
+
+            suggestions.put("pathToFailoverTrustStore", SuggestedValuesBuilder.buildOpen(pathToFailoverTrustStore));
+        }
+
+        Set<String> availablePlans = fetchAvailablePlans();
+
+        if (availablePlans !=null && !availablePlans.isEmpty()){
+
+            suggestions.put("disabledPlans", SuggestedValuesBuilder.build(availablePlans));
+        }
+
+        return suggestions;
+    }
+
+    public Set<String> fetchAvailablePlans() {
+
+        LOG.ok("Fetching available license plans");
+        LicenseProcessing licenseProcessing = new LicenseProcessing(getGraphEndpoint(), getSchemaTranslator());
+        List<JSONObject> licenses = licenseProcessing.list();
+        Set<String> parsedPlans = CollectionUtil.newSet();
+
+        for (JSONObject licence : licenses) {
+
+            if (licence != null) {
+
+                try {
+
+                    String skuId = licence.getString("skuId");
+                    String skuPartNumber = licence.getString("skuPartNumber");
+
+                    JSONArray planList = licence.getJSONArray("servicePlans");
+                    int length = planList.length();
+                    LOG.ok("Length of service plans list: {0}", length);
+
+                    for (int i = 0; i < length; i++) {
+                        JSONObject obj = planList.getJSONObject(i);
+                       String serviceName = (String) obj.get("servicePlanName");
+                        String servicePlanId = (String) obj.get("servicePlanId");
+
+                        parsedPlans.add(skuPartNumber+":"+serviceName+" "+"["+skuId+":"+servicePlanId+"]");
+                    }
+
+                } catch (JSONException e) {
+
+                    LOG.warn("Exception while fetching available service plans while analyzing licences: {0} ", e.getLocalizedMessage());
+                }
+            }
+
+        }
+        return parsedPlans;
     }
 }
