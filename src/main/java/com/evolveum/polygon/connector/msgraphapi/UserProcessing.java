@@ -1014,20 +1014,54 @@ public class UserProcessing extends ObjectProcessing {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
-                ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
-                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
-                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
-                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
-                ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
-                ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
-                ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
-                ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID, ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
+                ATTR_ACCOUNTENABLED, 
+                ATTR_DISPLAYNAME,
+                ATTR_ONPREMISESIMMUTABLEID, 
+                ATTR_MAILNICKNAME, 
+                ATTR_USERPRINCIPALNAME,
+                 ATTR_ABOUTME,
+                ATTR_BIRTHDAY, 
+                ATTR_CITY, 
+                ATTR_COMPANYNAME, 
+                ATTR_COUNTRY, 
+                ATTR_DEPARTMENT,
+                ATTR_GIVENNAME, 
+                ATTR_HIREDATE, 
+                ATTR_IMADDRESSES, 
+                ATTR_ID, 
+                ATTR_INTERESTS,
+                ATTR_JOBTITLE, 
+                ATTR_MAIL, 
+                ATTR_MOBILEPHONE, 
+                ATTR_MYSITE, 
+                ATTR_OFFICELOCATION,
+                ATTR_ONPREMISESLASTSYNCDATETIME, 
+                ATTR_ONPREMISESSECURITYIDENTIFIER,
+                ATTR_ONPREMISESSYNCENABLED, 
+                ATTR_PASSWORDPOLICIES, 
+                ATTR_PASTPROJECTS,
+                ATTR_POSTALCODE,
+                 ATTR_PREFERREDLANGUAGE, 
+                 ATTR_PREFERREDNAME,
+                ATTR_PROXYADDRESSES, 
+                ATTR_RESPONSIBILITIES, 
+                ATTR_SCHOOLS,
+                ATTR_SKILLS, 
+                ATTR_STATE, 
+                ATTR_STREETADDRESS, 
+                ATTR_SURNAME,
+                ATTR_USAGELOCATION, 
+                ATTR_USERTYPE, 
+                ATTR_ASSIGNEDLICENSES,
+                ATTR_EXTERNALUSERSTATE, 
+                ATTR_EXTERNALUSERSTATECHANGEDATETIME, 
+                ATTR_MANAGER,
+                ATTR_EMPLOYEE_HIRE_DATE, 
+                ATTR_EMPLOYEE_LEAVE_DATE_TIME, 
+                ATTR_EMPLOYEE_TYPE,
+                ATTR_FAX_NUMBER, 
+                ATTR_EMPLOYEE_ID, 
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
                 ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2,
                 ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3,
                 ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4,
@@ -1202,55 +1236,95 @@ public class UserProcessing extends ObjectProcessing {
         return false;
     }
  */
-    public void executeQueryForUser(ResourceQuery translatedQuery, Boolean fetchSpecific, ResultsHandler handler,
+    public void executeQueryForUser(ResourceQuery translatedQuery,
+                                    Boolean fetchSpecific,
+                                    ResultsHandler handler,
                                     OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = getSelectorSingle(options);
         final String selectorList = selector(
-                ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
-                ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
-                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
-                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES,
-                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
+                ATTR_ACCOUNTENABLED, 
+                ATTR_DISPLAYNAME,
+                ATTR_ONPREMISESIMMUTABLEID, 
+                ATTR_MAILNICKNAME, 
+                ATTR_USERPRINCIPALNAME,
+                ATTR_ABOUTME,
+                ATTR_BIRTHDAY,
+                ATTR_CITY, 
+                ATTR_COMPANYNAME, 
+                ATTR_COUNTRY, 
+                ATTR_DEPARTMENT,
+                ATTR_GIVENNAME,
+                ATTR_HIREDATE,
+                ATTR_IMADDRESSES, 
+                ATTR_ID,
+                ATTR_JOBTITLE, 
+                ATTR_MAIL, 
+                ATTR_MOBILEPHONE,
+                ATTR_MYSITE,
+                ATTR_INTERESTS,
+                ATTR_OFFICELOCATION,
+                ATTR_ONPREMISESLASTSYNCDATETIME, 
+                ATTR_ONPREMISESSECURITYIDENTIFIER,
+                ATTR_ONPREMISESSYNCENABLED, 
+                ATTR_PASSWORDPOLICIES,
+                ATTR_PASTPROJECTS,
+                ATTR_POSTALCODE, 
+                ATTR_PREFERREDLANGUAGE,
+                ATTR_PREFERREDNAME,
                 ATTR_PROXYADDRESSES,
-                ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
+                ATTR_RESPONSIBILITIES,
+                ATTR_SCHOOLS,
+                ATTR_SKILLS,
+                ATTR_STATE, 
+                ATTR_STREETADDRESS, 
+                ATTR_SURNAME,
+                ATTR_USAGELOCATION, 
+                ATTR_USERTYPE, 
+                ATTR_ASSIGNEDLICENSES,
+                ATTR_EXTERNALUSERSTATE, 
+                ATTR_EXTERNALUSERSTATECHANGEDATETIME, 
+                ATTR_MANAGER,
+                ATTR_EMPLOYEE_HIRE_DATE,
+                ATTR_EMPLOYEE_LEAVE_DATE_TIME,
+                ATTR_EMPLOYEE_TYPE,
+                ATTR_FAX_NUMBER,
+                ATTR_EMPLOYEE_ID,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE5,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE6,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE7,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE8,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE9,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE10,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE11,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE12,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE13,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE14,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE15);
 
         String query = null;
         Boolean fetchAll = false;
 
         if (translatedQuery != null) {
-
             query = translatedQuery.toString();
-
             if (query != null && !query.isEmpty()) {
-
             } else {
-
                 if (translatedQuery.hasIdOrMembershipExpression()) {
                     query = translatedQuery.getIdOrMembershipExpression();
                 } else {
-
                     fetchAll = true;
                 }
-
             }
-
         } else {
-
             fetchAll = true;
-
         }
-
         if (!fetchAll) {
-
             if (fetchSpecific) {
-
                 LOG.info("Fetching account info for account: {0}", query);
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(toGetURLByUserPrincipalName(query)).append("/");
@@ -1258,28 +1332,20 @@ public class UserProcessing extends ObjectProcessing {
 
                 Set<String> attributesToGet = getAttributesToGet(options);
                 if (attributesToGet.contains(ATTR_MANAGER_ID)) {
-
                     LOG.info("Fetching manager info for account: {0}", query);
-
                     filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 }
-                LOG.ok("The constructed additional filter clause: {0}", filter.isEmpty() ? "Empty filter clause."
-                        : filter);
+                LOG.ok("The constructed additional filter clause: {0}", filter.isEmpty() ? "Empty filter clause." : filter);
 
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
                 //TODO
-                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" +
-                        filter, options, false);
-
+                JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" + filter, options, false);
                 if (attributesToGet.contains(ATTR_SIGN_IN)) {
                     LOG.info("Fetching sing-in info for account: {0}", query);
-                    sbPath = new StringBuilder()
-                            .append("/auditLogs/signIns");
-                    StringBuilder signInSelector = new StringBuilder()
-                            .append("?&$filter=").append("userId").append(" eq ").append("'" + query + "'");
-
+                    sbPath = new StringBuilder().append("/auditLogs/signIns");
+                    StringBuilder signInSelector = new StringBuilder().append("?&$filter=").append("userId").append(" eq ").append("'" + query + "'");
                     LOG.ok("Sign-in info query with path: {0} and filter {1}", sbPath.toString(), signInSelector.toString());
                     JSONObject signInObject = endpoint.executeGetRequest(sbPath.toString(), signInSelector.toString(), options, false);
                     if (signInObject != null && signInObject.has("value")) {
@@ -1287,23 +1353,17 @@ public class UserProcessing extends ObjectProcessing {
                         if (signIns != null && signIns.length() >= 1) {
                             //First object in the array is the last sign in
                             JSONObject lastSignIn = (JSONObject) signIns.get(0);
-
                             if (lastSignIn != null && !lastSignIn.isNull("createdDateTime")) {
                                 String lastSignInTime = lastSignIn.getString("createdDateTime");
                                 user.put(ATTR_SIGN_IN, lastSignInTime);
                             }
                             LOG.ok("The last sign in: {0}", lastSignIn.toString());
                         }
-
                     }
-
                 }
-
                 LOG.ok("The retrieved JSONObject for the account {0}: {1}", query, user.toString());
                 handleJSONObject(options, user, handler);
-
             } else {
-
                 // TODO significance ?
                 //(Arrays.asList(ATTR_DISPLAYNAME, ATTR_GIVENNAME, ATTR_JOBTITLE)
                 //(Arrays.asList(ATTR_JOBTITLE, ATTR_GIVENNAME, ATTR_USERPRINCIPALNAME, ATTR_DISPLAYNAME)
@@ -1311,16 +1371,12 @@ public class UserProcessing extends ObjectProcessing {
                 // final String filter = "$filter=" + translatedQuery;
                 LOG.ok("The constructed filter: {0}", query);
                 JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + query, options, true);
-
                 LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
                 handleJSONArray(options, users, handler);
             }
-
         } else {
             LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.ACCOUNT_NAME);
-
             JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
-
             LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
             handleJSONArray(options, users, handler);
         }
@@ -1581,69 +1637,144 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     public String getSelectorSingle(OperationOptions options) {
-
         if (options != null) {
-
             return selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
-                    ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                    ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                    ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                    ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
-                    ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
-                    ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                    ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES, ATTR_PASTPROJECTS,
-                    ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE, ATTR_PREFERREDNAME,
-                    ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
-                    ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                    ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER));
+                    ATTR_ACCOUNTENABLED,
+                    ATTR_DISPLAYNAME,
+                    ATTR_ONPREMISESIMMUTABLEID,
+                    ATTR_MAILNICKNAME,
+                    ATTR_USERPRINCIPALNAME,
+                    ATTR_ABOUTME,
+                    ATTR_BIRTHDAY,
+                    ATTR_CITY,
+                    ATTR_COMPANYNAME,
+                    ATTR_COUNTRY,
+                    ATTR_DEPARTMENT,
+                    ATTR_GIVENNAME,
+                    ATTR_HIREDATE,
+                    ATTR_ID,
+                    ATTR_JOBTITLE,
+                    ATTR_MAIL,
+                    ATTR_MOBILEPHONE,
+                    ATTR_MYSITE,
+                    ATTR_OFFICELOCATION,
+                    ATTR_ONPREMISESLASTSYNCDATETIME,
+                    ATTR_ONPREMISESSECURITYIDENTIFIER,
+                    ATTR_ONPREMISESSYNCENABLED,
+                    ATTR_PASSWORDPOLICIES,
+                    ATTR_POSTALCODE,
+                    ATTR_PREFERREDLANGUAGE,
+                    ATTR_PREFERREDNAME,
+                    ATTR_PROXYADDRESSES,
+                    ATTR_STATE,
+                    ATTR_STREETADDRESS,
+                    ATTR_SURNAME,
+                    ATTR_USAGELOCATION,
+                    ATTR_USERTYPE,
+                    ATTR_EXTERNALUSERSTATE,
+                    ATTR_EXTERNALUSERSTATECHANGEDATETIME,
+                    ATTR_MANAGER,
+                    ATTR_EMPLOYEE_HIRE_DATE,
+                    ATTR_EMPLOYEE_LEAVE_DATE_TIME,
+                    ATTR_EMPLOYEE_TYPE,
+                    ATTR_FAX_NUMBER,
+                    ATTR_EMPLOYEE_ID,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE5,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE6,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE7,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE8,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE9,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE10,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE11,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE12,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE13,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE14,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE15));
         } else {
-
-            return selector(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
-                    ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
-                    ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
-                    ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
-                    ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
-                    ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
-                    ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES,
-                    ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
-                    ATTR_PROXYADDRESSES, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
-                    ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
-
+            return selector(ATTR_ACCOUNTENABLED,
+                    ATTR_DISPLAYNAME,
+                    ATTR_ONPREMISESIMMUTABLEID,
+                    ATTR_MAILNICKNAME,
+                    ATTR_USERPRINCIPALNAME,
+                    ATTR_ABOUTME,
+                    ATTR_BIRTHDAY,
+                    ATTR_CITY,
+                    ATTR_COMPANYNAME,
+                    ATTR_COUNTRY,
+                    ATTR_DEPARTMENT,
+                    ATTR_GIVENNAME,
+                    ATTR_HIREDATE,
+                    ATTR_ID,
+                    ATTR_JOBTITLE,
+                    ATTR_MAIL,
+                    ATTR_MOBILEPHONE,
+                    ATTR_MYSITE,
+                    ATTR_OFFICELOCATION,
+                    ATTR_ONPREMISESLASTSYNCDATETIME,
+                    ATTR_ONPREMISESSECURITYIDENTIFIER,
+                    ATTR_ONPREMISESSYNCENABLED,
+                    ATTR_PASSWORDPOLICIES,
+                    ATTR_POSTALCODE,
+                    ATTR_PREFERREDLANGUAGE,
+                    ATTR_PREFERREDNAME,
+                    ATTR_PROXYADDRESSES,
+                    ATTR_STATE,
+                    ATTR_STREETADDRESS,
+                    ATTR_SURNAME,
+                    ATTR_USAGELOCATION,
+                    ATTR_USERTYPE,
+                    ATTR_EXTERNALUSERSTATE,
+                    ATTR_EXTERNALUSERSTATECHANGEDATETIME,
+                    ATTR_MANAGER,
+                    ATTR_EMPLOYEE_HIRE_DATE,
+                    ATTR_EMPLOYEE_LEAVE_DATE_TIME,
+                    ATTR_EMPLOYEE_TYPE,
+                    ATTR_FAX_NUMBER,
+                    ATTR_EMPLOYEE_ID,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE1,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE2,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE3,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE4,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE5,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE6,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE7,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE8,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE9,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE10,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE11,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE12,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE13,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE14,
+                    ATTR_ONPREMISESEXTENSIONATTRIBUTES__EXTENSIONATTRIBUTE15);
         }
-
     }
 
     public boolean isNamePresent(JSONObject object) {
         if (object.has(ATTR_USERPRINCIPALNAME)) {
-
             LOG.ok("Naming attribute present for the currently processed object");
-
             return true;
         }
 
         String objectId = getUIDIfExists(object);
-
         LOG.warn("Naming attribute not present for the currently processed object with the Id {0}. Most probably " +
                 "object already deleted, yet it might indicate potential consistency issues with the currently " +
                 "processed object.", objectId);
-
         return false;
     }
 
     public String getNameAttribute() {
-
         return ATTR_USERPRINCIPALNAME;
     }
 
     public String getUIDAttribute() {
-
         return ATTR_ID;
     }
 
     public Set<String> getObjectDeltaItems() {
-
         return new HashSet<>(Arrays.asList(ATTR_MANAGER+O_DELTA));
     }
 }
