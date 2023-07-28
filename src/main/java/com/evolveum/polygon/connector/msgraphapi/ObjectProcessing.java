@@ -430,7 +430,6 @@ abstract class ObjectProcessing {
 
     protected List<Object> buildLayeredAtrribute(Set<Attribute> multiLayerAttribute) {
         LinkedList<Object> list = new LinkedList<>();
-        String json = "";
         for (Attribute attribute : multiLayerAttribute) {
             final String[] attributePath = resolveAttributePath(attribute);
             if (attributePath == null) continue;
@@ -467,23 +466,25 @@ abstract class ObjectProcessing {
 
             currentNode.keyValueMap.put(attributePath[attributePath.length - 1], leaf);
             JSONObject jsonObject = new JSONObject(root.toString());
-            //empty json
-            if (json.isEmpty()) {
-                json = jsonObject.toString();
-                list.add(json);
-            } else {
-                String key = jsonObject.keys().next();
-                Object value = jsonObject.get(key);
 
-                //JSON Object no.1
-                JSONObject newJSONObject = new JSONObject();
-                newJSONObject.put(key, value);
-                list.add(newJSONObject);
-
-            }
+            // merge same nodes together
+            updateJsonList(list, jsonObject);
         }
 
         return list;
+    }
+
+    private void updateJsonList(LinkedList<Object> list, JSONObject jsonObject) {
+        boolean match = list.stream().map(it -> (JSONObject) it).anyMatch(it -> it.get(jsonObject.keys().next()) != null);
+        if(match) {
+            list.stream()
+                    .map(it -> (JSONObject) it)
+                    .filter(it -> it.get(jsonObject.keys().next()) != null)
+                    .findAny()
+                    .ifPresent(it -> deepMerge(jsonObject, it));
+        } else {
+            list.add(jsonObject);
+        }
     }
 
     private String[] resolveAttributePath(Attribute attribute) {
