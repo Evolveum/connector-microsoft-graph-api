@@ -150,9 +150,6 @@ public class LicenseProcessing extends ObjectProcessing {
             final String attrName = attr.getName();
             LOG.info("query instanceof EqualsFilter");
 
-            //TODO: why we ommit OR condition?
-            
-            // if (attrName.equals(Uid.NAME) || attrName.equals(ATTR_ID))
             if (attrName.equals(ATTR_ID)) {
                 String value = AttributeUtil.getAsStringValue(attr);
                 if (value == null)
@@ -170,7 +167,6 @@ public class LicenseProcessing extends ObjectProcessing {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(OBJECT_CLASS);
 
-        // getUIDIfExists(json, ATTR_ID, builder);
         getUIDIfExists(json, ATTR_SKUID, builder);
         getNAMEIfExists(json, ATTR_SKUPAATNUMBER, builder);
 
