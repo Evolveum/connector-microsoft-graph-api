@@ -475,11 +475,11 @@ abstract class ObjectProcessing {
     }
 
     private void updateJsonList(LinkedList<Object> list, JSONObject jsonObject) {
-        boolean match = list.stream().map(it -> (JSONObject) it).anyMatch(it -> it.get(jsonObject.keys().next()) != null);
+        boolean match = list.stream().map(it -> (JSONObject) it).anyMatch(it -> it.has(jsonObject.keys().next()));
         if(match) {
             list.stream()
                     .map(it -> (JSONObject) it)
-                    .filter(it -> it.get(jsonObject.keys().next()) != null)
+                    .filter(it -> it.has(jsonObject.keys().next()))
                     .findAny()
                     .ifPresent(it -> deepMerge(jsonObject, it));
         } else {
