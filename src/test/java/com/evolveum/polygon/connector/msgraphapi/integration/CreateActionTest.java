@@ -61,7 +61,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "testing_noPass"));
         attributesAccount.add(AttributeBuilder.build("mail", "testing_noPass@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "testing_noPass"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing_noPass@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "testing_noPass@" + domain));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
         msGraphConnector.create(objectClassAccount, attributesAccount, options);
@@ -89,7 +89,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "create_testing"));
         attributesAccount.add(AttributeBuilder.build("mail", "create_testing@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "create_testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + domain));
         GuardedString pass = new GuardedString("Password99".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
@@ -135,7 +135,7 @@ public class CreateActionTest extends BasicConfigurationForTests {
         attributesAccount.add(AttributeBuilder.build("displayName", "create_testing"));
         attributesAccount.add(AttributeBuilder.build("mail", "create_testing@example.com"));
         attributesAccount.add(AttributeBuilder.build("mailNickname", "create_testing"));
-        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + tenantId));
+        attributesAccount.add(AttributeBuilder.build("userPrincipalName", "create_testing@" + domain));
         GuardedString pass = new GuardedString("passw".toCharArray());
         attributesAccount.add(AttributeBuilder.build("__PASSWORD__", pass));
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;

@@ -70,4 +70,29 @@ public class ListAllTest extends BasicConfigurationForTests {
         Assert.assertTrue(!resultsRoles.isEmpty());
 
     }
+
+    @Test(priority = 50)
+    public void findAllAccounts() throws Exception {
+        msGraphConnector = new MSGraphConnector();
+
+        msGraphConfiguration = getConfiguration();
+        msGraphConnector.init(msGraphConfiguration);
+        OperationOptions options = new OperationOptions(new HashMap<>());
+        ObjectClass objectClass = new ObjectClass(ObjectClass.ACCOUNT_NAME);
+
+        Map<String, Object> operationOptions = new HashMap<>();
+        operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
+        operationOptions.put(OperationOptions.OP_PAGED_RESULTS_OFFSET, 900);
+        operationOptions.put(OperationOptions.OP_PAGE_SIZE, 100);
+        options = new OperationOptions(operationOptions);
+
+        ArrayList<ConnectorObject> resultsAccounts = new ArrayList<>();
+        TestSearchResultsHandler handlerAccount = new TestSearchResultsHandler();
+
+        msGraphConnector.executeQuery(objectClass, null, handlerAccount, options);
+
+        resultsAccounts = handlerAccount.getResult();
+        Assert.assertTrue(!resultsAccounts.isEmpty());
+
+    }
 }

@@ -1,6 +1,7 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.identityconnectors.framework.common.objects.Attribute;
@@ -133,6 +134,13 @@ public class LicenseProcessing extends ObjectProcessing {
         handleJSONArray(options, json, handler);
     }
 
+    public List<JSONObject> list() {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS, SELECTOR_FULL, null, false);
+        LOG.info("JSONObject license {0}", json.toString());
+        return handleJSONArray(json);
+    }
+
     public void executeQueryForLicense(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForLicense()");
 
@@ -141,7 +149,7 @@ public class LicenseProcessing extends ObjectProcessing {
             final Attribute attr = equalsFilter.getAttribute();
             final String attrName = attr.getName();
             LOG.info("query instanceof EqualsFilter");
-            // if (attrName.equals(Uid.NAME) || attrName.equals(ATTR_ID))
+
             if (attrName.equals(ATTR_ID)) {
                 String value = AttributeUtil.getAsStringValue(attr);
                 if (value == null)
@@ -159,7 +167,6 @@ public class LicenseProcessing extends ObjectProcessing {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(OBJECT_CLASS);
 
-        // getUIDIfExists(json, ATTR_ID, builder);
         getUIDIfExists(json, ATTR_SKUID, builder);
         getNAMEIfExists(json, ATTR_SKUPAATNUMBER, builder);
 
@@ -173,6 +180,16 @@ public class LicenseProcessing extends ObjectProcessing {
         getFromArrayIfExists(json, ATTR_SERVICEPLANS, ATTR_SERVICEPLANID, String.class, builder);
 
         return handler.handle(builder.build());
+    }
+
+    public String getNameAttribute(){
+
+        return ATTR_SKUPAATNUMBER;
+    }
+
+    public String getUIDAttribute(){
+
+        return ATTR_ID;
     }
 
 }

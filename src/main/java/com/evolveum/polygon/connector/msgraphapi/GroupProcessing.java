@@ -1,13 +1,13 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
+import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
+import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
-import org.identityconnectors.framework.common.objects.filter.Filter;
-import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -433,8 +433,54 @@ public class GroupProcessing extends ObjectProcessing {
         endpoint.callRequest(request, false);
     }
 
+    public void executeQueryForGroup(ResourceQuery translatedQuery, Boolean fetchSpecific, ResultsHandler handler, OperationOptions options) {
+        LOG.ok("Processing executeQuery operation for the objectClass {0}", ObjectClass.GROUP_NAME);
+        final GraphEndpoint endpoint = getGraphEndpoint();
 
-    public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
+        String query = null;
+        Boolean fetchAll = false;
+
+        if (translatedQuery != null) {
+            query = translatedQuery.toString();
+            if (query != null && !query.isEmpty()) {
+            } else {
+                if (translatedQuery.hasIdOrMembershipExpression()) {
+                } else {
+                    fetchAll = true;
+                }
+            }
+        } else {
+            fetchAll = true;
+        }
+
+        if (!fetchAll) {
+            if (fetchSpecific) {
+                LOG.info("Fetching object info for object: {0}", query);
+                StringBuilder sbPath = new StringBuilder();
+                sbPath.append(GROUPS).append("/").append(query);
+                JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
+                handleJSONObject(options, group, handler);
+            } else {
+                if (translatedQuery.hasIdOrMembershipExpression()) {
+                    LOG.ok("The constructed filter to be used: {0}", query);
+                    JSONObject groups = endpoint.executeGetRequest(translatedQuery.getIdOrMembershipExpression(), query, options,true);
+                    handleJSONArray(options, groups, handler);
+                } else {
+                    LOG.ok("The constructed filter about to being used: {0}", query);
+                    JSONObject groups = endpoint.executeGetRequest(GROUPS, query, options, true);
+                    handleJSONArray(options, groups, handler);
+                }
+            }
+        } else {
+            LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.GROUP_NAME);
+            JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
+            handleJSONArray(options, groups, handler);
+        }
+    }
+
+/*
+    // tuto metodu treba upravit do metody vyssie a nasledne odmazat
+        public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForGroup() Query: {0}", query);
         final GraphEndpoint endpoint = getGraphEndpoint();
         if (query instanceof EqualsFilter) {
@@ -503,13 +549,12 @@ public class GroupProcessing extends ObjectProcessing {
             handleJSONArray(options, groups, handler);
         }
     }
-
+ */
     /**
      * Query a group's members and owners, add them to the group's JSON attributes (multivalue)
      *
      * @param options Operation options
-     * @param group Group to query for (JSON object resulting from previous API call)
-     *
+     * @param group   Group to query for (JSON object resulting from previous API call)
      * @return Original JSON, enriched with member/owner information
      */
     private JSONObject saturateGroupMembership(OperationOptions options, JSONObject group) {
@@ -539,23 +584,24 @@ public class GroupProcessing extends ObjectProcessing {
 
     @Override
     protected boolean handleJSONObject(OperationOptions options, JSONObject group, ResultsHandler handler) {
-        LOG.info("processingObjectFromGET (Object)");
+        LOG.ok("processingObjectFromGET (Object)");
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
             group = saturateGroupMembership(options, group);
         }
         final ConnectorObject connectorObject = convertGroupJSONObjectToConnectorObject(group).build();
-        LOG.info("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
+        LOG.ok("processingGroupObjectFromGET, group: {0}, \n\tconnectorObject: {1}", group.get("id"), connectorObject.toString());
         return handler.handle(connectorObject);
     }
 
     private ConnectorObjectBuilder convertGroupJSONObjectToConnectorObject(JSONObject group) {
-        LOG.info("convertGroupJSONObjectToConnectorObject");
+        LOG.ok("convertGroupJSONObjectToConnectorObject execution");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(ObjectClass.GROUP);
 
         getUIDIfExists(group, ATTR_ID, builder);
         getNAMEIfExists(group, ATTR_DISPLAYNAME, builder);
 
+        getIfExists(group, ATTR_DISPLAYNAME, String.class, builder);
         getIfExists(group, ATTR_DESCRIPTION, String.class, builder);
         getMultiIfExists(group, ATTR_GROUPTYPES, builder); //?
         getIfExists(group, ATTR_MAIL, String.class, builder);
@@ -581,5 +627,14 @@ public class GroupProcessing extends ObjectProcessing {
         return builder;
     }
 
+    public String getNameAttribute() {
+
+        return ATTR_DISPLAYNAME;
+    }
+
+    public String getUIDAttribute() {
+
+        return ATTR_ID;
+    }
 
 }
