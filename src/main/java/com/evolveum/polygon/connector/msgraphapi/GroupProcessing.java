@@ -446,7 +446,7 @@ public class GroupProcessing extends ObjectProcessing {
 
             } else {
                 if (translatedQuery.hasIdOrMembershipExpression()) {
-
+                    query = translatedQuery.getIdOrMembershipExpression();
                 } else {
 
                     fetchAll = true;
