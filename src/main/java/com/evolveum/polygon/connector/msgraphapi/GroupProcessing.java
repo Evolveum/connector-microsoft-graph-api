@@ -3,8 +3,12 @@ package com.evolveum.polygon.connector.msgraphapi;
 import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
+import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
+import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -184,6 +188,19 @@ public class GroupProcessing extends ObjectProcessing {
             LOG.info("Path: {0}", uri);
             request = new HttpPost(uri);
             JSONObject jsonObject1 = buildLayeredAttributeJSON(attributes);
+
+            // For historical reason, Groups are allowed to duplicate displayName (Reference: https://morgansimonsen.com/2016/06/28/azure-ad-allows-duplicate-group-names/).
+            // However, Microsoft strives to avoid group created with duplicated names. For example, duplicate Group creation from the UI will result in an error.
+            // Unfortunately, Microsoft Graph v1.0 does not perform duplicate name checking, so we have to implement here.
+            //
+            // Note: As Group creation is eventual consistency, the existence check here does not work well for
+            // freshly created Groups and will result in the creation of duplicate Groups.
+            // This is unavoidable due to the system design of Azure AD.
+            // (Reference: https://github.com/MicrosoftDocs/azure-docs/issues/94121#issuecomment-1191792188)
+            if (isExist(jsonObject1.getString(getNameAttribute()))) {
+                throw new AlreadyExistsException("Another object with the same value for property displayName already exists");
+            }
+
             jsonAnswer = endpoint.callRequest(request, jsonObject1, true);
 
 
@@ -210,6 +227,32 @@ public class GroupProcessing extends ObjectProcessing {
 
 
         return new Uid(newUid);
+    }
+
+    protected boolean isExist(String displayName) {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final String query = new StringBuilder()
+                .append("$filter=")
+                .append(getNameAttribute())
+                .append(" eq '")
+                .append(displayName.replace("'", "''"))
+                .append("'")
+                .append("&$select=")
+                .append(getNameAttribute())
+                .toString();
+        final JSONObject groups = endpoint.executeGetRequest(GROUPS, query, new OperationOptionsBuilder().build(), false);
+
+        JSONArray value;
+        try {
+            value = groups.getJSONArray("value");
+        } catch (JSONException e) {
+            throw new ConnectorException("No groups in JSON Array");
+        }
+        if (value.isEmpty()) {
+            return false;
+        }
+        String s = value.getJSONObject(0).getString(getNameAttribute());
+        return displayName.equalsIgnoreCase(s);
     }
 
     protected void delete(Uid uid) {
