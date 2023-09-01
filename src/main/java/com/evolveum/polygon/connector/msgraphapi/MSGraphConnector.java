@@ -5,32 +5,25 @@ package com.evolveum.polygon.connector.msgraphapi;
 import com.evolveum.polygon.connector.msgraphapi.util.FilterHandler;
 import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.methods.HttpRequestBase;
-//import org.apache.http.*;
-//import org.apache.http.protocol.*;
-//import org.apache.http.client.protocol.HttpClientContext;
-//import org.apache.http.client.methods.*;
-//import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
-//import org.apache.http.client.*;
-//import org.apache.http.impl.client.*;
-import org.identityconnectors.framework.common.exceptions.ConnectionFailedException;
-import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
-import org.identityconnectors.framework.spi.PoolableConnector;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONArray;
+import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.common.exceptions.ConnectionFailedException;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.spi.Configuration;
 import org.identityconnectors.framework.spi.Connector;
 import org.identityconnectors.framework.spi.ConnectorClass;
+import org.identityconnectors.framework.spi.PoolableConnector;
 import org.identityconnectors.framework.spi.operations.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -188,7 +181,7 @@ public class MSGraphConnector implements Connector,
             uriBuilder.setCustomQuery(customQuery + "&" + selector);
             uriBuilder.setCustomQuery(customQuery);
             uriBuilder.setPath(getPath);
-            LOG.info("Get latest sync token uri is {0} ", uriBuilder.toString());
+            LOG.info("Get latest sync token uri is {0} ", uriBuilder);
             try {
                 URI uri = uriBuilder.build();
                 HttpGet syncTokenRequest = new HttpGet(uri);
@@ -435,10 +428,11 @@ public class MSGraphConnector implements Connector,
                 }
             }
 
-            LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString() != null ?
-                    translatedQuery.toString() : translatedQuery.getIdOrMembershipExpression());
-
-            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+            if (LOG.isOk()) {
+                LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString() != null ?
+                        translatedQuery : translatedQuery.getIdOrMembershipExpression());
+                LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+            }
 
             userProcessing.executeQueryForUser(translatedQuery, fetchSpecificObject ,handler, options);
 
@@ -455,8 +449,10 @@ public class MSGraphConnector implements Connector,
                 }
             }
 
-            LOG.ok("Query will be executed with the following filter: {0}", translatedQuery.toString());
-            LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+            if (LOG.isOk()) {
+                LOG.ok("Query will be executed with the following filter: {0}", translatedQuery);
+                LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+            }
 
             groupProcessing.executeQueryForGroup(translatedQuery, fetchSpecificObject, handler, options);
 

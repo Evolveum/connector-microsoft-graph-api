@@ -267,7 +267,7 @@ abstract class ObjectProcessing {
 
 
     protected String getUIDIfExists(JSONObject object, String nameAttr, ConnectorObjectBuilder builder) {
-        LOG.ok("getUIDIfExists nameAttr: {0} bulder {1}", nameAttr, builder.toString());
+        LOG.ok("getUIDIfExists nameAttr: {0} builder {1}", nameAttr, builder);
         if (object.has(nameAttr)) {
             String uid = object.getString(nameAttr);
             builder.setUid(new Uid(String.valueOf(uid)));

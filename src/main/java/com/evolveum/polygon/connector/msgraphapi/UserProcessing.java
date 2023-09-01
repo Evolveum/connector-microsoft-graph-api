@@ -1018,7 +1018,7 @@ public class UserProcessing extends ObjectProcessing {
                     });
                 }
 
-                LOG.ok("The retrieved JSONObject for the account {0}: {1}", query, user.toString());
+                LOG.ok("The retrieved JSONObject for the account {0}: {1}", query, user);
                 handleJSONObject(options, user, handler);
 
             } else {
@@ -1094,7 +1094,6 @@ public class UserProcessing extends ObjectProcessing {
         incompleteIfNecessary(options, ObjectClass.ACCOUNT_NAME, ATTR_MEMBER_OF_ROLE, builder);
 
         ConnectorObject connectorObject = builder.build();
-
         LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject);
         return handler.handle(connectorObject);
     }

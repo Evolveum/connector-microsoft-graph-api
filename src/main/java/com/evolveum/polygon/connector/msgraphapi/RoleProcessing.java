@@ -159,7 +159,7 @@ public class RoleProcessing extends ObjectProcessing {
                     json.put("directoryScopeId", directoryScopeId);
                     json.put("roleDefinitionId", roleDefinitionId);
 
-                    LOG.ok("json: {0}", json.toString());
+                    LOG.ok("json: {0}", json);
                     postRequestNoContent(sbPath.toString(), json);
                 }
             }
@@ -193,7 +193,7 @@ public class RoleProcessing extends ObjectProcessing {
         json.put("directoryScopeId", directoryScopeId);
         json.put("roleDefinitionId", roleDefinitionId);
 
-        LOG.ok("json: {0}", json.toString());
+        LOG.ok("json: {0}", json);
         postRequestNoContent(sbPath.toString(), json);
     }
 
@@ -208,19 +208,19 @@ public class RoleProcessing extends ObjectProcessing {
     }
 
     private void removeMemberFromRole(Uid uid, Attribute attribute, OperationOptions options) {
-        LOG.info("addOrRemoveMember {0} , {1} ", uid, attribute);
+        LOG.info("addOrRemoveMember {0} , {1}", uid, attribute);
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(ROLE_ASSIGNMENT);
 
         String roleDefinitionId = uid.getUidValue();
         String principalId = AttributeUtil.getAsStringValue(attribute);
         String roleAssignmentId = getRoleAssignmentId(options, roleDefinitionId, principalId);
-        LOG.info("executeDeleteOperation principalId: {0} , sbPath.toString: {1} ", principalId, sbPath.toString());
+        LOG.info("executeDeleteOperation principalId: {0} , sbPath: {1}", principalId, sbPath);
         executeDeleteOperation(roleAssignmentId, sbPath.toString());
     }
 
     private void postRequestNoContent(String path, JSONObject json) {
-        LOG.info("path: {0} , json {1}, ", path, json);
+        LOG.info("path: {0} , json: {1}", path, json);
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(path);
         final URI uri = endpoint.getUri(uriBuilder);
@@ -243,7 +243,7 @@ public class RoleProcessing extends ObjectProcessing {
 
                     String principalId = (String) removeValue;
                     String roleAssignmentId = getRoleAssignmentId(options, roleDefinitionId, principalId);
-                    LOG.info("executeDeleteOperation principalId: {0} , sbPath.toString: {1} ", principalId, sbPath.toString());
+                    LOG.info("executeDeleteOperation principalId: {0} , sbPath: {1}", principalId, sbPath);
                     executeDeleteOperation(roleAssignmentId, sbPath.toString());
                 }
             }

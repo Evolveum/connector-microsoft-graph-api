@@ -311,7 +311,7 @@ public class GroupProcessing extends ObjectProcessing {
                     //POST https://graph.microsoft.com/v1.0/groups/{id}/members/$ref
                     //json.put(ATTR_ID, userID);
                     json.put("@odata.id", addToJson);
-                    LOG.ok("json: {0}", json.toString());
+                    LOG.ok("json: {0}", json);
                     postRequestNoContent(sbPath.toString(), json);
                 }
             }
@@ -344,7 +344,7 @@ public class GroupProcessing extends ObjectProcessing {
         JSONObject json = new JSONObject();
         String addToJson = "https://graph.microsoft.com/v1.0/directoryObjects/" + AttributeUtil.getAsStringValue(attribute);
         json.put("@odata.id", addToJson);
-        LOG.ok("json: {0}", json.toString());
+        LOG.ok("json: {0}", json);
         postRequestNoContent(sbPath.toString(), json);
     }
 
@@ -359,7 +359,7 @@ public class GroupProcessing extends ObjectProcessing {
         JSONObject json = new JSONObject();
         String addToJson = "https://graph.microsoft.com/v1.0/users/" + AttributeUtil.getAsStringValue(attribute);
         json.put("@odata.id", addToJson);
-        LOG.ok("json: {0}", json.toString());
+        LOG.ok("json: {0}", json);
         postRequestNoContent(sbPath.toString(), json);
     }
 
@@ -380,16 +380,22 @@ public class GroupProcessing extends ObjectProcessing {
         LOG.info("addOrRemoveMember {0} , {1} ", uid, attribute);
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_OWNERS);
-        LOG.info("executeDeleteOperation userId: {0} , sbPath.toString: {1} ", AttributeUtil.getAsStringValue(attribute), sbPath.toString());
+        if (LOG.isInfo()) {
+            LOG.info("executeDeleteOperation userId: {0} , sbPath: {1} ", AttributeUtil.getAsStringValue(attribute), sbPath);
+        }
         executeDeleteOperation(new Uid(AttributeUtil.getAsStringValue(attribute)), sbPath.toString());
-        LOG.info("path: {0}", sbPath);
+        if (LOG.isInfo()) {
+            LOG.info("path: {0}", sbPath);
+        }
     }
 
     private void removeMemberFromGroup(Uid uid, Attribute attribute) {
         LOG.info("addOrRemoveMember {0} , {1} ", uid, attribute);
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_MEMBERS);
-        LOG.info("executeDeleteOperation userId: {0} , sbPath.toString: {1} ", AttributeUtil.getAsStringValue(attribute), sbPath.toString());
+        if (LOG.isInfo()) {
+            LOG.info("executeDeleteOperation userId: {0} , sbPath: {1} ", AttributeUtil.getAsStringValue(attribute), sbPath);
+        }
         executeDeleteOperation(new Uid(AttributeUtil.getAsStringValue(attribute)), sbPath.toString());
         LOG.info("path: {0}", sbPath);
     }
@@ -415,12 +421,12 @@ public class GroupProcessing extends ObjectProcessing {
                     //POST https://graph.microsoft.com/v1.0/groups/{id}/owners/$ref
                     //json.put(ATTR_ID, userID);
                     json.put("@odata.id", addToJson);
-                    LOG.ok("json: {0}", json.toString());
+                    LOG.ok("json: {0}", json);
                     postRequestNoContent(sbPath.toString(), json);
                 }
             }
         }
-        LOG.info("sbPath : {0} ; removeValues {1} ", sbPath, removeValues);
+        LOG.info("sbPath : {0} ; removeValues {1}", sbPath, removeValues);
         groupProcessRemove(sbPath, removeValues);
     }
 
@@ -447,7 +453,7 @@ public class GroupProcessing extends ObjectProcessing {
                 if (removeValue != null) {
 
                     String userID = (String) removeValue;
-                    LOG.info("executeDeleteOperation userId: {0} , sbPath.toString: {1} ", userID, sbPath.toString());
+                    LOG.info("executeDeleteOperation userId: {0} , sbPath: {1} ", userID, sbPath);
                     executeDeleteOperation(new Uid(userID), sbPath.toString());
                 }
             }

@@ -116,7 +116,7 @@ public class GraphEndpoint {
 
             if (configuration.hasProxy()) {
 
-                LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress().toString());
+                LOG.info("Authenticating through proxy[{0}]", configuration.getProxyAddress());
                 context.setProxy(createProxy());
             }
             Future<AuthenticationResult> future;
@@ -161,8 +161,7 @@ public class GraphEndpoint {
 
             throw new ConnectionFailedException("Exception while authenticating to the service provider: "+ e.getLocalizedMessage());
         } catch (IOException e) {
-
-            LOG.error(e.toString());
+            LOG.error(e, e.toString());
         } finally {
             service.shutdown();
         }
@@ -237,7 +236,7 @@ public class GraphEndpoint {
             }
         });
         if (configuration.hasProxy()) {
-            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress().toString());
+            LOG.info("Executing request through proxy[{0}]", configuration.getProxyAddress());
             clientBuilder.setProxy(
                     new HttpHost(configuration.getProxyAddress().getAddress(), configuration.getProxyAddress().getPort())
             );
@@ -331,7 +330,7 @@ public class GraphEndpoint {
         request.setHeader("Authorization", getAccessToken().getAccessToken());
         request.setHeader("Content-Type", "application/json");
         request.setHeader("ConsistencyLevel", "eventual");
-        LOG.ok("Request execution -> HtttpUriRequest: {0}", request);
+        LOG.ok("Request execution -> HttpUriRequest: {0}", request);
         CloseableHttpResponse response;
         int retryCount = 0;
         try {
@@ -465,12 +464,15 @@ public class GraphEndpoint {
         LOG.ok("callRequest execution");
         String result = null;
         request.setHeader("ConsistencyLevel", "eventual");
-        LOG.ok("URL in request: {0}", request.getRequestLine().getUri());
-        LOG.ok("Enumerating headers");
-        List<Header> httpHeaders = Arrays.asList(request.getAllHeaders());
-        for (Header header : httpHeaders) {
-            LOG.info("Headers.. name,value:" + header.getName() + "," + header.getValue());
+
+        if (LOG.isOk()) {
+            LOG.ok("URL in request: {0}", request.getRequestLine().getUri());
+            LOG.ok("Enumerating headers");
+            for (Header header : request.getAllHeaders()) {
+                LOG.info("Headers.. name,value:{0},{1}", header.getName(), header.getValue());
+            }
         }
+
         try (CloseableHttpResponse response = executeRequest(request)) {
             processResponseErrors(response);
             if (response.getStatusLine().getStatusCode() == 204) {
@@ -578,7 +580,7 @@ public class GraphEndpoint {
 
         } catch (URISyntaxException e) {
             StringBuilder sb = new StringBuilder();
-            sb.append("It was not possible create URI from UriBuider:").append(uriBuilder).append(";")
+            sb.append("It was not possible create URI from UriBuilder:").append(uriBuilder).append(";")
                     .append(e.getLocalizedMessage());
             throw new ConnectorException(sb.toString(), e);
         }
@@ -708,7 +710,7 @@ public class GraphEndpoint {
             LOG.info("response {0}", response);
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == 204) {
-                LOG.ok("204 - No content, Update was succesfull");
+                LOG.ok("204 - No content, Update was successful");
             } else {
                 LOG.error("Not updated, statusCode: {0}", statusCode);
             }
@@ -744,7 +746,7 @@ public class GraphEndpoint {
                 LOG.info("response {0}", response);
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode == 204) {
-                    LOG.ok("204 - No content, Update was succesfull");
+                    LOG.ok("204 - No content, Update was successful");
                 } else {
                     LOG.error("Not updated, statusCode: {0}", statusCode);
                 }
