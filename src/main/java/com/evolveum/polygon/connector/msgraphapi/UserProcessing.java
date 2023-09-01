@@ -613,7 +613,7 @@ public class UserProcessing extends ObjectProcessing {
             final String selectorLicenses = selector(ATTR_ID, ATTR_USERPRINCIPALNAME, ATTR_ASSIGNEDLICENSES);
             final OperationOptions options = new OperationOptions(new HashMap<>());
 
-            JSONObject user = endpoint.executeGetRequest(USERS + "/" + uid.getUidValue() + "/", selectorLicenses, options, false);
+            JSONObject user = endpoint.executeGetRequest(USERS + "/" + uid.getUidValue() + "/", selectorLicenses, options);
             ConnectorObject co = convertUserJSONObjectToConnectorObject(user).build();
             //LOG.info("License: fetched user {0}", co);
             Attribute attrLicense = co.getAttributeByName(ATTR_ASSIGNEDLICENSES__SKUID);
@@ -992,32 +992,30 @@ public class UserProcessing extends ObjectProcessing {
 
                 //TODO
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" +
-                        filter, options, false);
+                        filter, options);
 
                 if (attributesToGet.contains(ATTR_SIGN_IN)) {
                     LOG.info("Fetching sing-in info for account: {0}", query);
                     sbPath = new StringBuilder()
                             .append("/auditLogs/signIns");
+
+                    // /auditLogs/signIns doesn't support $select
+                    // https://learn.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0&tabs=http#optional-query-parameters
                     StringBuilder signInSelector = new StringBuilder()
-                            .append("?&$filter=").append("userId").append(" eq ").append("'" + query + "'");
+                            .append("$top=1&$filter=").append("userId").append(" eq ").append("'" + query + "'");
 
-                    LOG.ok("Sign-in info query with path: {0} and filter {1}", sbPath.toString(), signInSelector.toString());
-                    JSONObject signInObject = endpoint.executeGetRequest(sbPath.toString(), signInSelector.toString(), options, false);
-                    if (signInObject != null && signInObject.has("value")) {
-                        JSONArray signIns = (JSONArray) signInObject.get("value");
-                        if (signIns != null && signIns.length() >= 1) {
-                            //First object in the array is the last sign in
-                            JSONObject lastSignIn = (JSONObject) signIns.get(0);
-
-                            if (lastSignIn != null && !lastSignIn.isNull("createdDateTime")) {
-                                String lastSignInTime = lastSignIn.getString("createdDateTime");
-                                user.put(ATTR_SIGN_IN, lastSignInTime);
-                            }
-                            LOG.ok("The last sign in: {0}", lastSignIn.toString());
+                    LOG.ok("Sign-in info query with path: {0} and filter {1}", sbPath, signInSelector);
+                    // Use "paging = false" with customQuery contains "$top=1" here since we need the last sign object only
+                    endpoint.executeListRequest(sbPath.toString(), signInSelector.toString(), options, false, (opt, signIn) -> {
+                        // First object in the json array is the last sign in
+                        if (!signIn.isNull("createdDateTime")) {
+                            String lastSignInTime = signIn.getString("createdDateTime");
+                            user.put(ATTR_SIGN_IN, lastSignInTime);
                         }
 
-                    }
-
+                        LOG.ok("The last sign in: {0}", signIn);
+                        return false;
+                    });
                 }
 
                 LOG.ok("The retrieved JSONObject for the account {0}: {1}", query, user.toString());
@@ -1031,19 +1029,13 @@ public class UserProcessing extends ObjectProcessing {
 
                 // final String filter = "$filter=" + translatedQuery;
                 LOG.ok("The constructed filter: {0}", query);
-                JSONObject users = endpoint.executeGetRequest(USERS, selectorList + '&' + query, options, true);
-
-                LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
-                handleJSONArray(options, users, handler);
+                endpoint.executeListRequest(USERS, selectorList + '&' + query, options, true, createJSONObjectHandler(handler));
             }
 
         } else {
             LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.ACCOUNT_NAME);
 
-            JSONObject users = endpoint.executeGetRequest(USERS, selectorList, options, true);
-
-            LOG.ok("The retrieved JSONObjects for the filtered accounts {0}", users.toString());
-            handleJSONArray(options, users, handler);
+            endpoint.executeListRequest(USERS, selectorList, options, true, createJSONObjectHandler(handler));
         }
     }
 
@@ -1083,20 +1075,27 @@ public class UserProcessing extends ObjectProcessing {
     @Override
     protected boolean handleJSONObject(OperationOptions options, JSONObject user, ResultsHandler handler) {
         LOG.ok("processingObjectFromGET (Object)");
-        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_GROUP)) {
+        if (shouldSaturate(options, ObjectClass.ACCOUNT_NAME, ATTR_MEMBER_OF_GROUP)) {
             user = saturateGroupMembership(user);
         }
 
-        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_OWNER_OF_GROUP)) {
+        if (shouldSaturate(options, ObjectClass.ACCOUNT_NAME, ATTR_OWNER_OF_GROUP)) {
             user = saturateGroupOwnership(user);
         }
 
-        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
-            user = saturateRoleMembership(options, user);
+        if (shouldSaturate(options, ObjectClass.ACCOUNT_NAME, ATTR_MEMBER_OF_ROLE)) {
+            user = saturateRoleMembership(user);
         }
 
-        ConnectorObject connectorObject = convertUserJSONObjectToConnectorObject(user).build();
-        LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject.toString());
+        ConnectorObjectBuilder builder = convertUserJSONObjectToConnectorObject(user);
+
+        incompleteIfNecessary(options, ObjectClass.ACCOUNT_NAME, ATTR_MEMBER_OF_GROUP, builder);
+        incompleteIfNecessary(options, ObjectClass.ACCOUNT_NAME, ATTR_OWNER_OF_GROUP, builder);
+        incompleteIfNecessary(options, ObjectClass.ACCOUNT_NAME, ATTR_MEMBER_OF_ROLE, builder);
+
+        ConnectorObject connectorObject = builder.build();
+
+        LOG.info("convertUserToConnectorObject, user: {0}, \n\tconnectorObject: {1}", user.get("id"), connectorObject);
         return handler.handle(connectorObject);
     }
 
@@ -1118,7 +1117,7 @@ public class UserProcessing extends ObjectProcessing {
         }
 
         JSONObject user = endpoint.executeGetRequest(toGetURLByUserPrincipalName(query)+"/",
-                selectorSingle + "&" + filter, oo, false);
+                selectorSingle + "&" + filter, oo);
 
         return  convertUserJSONObjectToConnectorObject(user);
     }
@@ -1150,23 +1149,22 @@ public class UserProcessing extends ObjectProcessing {
 
     private JSONObject saturateGroupMembership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
-        final List<String> groups = getGraphEndpoint().executeGetRequest(
-                        String.format("/users/%s/memberOf", uid), "$select=id", null, false
-                ).getJSONArray("value").toList().stream()
+        final List<String> groups = getGraphEndpoint().executeListRequest(
+                        String.format("/users/%s/memberOf", uid), "$select=id", null, true)
+                .toList().stream()
                 .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
                 .map(o -> (String) ((Map) o).get(ATTR_ID))
                 .collect(Collectors.toList());
         user.put(ATTR_MEMBER_OF_GROUP, new JSONArray(groups));
-        //user.put(ATTR_MEMBER_OF_GROUP, new JSONArray()); //Comment this line out after putting back in above
         return user;
     }
 
     // Saturate group ownership function
     private JSONObject saturateGroupOwnership(JSONObject user) {
         final String uid = user.getString(ATTR_ID);
-        final List<String> groups = getGraphEndpoint().executeGetRequest(
-                        String.format("/users/%s/ownedObjects", uid), "$select=id", null, false
-                ).getJSONArray("value").toList().stream()
+        final List<String> groups = getGraphEndpoint().executeListRequest(
+                        String.format("/users/%s/ownedObjects", uid), "$select=id", null, true)
+                .toList().stream()
                 .filter(o -> TYPE_GROUP.equals(((Map) o).get(TYPE)))
                 .map(o -> (String) ((Map) o).get(ATTR_ID))
                 .collect(Collectors.toList());
@@ -1174,19 +1172,15 @@ public class UserProcessing extends ObjectProcessing {
         return user;
     }
 
-    private JSONObject saturateRoleMembership(OperationOptions options, JSONObject user) {
+    private JSONObject saturateRoleMembership(JSONObject user) {
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String uid = user.getString(ATTR_ID);
 
-        if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_MEMBER_OF_ROLE)) {
-            LOG.info("[GET] - saturateRoleMembership(), for user with UID: {0}", uid);
+        LOG.info("[GET] - saturateRoleMembership(), for user with UID: {0}", uid);
 
-            //get list of group members
-            final String customQuery = "$filter=principalId eq '" + uid + "'";
-            final JSONObject userMembership = endpoint.executeGetRequest(ROLE_ASSIGNMENT, customQuery, options, false);
-            user.put(ATTR_MEMBER_OF_ROLE, getJSONArray(userMembership, "roleDefinitionId"));
-        }
-
+        final String customQuery = "$select=roleDefinitionId&$filter=principalId eq '" + uid + "'";
+        final JSONArray userMembership = endpoint.executeListRequest(ROLE_ASSIGNMENT, customQuery, null, true);
+        user.put(ATTR_MEMBER_OF_ROLE, getJSONArray(userMembership, "roleDefinitionId"));
         return user;
     }
 

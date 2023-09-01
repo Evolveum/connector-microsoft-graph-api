@@ -5,7 +5,6 @@ import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
-
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
@@ -125,16 +124,7 @@ abstract class ObjectProcessing {
         }
     }
 
-    protected Object getIdFromAssignmentObject(JSONObject object, String attrName, Class<?> type) {
-        JSONArray value;
-
-        try {
-            value = object.getJSONArray("value");
-        } catch (JSONException e) {
-            LOG.info("No objects in JSON Array");
-            return null;
-        }
-
+    protected Object getIdFromAssignmentObject(JSONArray value, String attrName, Class<?> type) {
         int length = value.length();
         LOG.info("JSON Object length: {0}", length);
 
@@ -322,14 +312,8 @@ abstract class ObjectProcessing {
         return allValues.get(0).toString();
     }
 
-    protected final JSONArray getJSONArray(JSONObject objectCollection, String attribute) {
-        final JSONArray arr = objectCollection.getJSONArray("value");
+    protected final JSONArray getJSONArray(JSONArray arr, String attribute) {
         return new JSONArray(arr.toList().stream().map(i -> ((Map) i).get(attribute)).collect(Collectors.toList()));
-    }
-
-    protected final ArrayList<String> getArrayList(JSONObject objectCollection, String attribute) {
-        final JSONArray arr = objectCollection.getJSONArray("value");
-        return arr.toList().stream().map(i -> ((Map) i).get(attribute)).map(Object::toString).collect(Collectors.toCollection(ArrayList::new));
     }
 
     protected void invalidAttributeValue(String attrName, Filter query) {
@@ -523,37 +507,18 @@ abstract class ObjectProcessing {
 
     protected abstract boolean handleJSONObject(OperationOptions options, JSONObject object, ResultsHandler handler);
 
-    protected boolean handleJSONArray(OperationOptions options, JSONObject users, ResultsHandler handler) {
-        String jsonStr = users.toString();
-        JSONObject jsonObj = new JSONObject(jsonStr);
-
-        JSONArray value;
-        try {
-            value = jsonObj.getJSONArray("value");
-        } catch (JSONException e) {
-            LOG.info("No objects in JSON Array");
-            return false;
-        }
-        int length = value.length();
-        LOG.info("jsonObj length: {0}", length);
-
-        for (int i = 0; i < length; i++) {
-            JSONObject user = value.getJSONObject(i);
-            if (!handleJSONObject(options, user, handler))
-                return false;
-        }
-        return true;
+    @FunctionalInterface
+    protected interface JSONObjectHandler {
+        boolean handle(OperationOptions options, JSONObject object);
     }
 
-    protected List<JSONObject> handleJSONArray(JSONObject object) {
-        JSONArray value;
+    protected JSONObjectHandler createJSONObjectHandler(ResultsHandler handler) {
+        return (options, jsonObject) -> handleJSONObject(options, jsonObject, handler);
+    }
+
+    protected List<JSONObject> handleJSONArray(JSONArray value) {
         List<JSONObject> objectList = CollectionUtil.newList();
-        try {
-            value = object.getJSONArray("value");
-        } catch (JSONException e) {
-            LOG.info("No objects in JSON Array");
-            return null;
-        }
+
         int length = value.length();
         LOG.ok("jsonObj length: {0}", length);
 
@@ -581,6 +546,18 @@ abstract class ObjectProcessing {
         return "$select=" + String.join(",", fields);
     }
 
+    protected boolean shouldSaturate(OperationOptions options, String type, String attr) {
+        return !Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(type, options, attr);
+    }
+
+    protected void incompleteIfNecessary(OperationOptions options, String type, String attr, ConnectorObjectBuilder builder) {
+        if (Boolean.TRUE.equals(options.getAllowPartialAttributeValues()) && getSchemaTranslator().containsToGet(type, options, attr)) {
+            AttributeBuilder attrBuilder = new AttributeBuilder();
+            attrBuilder.setName(attr).setAttributeValueCompleteness(AttributeValueCompleteness.INCOMPLETE);
+            attrBuilder.addValue(Collections.EMPTY_LIST);
+            builder.addAttribute(attrBuilder.build());
+        }
+    }
 }
 
 

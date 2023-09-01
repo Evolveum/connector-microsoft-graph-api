@@ -19,6 +19,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
+import org.identityconnectors.common.StringUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
 import org.identityconnectors.framework.common.objects.Attribute;
@@ -40,7 +41,9 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.*;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
@@ -558,132 +561,20 @@ public class GraphEndpoint {
         }
     }
 
-    //paging == false if only 1 result will be returned
-    protected JSONObject executeGetRequest(String path, String customQuery, OperationOptions options, Boolean paging) {
-        LOG.info("executeGetRequest path {0}, customQuery {1}, options: {2}, paging: {3}", path, customQuery, options, paging);
-        final URIBuilder uribuilder = createURIBuilder().clearParameters();
+    protected JSONObject executeGetRequest(String path, String customQuery, OperationOptions options) {
+        LOG.info("executeGetRequest path {0}, customQuery {1}, options: {2}", path, customQuery, options);
+        final URIBuilder uribuilder = createURIBuilder().setPath(path);
 
-        if (customQuery != null && options != null && paging) {
-            /*Integer perPage = options.getPageSize();
-            if (perPage == null) {
-               LOG.info("perPage found null, but paging set to: {0}", paging);
-               perPage = 100;
-            }*/
-            String perPage = configuration.getPageSize();
-            if (perPage != null) {
-                uribuilder.setCustomQuery(customQuery + "&" + TOP + "=" + perPage.toString());
-                LOG.ok("setCustomQuery {0} ", uribuilder.toString());
-            } else {
-                uribuilder.setCustomQuery(customQuery);
-                LOG.ok("setCustomQuery {0} ", uribuilder.toString());
-            }
-
-        } else if (customQuery == null && options != null && paging) {
-            Integer perPage = options.getPageSize();
-            if (perPage != null) {
-                uribuilder.addParameter(TOP, perPage.toString());
-                LOG.info("uribulder.addparamater perPage {0}: ", uribuilder.toString());
-            }
-        } else if (customQuery != null && options != null && !paging) {
+        if (customQuery != null) {
             uribuilder.setCustomQuery(customQuery);
-            LOG.ok("setCustomQuery {0} ", uribuilder.toString());
+            LOG.ok("setCustomQuery {0}", uribuilder);
         }
-
-        LOG.ok("Query parts for URI build:  customQuery: {0}, path {1}", customQuery, path);
-
-        uribuilder.setPath(path);
 
         try {
             URI uri = uribuilder.build();
             LOG.info("uri {0}", uri);
             HttpRequestBase request = new HttpGet(uri);
-            //request.setRetryHandler(new StandardHttpRequestRetryHandler(5, true));
-            JSONObject firstCall = callRequest(request, true);
-
-            //call skipToken for paging
-            if (options != null && paging) {
-                /*Integer page = options.getPagedResultsOffset();
-                LOG.info("Paging enabled, and this page is: {0} ", page);
-                if (page != null) {
-                    if (page == 0 || page == 1) {
-                        LOG.info("Inside returning firstCall");
-                        return firstCall; // no need for skipToken actually returned the first page
-                    } else {
-                        String nextLink;
-                        try {
-                            LOG.info("About to try getting the odata.nextLink");
-                            nextLink = firstCall.getString("@odata.nextLink");
-                        } catch (JSONException e) {
-                            LOG.info("all data returned from the first call, no more data remain to return");
-                            return new JSONObject();
-                        }
-
-                        JSONObject nextLinkJson = null;
-                        for (int count = 1; count < page; count++) {
-                            LOG.info(" count: {0} ; nextLink: {1} ; nextLinkJson: {2} ", count, nextLink, nextLinkJson);
-                            HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
-                            LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
-                            nextLinkJson = callRequest(nextLinkUriRequest, true);
-                            try {
-                                nextLink = nextLinkJson.getString("@odata.nextLink");
-                            } catch (JSONException e) {
-                                LOG.info("all data returned from the {0} call, no more data remain to return", count);
-                                return new JSONObject();
-                            }
-                        }
-                        return nextLinkJson;
-
-                    }
-                }
-                return firstCall;*/
-                JSONArray value = new JSONArray();
-                String nextLink = new String();
-                JSONObject values = new JSONObject();
-                boolean morePages = false;
-                if (firstCall.has("@odata.nextLink") && firstCall.getString("@odata.nextLink") != null && !firstCall.getString("@odata.nextLink").isEmpty()) {
-                    morePages = true;
-                    nextLink = firstCall.getString("@odata.nextLink");
-                    LOG.info("nextLink: {0} ; firstCall: {1} ", nextLink, firstCall);
-                } else {
-                    morePages = false;
-                    LOG.info("No nextLink defined, final page was firstCall");
-                }
-                if (firstCall.has("value") && firstCall.get("value") != null) {
-                    //value.addAll(firstCall.getJSONArray("value"));
-                    for (int i = 0; i < firstCall.getJSONArray("value").length(); i++) {
-                        value.put(firstCall.getJSONArray("value").get(i));
-                    }
-                    LOG.ok("firstCall: {0} ", firstCall);
-                } else {
-                    LOG.info("firstCall contained no value object or the object was null");
-                }
-                while (morePages == true) {
-                    JSONObject nextLinkJson = new JSONObject();
-                    HttpRequestBase nextLinkUriRequest = new HttpGet(nextLink);
-                    LOG.info("nextLinkUriRequest {0}", nextLinkUriRequest);
-                    nextLinkJson = callRequest(nextLinkUriRequest, true);
-                    if (nextLinkJson.has("@odata.nextLink") && nextLinkJson.getString("@odata.nextLink") != null && !nextLinkJson.getString("@odata.nextLink").isEmpty()) {
-                        morePages = true;
-                        nextLink = nextLinkJson.getString("@odata.nextLink");
-                        LOG.info("nextLink: {0} ; nextLinkJson: {1} ", nextLink, nextLinkJson);
-                    } else {
-                        morePages = false;
-                        LOG.info("No nextLink defined, final page");
-                    }
-                    if (nextLinkJson.has("value") && nextLinkJson.get("value") != null) {
-                        //value.addAll(nextLinkJson.getJSONArray("value"));
-                        for (int i = 0; i < nextLinkJson.getJSONArray("value").length(); i++) {
-                            value.put(nextLinkJson.getJSONArray("value").get(i));
-                        }
-                        LOG.info("nextLinkJson: {0} ", nextLinkJson);
-                    } else {
-                        LOG.info("nextLinkJson contained no value object or the object was null");
-                    }
-                }
-                values.put("value", value);
-                return values;
-            } else return firstCall;
-
+            return callRequest(request, true);
 
         } catch (URISyntaxException e) {
             StringBuilder sb = new StringBuilder();
@@ -691,6 +582,99 @@ public class GraphEndpoint {
                     .append(e.getLocalizedMessage());
             throw new ConnectorException(sb.toString(), e);
         }
+    }
+
+    // If the resource indicated by the "path" argument does not support paging, the "paging" argument must be false
+    protected JSONArray executeListRequest(String path, String customQuery, OperationOptions options, boolean paging) {
+        JSONArray value = new JSONArray();
+        executeListRequest(path, customQuery, options, paging, (op, object) -> {
+            value.put(object);
+            return true;
+        });
+        return value;
+    }
+
+    // If the resource indicated by the "path" argument does not support paging, the "paging" argument must be false
+    protected void executeListRequest(String path, String customQuery, OperationOptions options,
+                                      boolean paging, ObjectProcessing.JSONObjectHandler handler) {
+        LOG.info("executeGetRequest path {0}, customQuery {1}, options: {2}", path, customQuery, options);
+        final URIBuilder uribuilder = createURIBuilder().setPath(path);
+
+        StringBuilder query = new StringBuilder();
+        if (customQuery != null) {
+            query.append(customQuery);
+        }
+
+        if (paging) {
+            String pageSize = configuration.getPageSize();
+            if (StringUtil.isNotBlank(pageSize)) {
+                if (customQuery != null) {
+                    query.append("&");
+                }
+                query.append(TOP);
+                query.append("=");
+                query.append(pageSize);
+            }
+        }
+
+        if (query.length() > 0) {
+            uribuilder.setCustomQuery(query.toString());
+            LOG.ok("setCustomQuery {0}", uribuilder);
+        }
+
+        URI uri;
+        try {
+            uri = uribuilder.build();
+        } catch (URISyntaxException e) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("It was not possible create URI from UriBuilder:").append(uriBuilder).append(";")
+                    .append(e.getLocalizedMessage());
+            throw new ConnectorException(sb.toString(), e);
+        }
+
+        // Handle paging if the response contains @odata.nextLink
+        do {
+            HttpRequestBase request = new HttpGet(uri);
+            LOG.info("request {0}", request);
+
+            final JSONObject response = callRequest(request, true);
+
+            if (hasNextLink(response)) {
+                String nextLink = getNextLink(response);
+                LOG.info("nextLink: {0}", nextLink);
+                uri = URI.create(nextLink);
+            } else {
+                LOG.info("No nextLink defined, final page");
+                uri = null;
+            }
+            if (hasJSONArray(response)) {
+                LOG.info("response: {0} ", response);
+                JSONArray jsonArray = getJSONArray(response);
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    if (!handler.handle(options, jsonArray.getJSONObject(i))) {
+                        return;
+                    }
+                }
+            } else {
+                LOG.info("nextLinkJson contained no value object or the object was null");
+            }
+        } while (uri != null);
+    }
+
+    private boolean hasJSONArray(JSONObject object) {
+        return object.has("value") && object.get("value") != null;
+    }
+
+    private JSONArray getJSONArray(JSONObject object) {
+        return object.getJSONArray("value");
+    }
+
+    private boolean hasNextLink(JSONObject object) {
+        return object.has("@odata.nextLink") && object.getString("@odata.nextLink") != null && !object.getString("@odata.nextLink").isEmpty();
+    }
+
+    private String getNextLink(JSONObject object) {
+        return object.getString("@odata.nextLink");
     }
 
     protected void callRequestNoContent(HttpEntityEnclosingRequestBase request, Set<Attribute> attributes, JSONObject jsonObject) {
