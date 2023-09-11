@@ -3,8 +3,12 @@ package com.evolveum.polygon.connector.msgraphapi;
 import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
+import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
+import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.identityconnectors.framework.common.objects.filter.ContainsAllValuesFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
@@ -187,6 +191,19 @@ public class GroupProcessing extends ObjectProcessing {
             LOG.info("Path: {0}", uri);
             request = new HttpPost(uri);
             JSONObject jsonObject1 = buildLayeredAttributeJSON(attributes);
+
+            // For historical reason, Groups are allowed to duplicate displayName (Reference: https://morgansimonsen.com/2016/06/28/azure-ad-allows-duplicate-group-names/).
+            // However, Microsoft strives to avoid group created with duplicated names. For example, duplicate Group creation from the UI will result in an error.
+            // Unfortunately, Microsoft Graph v1.0 does not perform duplicate name checking, so we have to implement here.
+            //
+            // Note: As Group creation is eventual consistency, the existence check here does not work well for
+            // freshly created Groups and will result in the creation of duplicate Groups.
+            // This is unavoidable due to the system design of Azure AD.
+            // (Reference: https://github.com/MicrosoftDocs/azure-docs/issues/94121#issuecomment-1191792188)
+            if (isExist(jsonObject1.getString(getNameAttribute()))) {
+                throw new AlreadyExistsException("Another object with the same value for property displayName already exists");
+            }
+
             jsonAnswer = endpoint.callRequest(request, jsonObject1, true);
 
 
@@ -213,6 +230,32 @@ public class GroupProcessing extends ObjectProcessing {
 
 
         return new Uid(newUid);
+    }
+
+    protected boolean isExist(String displayName) {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final String query = new StringBuilder()
+                .append("$filter=")
+                .append(getNameAttribute())
+                .append(" eq '")
+                .append(displayName.replace("'", "''"))
+                .append("'")
+                .append("&$select=")
+                .append(getNameAttribute())
+                .toString();
+        final JSONObject groups = endpoint.executeGetRequest(GROUPS, query, new OperationOptionsBuilder().build(), false);
+
+        JSONArray value;
+        try {
+            value = groups.getJSONArray("value");
+        } catch (JSONException e) {
+            throw new ConnectorException("No groups in JSON Array");
+        }
+        if (value.isEmpty()) {
+            return false;
+        }
+        String s = value.getJSONObject(0).getString(getNameAttribute());
+        return displayName.equalsIgnoreCase(s);
     }
 
     protected void delete(Uid uid) {
@@ -433,6 +476,7 @@ public class GroupProcessing extends ObjectProcessing {
         endpoint.callRequest(request, false);
     }
 
+
     public void executeQueryForGroup(ResourceQuery translatedQuery, Boolean fetchSpecific, ResultsHandler handler, OperationOptions options) {
         LOG.ok("Processing executeQuery operation for the objectClass {0}", ObjectClass.GROUP_NAME);
         final GraphEndpoint endpoint = getGraphEndpoint();
@@ -441,115 +485,63 @@ public class GroupProcessing extends ObjectProcessing {
         Boolean fetchAll = false;
 
         if (translatedQuery != null) {
+
             query = translatedQuery.toString();
+
             if (query != null && !query.isEmpty()) {
+
             } else {
                 if (translatedQuery.hasIdOrMembershipExpression()) {
+                    query = translatedQuery.getIdOrMembershipExpression();
                 } else {
+
                     fetchAll = true;
                 }
+
             }
+
         } else {
+
             fetchAll = true;
+
         }
 
         if (!fetchAll) {
+
             if (fetchSpecific) {
                 LOG.info("Fetching object info for object: {0}", query);
+
                 StringBuilder sbPath = new StringBuilder();
+
                 sbPath.append(GROUPS).append("/").append(query);
                 JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
                 handleJSONObject(options, group, handler);
             } else {
+
                 if (translatedQuery.hasIdOrMembershipExpression()) {
+
                     LOG.ok("The constructed filter to be used: {0}", query);
-                    JSONObject groups = endpoint.executeGetRequest(translatedQuery.getIdOrMembershipExpression(), query, options,true);
+                    JSONObject groups = endpoint.executeGetRequest(translatedQuery.getIdOrMembershipExpression(), query, options,
+                            true);
                     handleJSONArray(options, groups, handler);
+
                 } else {
+
                     LOG.ok("The constructed filter about to being used: {0}", query);
                     JSONObject groups = endpoint.executeGetRequest(GROUPS, query, options, true);
                     handleJSONArray(options, groups, handler);
                 }
             }
+
         } else {
+
             LOG.info("Empty query, returning full list of objects for the {0} object class", ObjectClass.GROUP_NAME);
+
             JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
             handleJSONArray(options, groups, handler);
         }
     }
 
-/*
-    // tuto metodu treba upravit do metody vyssie a nasledne odmazat
-        public void executeQueryForGroup(Filter query, ResultsHandler handler, OperationOptions options) {
-        LOG.info("executeQueryForGroup() Query: {0}", query);
-        final GraphEndpoint endpoint = getGraphEndpoint();
-        if (query instanceof EqualsFilter) {
-            final EqualsFilter equalsFilter = (EqualsFilter) query;
-            final String attributeName = equalsFilter.getAttribute().getName();
-            LOG.info("Query is instance of EqualsFilter: {0}", query);
-            if (equalsFilter.getAttribute() instanceof Uid) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Uid");
-
-                Uid uid = (Uid) ((EqualsFilter) query).getAttribute();
-                if (uid.getUidValue() == null) {
-                    invalidAttributeValue("Uid", query);
-                }
-                StringBuilder sbPath = new StringBuilder();
-                sbPath.append(GROUPS).append("/").append(uid.getUidValue());
-
-                JSONObject group = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
-                handleJSONObject(options, group, handler);
-            } else if (equalsFilter.getAttribute() instanceof Name) {
-                LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
-
-                Name name = (Name) ((EqualsFilter) query).getAttribute();
-                String nameValue = name.getNameValue();
-                if (nameValue == null) {
-                    invalidAttributeValue("Name", query);
-                }
-                final String customQuery = "$filter=" + ATTR_DISPLAYNAME + " eq '" + nameValue + "'";
-                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(options, groups, handler);
-            } else if (ATTR_DISPLAYNAME.equals(attributeName) || ATTR_MAILNICKNAME.equals(attributeName)) {
-                final String attributeValue = getAttributeFirstValue(equalsFilter);
-                final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
-                final JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(options, groups, handler);
-            }
-        } else if (query instanceof ContainsFilter) {
-            LOG.info("Query is instance of ContainsFilter: {0}", query);
-            final ContainsFilter containsFilter = (ContainsFilter) query;
-            final String attributeName = containsFilter.getAttribute().getName();
-            final String attributeValue = getAttributeFirstValue(containsFilter);
-            if (Arrays.asList(ATTR_DISPLAYNAME, ATTR_MAIL, ATTR_MAILNICKNAME).contains(attributeName)) {
-                String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-                JSONObject groups = endpoint.executeGetRequest(GROUPS, customQuery, options, true);
-                handleJSONArray(options, groups, handler);
-            }
-        } else if (query instanceof ContainsAllValuesFilter) {
-           LOG.info("Query is instance of ContainsAllValuesFilter: {0}", query);
-           final ContainsAllValuesFilter containsAllValuesFilter = (ContainsAllValuesFilter) query;
-           final String attributeName = containsAllValuesFilter.getAttribute().getName();
-           final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
-           LOG.info("containsAllValuesFilter name is: {0} and value is: {1}", attributeName, attributeValue);
-
-           String pathSegmentFromAttrName;
-           if (attributeName.equals("members")) {
-               pathSegmentFromAttrName = "memberOf";
-           } else {
-               pathSegmentFromAttrName = "ownedObjects";
-           }
-
-           String getPath = USERS + "/" + attributeValue + "/" + pathSegmentFromAttrName + "/microsoft.graph.group";
-           JSONObject groups = endpoint.executeGetRequest(getPath, null, options,false);
-           handleJSONArray(options, groups, handler);
-        } else if (query == null) {
-           LOG.info("Query is null");
-            JSONObject groups = endpoint.executeGetRequest(GROUPS, null, options, true);
-            handleJSONArray(options, groups, handler);
-        }
-    }
- */
     /**
      * Query a group's members and owners, add them to the group's JSON attributes (multivalue)
      *

@@ -670,7 +670,8 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
     }
 
     private String wrapValue(String s) {
-
+        // Escape single quote
+        s = s.replace("'", "''");
         s = _VALUE_WRAPPER + s + _VALUE_WRAPPER;
 
         return s;
@@ -810,7 +811,8 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             query.append(name);
             query.append(":");
-            query.append(singleValue);
+            // Escape double quote
+            query.append(singleValue.replace("\"", "\\\""));
 
         }
 

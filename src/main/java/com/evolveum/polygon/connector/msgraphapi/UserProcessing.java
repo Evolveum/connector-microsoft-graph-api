@@ -1141,7 +1141,7 @@ public class UserProcessing extends ObjectProcessing {
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
             user = saturateRoleMembership(options, user);
         }
-        
+
         if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
             user = saturatePhoto(options, user);
         }

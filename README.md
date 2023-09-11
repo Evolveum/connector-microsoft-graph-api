@@ -5,7 +5,7 @@ This is midPoint/ConnId connector for Microsoft Graph API. It is meant to manage
 See https://wiki.evolveum.com/display/midPoint/Microsoft+Graph+API+Connector
 
 
-##Build with Maven
+## Build with Maven
 
 * download Microsoft Graph API connector source code from github
 * build connector with maven: 
@@ -14,12 +14,12 @@ mvn clean install -Dmaven.test.skip=true
 ```
 * find connector-msgraph-{version}.jar in ```\target``` folder
 
-##Installation
+## Installation
 
 * put connector-msgraph-{version}.jar to ```{midPoint_home}\icf-connectors\``` directory
 * run/restart midPoint 
  
-##Config
+## Config
 
 * Import of SSL certificates is needed. Download current DigiCert Global Root G2 and DigiCert Global Root CA certificate in .der format and after that you must import it to midPoint keystore.jceks:
 ```
@@ -29,43 +29,28 @@ keytool -keystore keystore.jceks -storetype jceks -storepass changeit -import -a
 * add all DELEGATED permissions - see Permissions.
 * fill all required Configuration properties in resource (clientId, clientSecret, tenantId) - see also samples.
 
-##Permissions
+## Permissions
 
 This are permissions which you need to add to your Azure Active Directory application for midPoint:
- 
-* Directory.Read.All -> Delegated persmission
-* Directory.REadWrite.All -> Delegated permission
-* Group.Create -> Application permission
-* Group.Read.All -> Delegated permission
-* Group.Read.All -> Aplication permision
-* Group.ReadWrite.All -> Delegated permission
-* Group.ReadWrite.All -> Application permission
-* Group.Selected ->Application permission
-* GroupMember.Read.All -> Delegated permission
-* GroupMember.Read.All -> Application permission
-* GroupMember.ReadWrite.All -> Delegated permission
-* GroupMember.ReadWrite.All -> Application permission
-* PrivilegedAccess.Read.AsureADGroup -> Delegated permission
-* PrivilegedAccess.Read.AsureADGroup -> Application permission
-* PrivilegedAccess.ReadWrite.AsureADGroup -> Delegated permission
-* PrivilegedAccess.ReadWrite.AsureADGroup -> Application permission
-* User.Read -> Delegated permission
-* User.Read.All -> Delegated permission
-* User.Read.All -> Application permission
-* User.ReadWrite.All -> Delegated permission
-* User.ReadWrite.All -> Application permission
-###For SharePoint you need also:
-* User.Read.All -> Delegated permission
-* User.ReadWrite.All -> Delegated permission
-###For Role membership management you need also:
-* EntitlementManagement.Read.All -> Application permission 
-* EntitlementManagement.ReadWrite.All -> Application permission 
-* RoleManagement.Read.Directory -> Application permission 
-* RoleManagement.ReadWrite.Directory -> Application permission
+### Application Permission
+#### Required
+* Directory.Read.All
+* Directory.ReadWrite.All
+* Group.Create
+* Group.Read.All
+* Group.ReadWrite.All
+* Group.Selected
+* GroupMember.Read.All
+* GroupMember.ReadWrite.All
+* PrivilegedAccess.Read.AzureADGroup
+* PrivilegedAccess.ReadWrite.AzureADGroup
+* User.Read.All
+* User.ReadWrite.All
+#### Optional: Role Membership Management
+* EntitlementManagement.Read.All 
+* EntitlementManagement.ReadWrite.All 
+* RoleManagement.Read.Directory 
+* RoleManagement.ReadWrite.Directory
 
-##Resource Examples
-* AAD-resource.xml - sample resource.
-* AAD Account.xml - sample role to creeate account in  Azure Active Directory with user location.
-* AAD Metarole for Office 365 groups.xml - metarole for Office 365 groups.
-* ADD Metarole for Security groups.xml - metarole for Security groups.
-see [/sample folder](https://github.com/artinsolutions/connector-microsoft-graph-api/tree/master/sample)
+## Resource Examples
+see [midpoint-samples - Microsoft Graph Connector](https://github.com/Evolveum/midpoint-samples/tree/master/samples/resources/msgraph)

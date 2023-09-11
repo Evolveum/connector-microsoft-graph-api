@@ -15,7 +15,7 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
+
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.HttpContext;
@@ -512,7 +512,7 @@ public class GraphEndpoint {
         }
 
     }
-    
+
     private JSONObject callRequestPhoto(HttpRequestBase request) {
         String result;
 
