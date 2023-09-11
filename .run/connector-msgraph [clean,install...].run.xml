@@ -8,7 +8,7 @@
           <option name="environmentProperties">
             <map />
           </option>
-          <option name="jreName" value="corretto-17" />
+          <option name="jreName" value="openjdk-17" />
           <option name="mavenProperties">
             <map />
           </option>
