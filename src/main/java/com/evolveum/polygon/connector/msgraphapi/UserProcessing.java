@@ -1270,7 +1270,7 @@ public class UserProcessing extends ObjectProcessing {
         if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_USERPHOTO)) {
             LOG.info("[GET] - /photo/$value, for user with UID: {0}", uid);
             String photoPath = USERS + "/" + uid + "/" + ATTR_USERPHOTO + "/$value";
-            final JSONObject userPhoto = endpoint.executeGetRequest(photoPath, null, options, false);
+            final JSONObject userPhoto = endpoint.executeGetRequest(photoPath, null, options);
             if (userPhoto.length() != 0)
                 user.put(ATTR_USERPHOTO, userPhoto.get("data"));
         }
