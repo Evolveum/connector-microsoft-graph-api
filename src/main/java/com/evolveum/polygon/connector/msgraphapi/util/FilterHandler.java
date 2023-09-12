@@ -107,7 +107,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
         Iterator<String> keyIterator = items.iterator();
 
         LOG.ok("Evaluation of AND filter expression: {0}. With previously constructed filter snippet: {1}",
-                andFilter, p.toString());
+                andFilter, p);
         while (keyIterator.hasNext()) {
 
             String snipp = keyIterator.next();
@@ -167,7 +167,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
         if (wasFirst) {
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -202,7 +202,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
         if (!afterFirtsOperation) {
             p.setSearchExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -282,7 +282,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -317,7 +317,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -342,7 +342,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -368,7 +368,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -379,8 +379,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
     @Override
     public ResourceQuery visitLessThanOrEqualFilter(ResourceQuery p, LessThanOrEqualFilter lessThanOrEqualFilter) {
 
-        LOG.ok("Processing through LESS THAN OR EQUAL FILTER filter expression"
-                , p);
+        LOG.ok("Processing through LESS THAN OR EQUAL FILTER filter expression");
 
         if (afterFirtsOperation) {
             checkFilterConditions();
@@ -395,7 +394,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -406,7 +405,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
     @Override
     public ResourceQuery visitNotFilter(ResourceQuery p, NotFilter notFilter) {
 
-        LOG.ok("Processing through NOT filter expression {0}:", notFilter);
+        LOG.ok("Processing through NOT filter expression {0}", notFilter);
 
         Boolean wasFirst = !afterFirtsOperation;
 
@@ -423,7 +422,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
         Map<String, CategorizedFilter> processed = processCompositeFilter(filters, p);
 
         LOG.ok("Evaluating NOT filter expression {0}. With previously constructed filter snippet: {1}",
-                notFilter, p.toString());
+                notFilter, p);
 
         if (!processed.isEmpty()) {
             for (String snipp : processed.keySet()) {
@@ -482,15 +481,14 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
                 }
             }
         } else {
-
-            LOG.warn("Invalid filter state, potentially malformed query snippet: {0}", query.toString());
+            LOG.warn("Invalid filter state, potentially malformed query snippet: {0}", query);
         }
 
           if (wasFirst) {
 
             p.setFilterExpression(query.toString());
 
-            LOG.ok("Generated final query snippet: {0}", p.toString());
+            LOG.ok("Generated final query snippet: {0}", p);
             return p;
         }
 
@@ -536,7 +534,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
         Iterator<String> keyIterator = items.iterator();
 
         LOG.ok("Evaluation of OR filter expression: {0}. With previously constructed filter snippet: {1}",
-                orFilter, p.toString());
+                orFilter, p);
 
         while (keyIterator.hasNext()) {
 
@@ -595,8 +593,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
         }
 
         if (wasFirst) {
-
-            LOG.ok("Generated query snippet for OR OP used: {0}", p.toString());
+            LOG.ok("Generated query snippet for OR OP used: {0}", p);
             return p;
         }
 
@@ -627,7 +624,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 
@@ -654,7 +651,7 @@ public class FilterHandler implements FilterVisitor<ResourceQuery, ResourceQuery
 
             p.setFilterExpression(snippet);
 
-            LOG.ok("Generated query snippet: {0}", p.toString());
+            LOG.ok("Generated query snippet: {0}", p);
             return p;
         }
 

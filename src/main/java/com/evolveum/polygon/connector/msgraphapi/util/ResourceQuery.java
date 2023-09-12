@@ -118,35 +118,36 @@ public class ResourceQuery {
 
         return "";
     }
-@Override
-public String toString() {
 
-    //   evaluateAggregated();
+    @Override
+    public String toString() {
 
-    if (!(filterExpression != null && !filterExpression.isEmpty()) && !(searchExpression != null &&
-            !searchExpression.isEmpty())) {
+        //   evaluateAggregated();
 
-        return null;
+        if (!(filterExpression != null && !filterExpression.isEmpty()) && !(searchExpression != null &&
+                !searchExpression.isEmpty())) {
+
+            return null;
+        }
+
+        if ((filterExpression != null && !filterExpression.isEmpty()) && (searchExpression != null &&
+                !searchExpression.isEmpty())) {
+
+            String returnExpression = $_FILTER + filterExpression + _AMP + $_SEARCH + searchExpression;
+
+            return returnExpression;
+        }
+
+        if (filterExpression != null && !filterExpression.isEmpty()) {
+
+            String returnExpression = $_FILTER + filterExpression + appendCount();
+
+            return returnExpression;
+        }
+
+
+        return $_SEARCH + searchExpression;
     }
-
-    if ((filterExpression != null && !filterExpression.isEmpty()) && (searchExpression != null &&
-            !searchExpression.isEmpty())) {
-
-        String returnExpression = $_FILTER + filterExpression + _AMP + $_SEARCH + searchExpression;
-
-        return returnExpression;
-    }
-
-    if (filterExpression != null && !filterExpression.isEmpty()) {
-
-        String returnExpression = $_FILTER + filterExpression + appendCount();
-
-        return returnExpression;
-    }
-
-
-    return $_SEARCH + searchExpression;
-}
 
 
     private void evaluateAggregated() {

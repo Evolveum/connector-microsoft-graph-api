@@ -17,7 +17,7 @@ public class RoleProcessing extends ObjectProcessing {
     public static final String ROLE_NAME = "Role";
     public static final ObjectClass ROLE = new ObjectClass(ROLE_NAME);
 
-    private final static String ROLES = "/roleManagement/directory/roleDefinitions";
+    private final static String ROLES = "/roleManagement/directory/roleDefinitions"; // Paging is not supported
     private final static String ROLE_ASSIGNMENT = "/roleManagement/directory/roleAssignments";
     private final static String USERS = "/users";
 
@@ -159,7 +159,7 @@ public class RoleProcessing extends ObjectProcessing {
                     json.put("directoryScopeId", directoryScopeId);
                     json.put("roleDefinitionId", roleDefinitionId);
 
-                    LOG.ok("json: {0}", json.toString());
+                    LOG.ok("json: {0}", json);
                     postRequestNoContent(sbPath.toString(), json);
                 }
             }
@@ -193,7 +193,7 @@ public class RoleProcessing extends ObjectProcessing {
         json.put("directoryScopeId", directoryScopeId);
         json.put("roleDefinitionId", roleDefinitionId);
 
-        LOG.ok("json: {0}", json.toString());
+        LOG.ok("json: {0}", json);
         postRequestNoContent(sbPath.toString(), json);
     }
 
@@ -208,19 +208,19 @@ public class RoleProcessing extends ObjectProcessing {
     }
 
     private void removeMemberFromRole(Uid uid, Attribute attribute, OperationOptions options) {
-        LOG.info("addOrRemoveMember {0} , {1} ", uid, attribute);
+        LOG.info("addOrRemoveMember {0} , {1}", uid, attribute);
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(ROLE_ASSIGNMENT);
 
         String roleDefinitionId = uid.getUidValue();
         String principalId = AttributeUtil.getAsStringValue(attribute);
         String roleAssignmentId = getRoleAssignmentId(options, roleDefinitionId, principalId);
-        LOG.info("executeDeleteOperation principalId: {0} , sbPath.toString: {1} ", principalId, sbPath.toString());
+        LOG.info("executeDeleteOperation principalId: {0} , sbPath: {1}", principalId, sbPath);
         executeDeleteOperation(roleAssignmentId, sbPath.toString());
     }
 
     private void postRequestNoContent(String path, JSONObject json) {
-        LOG.info("path: {0} , json {1}, ", path, json);
+        LOG.info("path: {0} , json: {1}", path, json);
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(path);
         final URI uri = endpoint.getUri(uriBuilder);
@@ -243,7 +243,7 @@ public class RoleProcessing extends ObjectProcessing {
 
                     String principalId = (String) removeValue;
                     String roleAssignmentId = getRoleAssignmentId(options, roleDefinitionId, principalId);
-                    LOG.info("executeDeleteOperation principalId: {0} , sbPath.toString: {1} ", principalId, sbPath.toString());
+                    LOG.info("executeDeleteOperation principalId: {0} , sbPath: {1}", principalId, sbPath);
                     executeDeleteOperation(roleAssignmentId, sbPath.toString());
                 }
             }
@@ -283,8 +283,8 @@ public class RoleProcessing extends ObjectProcessing {
                 StringBuilder sbPath = new StringBuilder();
                 sbPath.append(ROLES).append("/").append(uid.getUidValue());
 
-                JSONObject roles = endpoint.executeGetRequest(sbPath.toString(), null, options, false);
-                handleJSONObject(options, roles, handler);
+                JSONObject role = endpoint.executeGetRequest(sbPath.toString(), null, options);
+                handleJSONObject(options, role, handler);
             } else if (equalsFilter.getAttribute() instanceof Name) {
                 LOG.info("((EqualsFilter) query).getAttribute() instanceof Name");
 
@@ -294,13 +294,13 @@ public class RoleProcessing extends ObjectProcessing {
                     invalidAttributeValue("Name", query);
                 }
                 final String customQuery = "$filter=" + ATTR_DISPLAY_NAME + " eq '" + nameValue + "'";
-                final JSONObject roles = endpoint.executeGetRequest(ROLES, customQuery, options, true);
-                handleJSONArray(options, roles, handler);
+                // Paging is not supported
+                endpoint.executeListRequest(ROLES, customQuery, options, false, createJSONObjectHandler(handler));
             } else if (ATTR_DISPLAY_NAME.equals(attributeName)) {
                 final String attributeValue = getAttributeFirstValue(equalsFilter);
                 final String customQuery = "$filter=" + attributeName + " eq '" + attributeValue + "'";
-                final JSONObject roles = endpoint.executeGetRequest(ROLES, customQuery, options, true);
-                handleJSONArray(options, roles, handler);
+                // Paging is not supported
+                endpoint.executeListRequest(ROLES, customQuery, options, false, createJSONObjectHandler(handler));
             }
         } else if (query instanceof ContainsFilter) {
             LOG.info("Query is instance of ContainsFilter: {0}", query);
@@ -309,8 +309,8 @@ public class RoleProcessing extends ObjectProcessing {
             final String attributeValue = getAttributeFirstValue(containsFilter);
             if (Arrays.asList(ATTR_DISPLAY_NAME).contains(attributeName)) {
                 String customQuery = "$filter=" + STARTSWITH + "(" + attributeName + ",'" + attributeValue + "')";
-                JSONObject roles = endpoint.executeGetRequest(ROLES, customQuery, options, true);
-                handleJSONArray(options, roles, handler);
+                // Paging is not supported
+                endpoint.executeListRequest(ROLES, customQuery, options, false, createJSONObjectHandler(handler));
             }
         } else if (query instanceof ContainsAllValuesFilter) {
             LOG.info("[QUERY] - ContainsAllValuesFilter - query: {0}", query);
@@ -319,64 +319,51 @@ public class RoleProcessing extends ObjectProcessing {
             final String attributeValue = getAttributeFirstValue(containsAllValuesFilter);
             LOG.info("[QUERY] - ContainsAllValuesFilter - name is: {0} and value is: {1}", attributeName, attributeValue);
 
-            ArrayList<String> roleUIDs = saturateUserRoleMembership(options, attributeValue);
-            JSONObject groups = new JSONObject();
-            groups.put("value", new JSONArray());
+            listUserRoleMembership(options, attributeValue, (opt, object) -> {
+                String roleUID = object.getString("roleDefinitionId");
+                LOG.info("[QUERY] - ContainsAllValuesFilter - roleUID: {0}", roleUID);
 
-            LOG.info("[QUERY] - ContainsAllValuesFilter - roleUIDs: {0}", roleUIDs);
-
-            for (String roleUID : roleUIDs) {
                 String getPath = ROLES + "/" + roleUID;
-                JSONObject group = endpoint.executeGetRequest(getPath, null, options, false);
-                groups.append("value", group);
-            }
+                JSONObject role = endpoint.executeGetRequest(getPath, null, options);
 
-            LOG.info("[QUERY] - ContainsAllValuesFilter - groups: {0}", groups);
-
-            handleJSONArray(options, groups, handler);
+                return handleJSONObject(opt, role, handler);
+            });
         } else if (query == null) {
             LOG.info("Query is null");
-            JSONObject roles = endpoint.executeGetRequest(ROLES, null, options, true);
-            handleJSONArray(options, roles, handler);
+            // Paging is not supported
+            endpoint.executeListRequest(ROLES, null, options, false, createJSONObjectHandler(handler));
         }
     }
 
     /**
      * Query a role's members, add them to the group's JSON attributes (multivalue)
      *
-     * @param options Operation options
      * @param role Role to query for (JSON object resulting from previous API call)
      *
      * @return Original JSON, enriched with member information
      */
-    private JSONObject saturateRoleMembership(OperationOptions options, JSONObject role) {
+    private JSONObject saturateRoleMembership(JSONObject role) {
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String uid = role.getString(ATTR_ID);
 
-        if (getSchemaTranslator().containsToGet(RoleProcessing.ROLE_NAME, options, ATTR_MEMBERS)) {
-            LOG.info("[GET] - saturateRoleMembership(), for role with UID: {0}", uid);
+        LOG.info("[GET] - saturateRoleMembership(), for role with UID: {0}", uid);
 
-            //get list of role members
-            final String customQuery = "$filter=roleDefinitionId eq '" + uid + "'";
-            final JSONObject roleMembers = endpoint.executeGetRequest(ROLE_ASSIGNMENT, customQuery, options, false);
-            role.put(ATTR_MEMBERS, getJSONArray(roleMembers, "principalId"));
-        }
+        //get list of role members
+        final String customQuery = "$select=principalId&$filter=roleDefinitionId eq '" + uid + "'";
+        final JSONArray roleMembers = endpoint.executeListRequest(ROLE_ASSIGNMENT, customQuery, null, true);
+        role.put(ATTR_MEMBERS, getJSONArray(roleMembers, "principalId"));
 
         return role;
     }
 
-    private ArrayList<String> saturateUserRoleMembership(OperationOptions options, String principalId) {
+    private void listUserRoleMembership(OperationOptions options, String principalId, JSONObjectHandler handler) {
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        LOG.info("[GET] - saturateUsersRoleMembership(), for user with UID: {0}", principalId);
+        LOG.info("[GET] - listUserRoleMembership(), for user with UID: {0}", principalId);
 
         //get list of roles where the user is memberOf
-        final String customQuery = "$filter=principalId eq '" + principalId + "'";
-        final JSONObject roleMembers = endpoint.executeGetRequest(ROLE_ASSIGNMENT, customQuery, options, false);
-
-        LOG.info("[GET] - roleMembers: {0}", roleMembers);
-
-        return getArrayList(roleMembers, "roleDefinitionId");
+        final String customQuery = "$select=roleDefinitionId&$filter=principalId eq '" + principalId + "'";
+        endpoint.executeListRequest(ROLE_ASSIGNMENT, customQuery, options, true, handler);
     }
 
     private String getRoleAssignmentId(OperationOptions options, String roleDefinitionId, String principalId) {
@@ -385,8 +372,8 @@ public class RoleProcessing extends ObjectProcessing {
         LOG.info("[GET] - getRoleAssignmentId(), for role with UID: {0}", roleDefinitionId);
 
         //get exactly one roleAssignment by roleDefinitionId and principalId
-        final String customQuery = "$filter=roleDefinitionId eq '" + roleDefinitionId + "' and principalId eq '" + principalId + "'";
-        final JSONObject roleMembers = endpoint.executeGetRequest(ROLE_ASSIGNMENT, customQuery, options, false);
+        final String customQuery = "$select=id&$filter=roleDefinitionId eq '" + roleDefinitionId + "' and principalId eq '" + principalId + "'";
+        final JSONArray roleMembers = endpoint.executeListRequest(ROLE_ASSIGNMENT, customQuery, options, true);
 
         LOG.info("[GET] - roleMembers: {0}", roleMembers);
 
@@ -397,12 +384,16 @@ public class RoleProcessing extends ObjectProcessing {
     protected boolean handleJSONObject(OperationOptions options, JSONObject role, ResultsHandler handler) {
         LOG.info("processingRoleObjectFromGET (Object)");
 
-        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
-            role = saturateRoleMembership(options, role);
+        if (shouldSaturate(options, RoleProcessing.ROLE_NAME, ATTR_MEMBERS)) {
+            role = saturateRoleMembership(role);
         }
 
-        final ConnectorObject connectorObject = convertRoleJSONObjectToConnectorObject(role).build();
-        LOG.info("processingRoleObjectFromGET, role: {0}, \n\tconnectorObject: {1}", role.get("id"), connectorObject.toString());
+        ConnectorObjectBuilder builder = convertRoleJSONObjectToConnectorObject(role);
+
+        incompleteIfNecessary(options, RoleProcessing.ROLE_NAME, ATTR_MEMBERS, builder);
+
+        final ConnectorObject connectorObject = builder.build();
+        LOG.info("processingRoleObjectFromGET, role: {0}, \n\tconnectorObject: {1}", role.get("id"), connectorObject);
         return handler.handle(connectorObject);
     }
 

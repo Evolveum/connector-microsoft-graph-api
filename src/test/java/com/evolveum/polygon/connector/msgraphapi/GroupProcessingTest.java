@@ -28,7 +28,7 @@ public class GroupProcessingTest extends BasicConfigurationForTests {
     @Test
     public void testParseGroupMembers() throws Exception {
         final JSONObject membersJson = parseResource("groupMembers.json");
-        final JSONArray jarr = groupProcessing.getJSONArray(membersJson, "id");
+        final JSONArray jarr = groupProcessing.getJSONArray(membersJson.getJSONArray("value"), "id");
         final List<Object> ids = jarr.toList();
         Assert.assertEquals(2, ids.size());
         Assert.assertEquals("9639bcbc-0089-4855-a793-44b940e52286", ids.get(0));
