@@ -18,6 +18,7 @@ import org.identityconnectors.framework.common.objects.SchemaBuilder;
 import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 
@@ -119,8 +120,8 @@ public class LicenseProcessing extends ObjectProcessing {
 
     private void get(ResultsHandler handler, String skuId, OperationOptions options) {
         final GraphEndpoint endpoint = getGraphEndpoint();
-        JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS + "/" + skuId, SELECTOR_FULL, options, false);
-        LOG.info("JSONObject license {0}", json.toString());
+        JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS + "/" + skuId, SELECTOR_FULL, options);
+        LOG.info("JSONObject license {0}", json);
         handleJSONObject(options, json, handler);
     }
 
@@ -129,15 +130,15 @@ public class LicenseProcessing extends ObjectProcessing {
         String selector = SELECTOR_FULL;
         if (options != null && options.getAllowPartialAttributeValues() != null && options.getAllowPartialAttributeValues())
             selector = SELECTOR_PARTIAL;
-        JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS, selector, options, false);
-        LOG.info("JSONObject license {0}", json.toString());
-        handleJSONArray(options, json, handler);
+        // Paging is not supported
+        endpoint.executeListRequest(GRAPH_SUBSCRIBEDSKUS, selector, options, false, createJSONObjectHandler(handler));
     }
 
     public List<JSONObject> list() {
         final GraphEndpoint endpoint = getGraphEndpoint();
-        JSONObject json = endpoint.executeGetRequest(GRAPH_SUBSCRIBEDSKUS, SELECTOR_FULL, null, false);
-        LOG.info("JSONObject license {0}", json.toString());
+        // Paging is not supported
+        JSONArray json = endpoint.executeListRequest(GRAPH_SUBSCRIBEDSKUS, SELECTOR_FULL, null, false);
+        LOG.info("JSONObject license {0}", json);
         return handleJSONArray(json);
     }
 
