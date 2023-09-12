@@ -47,6 +47,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
