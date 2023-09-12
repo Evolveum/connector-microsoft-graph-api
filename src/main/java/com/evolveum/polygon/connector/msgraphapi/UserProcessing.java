@@ -1,7 +1,6 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
 import com.evolveum.polygon.common.GuardedStringAccessor;
-import com.google.gson.JsonArray;
 import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.*;

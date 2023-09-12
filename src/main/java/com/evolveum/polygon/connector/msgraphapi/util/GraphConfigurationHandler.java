@@ -3,7 +3,6 @@ package com.evolveum.polygon.connector.msgraphapi.util;
 import org.apache.commons.lang3.StringUtils;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
-import org.identityconnectors.framework.common.exceptions.ConnectorException;
 
 public class GraphConfigurationHandler {
 

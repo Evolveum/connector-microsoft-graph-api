@@ -21,20 +21,15 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.identityconnectors.common.StringUtil;
-import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.*;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.identityconnectors.framework.common.objects.Uid;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.awt.image.BufferedImage;
-
 import javax.net.ssl.*;
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -52,8 +47,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
-
-import javax.imageio.ImageIO;
 
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.LOG;
 import static com.evolveum.polygon.connector.msgraphapi.ObjectProcessing.TOP;
