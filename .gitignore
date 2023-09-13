@@ -31,3 +31,4 @@ hs_err_pid*
 
 # Apache Maven
 target
+/src/test/resources/testProperties/propertiesForTestInternal.properties
