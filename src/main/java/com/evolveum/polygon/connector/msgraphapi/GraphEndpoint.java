@@ -424,6 +424,15 @@ public class GraphEndpoint {
         if (statusCode == 400 && message.contains("Another object with the same value for property userPrincipalName already exists.")) {
             throw new AlreadyExistsException(message);
         }
+
+        if (statusCode == 400 && message.contains("Another object with the same value for property proxyAddresses already exists")) {
+            throw new AlreadyExistsException(message);
+        }
+
+        if ((statusCode == 400 || statusCode == 404) && message.contains("Property netId is invalid") && this.configuration.getTreatNetIdAsAlreadyExists()){
+            LOG.info("Treating 'Property netId is invalid' as alreadyExists");
+            throw new AlreadyExistsException(message);
+        }
         if (statusCode == 400 && message.contains("The specified password does not comply with password complexity requirements.")) {
             throw new InvalidPasswordException(message);
         }
