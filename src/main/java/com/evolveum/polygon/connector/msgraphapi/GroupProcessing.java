@@ -10,6 +10,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -50,10 +51,15 @@ public class GroupProcessing extends ObjectProcessing {
     }
 
     @Override
+    protected String type() {
+        return ObjectClass.GROUP_NAME;
+    }
+
+    @Override
     protected ObjectClassInfo objectClassInfo() {
         ObjectClassInfoBuilder groupObjClassBuilder = new ObjectClassInfoBuilder();
 
-        groupObjClassBuilder.setType(ObjectClass.GROUP_NAME);
+        groupObjClassBuilder.setType(type());
 
         //required
 
@@ -210,7 +216,7 @@ public class GroupProcessing extends ObjectProcessing {
             LOG.info("Uid != null -> update group");
             LOG.info("Path: {0}", uri);
             request = new HttpPatch(uri);
-            List<Object> attributeList = buildLayeredAtrribute(attributes);
+            List<JSONObject> attributeList = buildLayeredAttribute(attributes, Collections.emptySet());
             endpoint.callRequestNoContentNoJson(request, attributeList);
         }
 

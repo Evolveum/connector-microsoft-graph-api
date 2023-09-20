@@ -168,7 +168,9 @@ public class UserProcessing extends ObjectProcessing {
     // technical constants
     private static final String TYPE = "@odata.type";
     private static final String TYPE_GROUP = "#microsoft.graph.group";
-    private static final Set<String> OPTIONAL_ATTRS = Stream.of(
+
+    // SPO(SharePoint Online) attributes
+    protected static final Set<String> SPO_ATTRS = Stream.of(
             ATTR_ABOUTME,
             ATTR_BIRTHDAY,
             ATTR_HIREDATE,
@@ -203,9 +205,14 @@ public class UserProcessing extends ObjectProcessing {
     }
 
     @Override
+    protected String type() {
+        return ObjectClass.ACCOUNT_NAME;
+    }
+
+    @Override
     protected ObjectClassInfo objectClassInfo() {
         ObjectClassInfoBuilder userObjClassBuilder = new ObjectClassInfoBuilder();
-        userObjClassBuilder.setType(ObjectClass.ACCOUNT_NAME);
+        userObjClassBuilder.setType(type());
 
         userObjClassBuilder.addAttributeInfo(OperationalAttributeInfos.ENABLE);
         userObjClassBuilder.addAttributeInfo(OperationalAttributeInfos.PASSWORD);
@@ -846,7 +853,8 @@ public class UserProcessing extends ObjectProcessing {
         final Attribute userPhoto = attributes.stream()
                 .filter(a -> a.is(ATTR_USERPHOTO))
                 .findFirst().orElse(null);
-        List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
+
+        List<JSONObject> jsonObjectaccount = buildLayeredAttribute(updateAttributes, SPO_ATTRS);
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
         assignManager(uid, manager);

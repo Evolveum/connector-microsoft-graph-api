@@ -2,8 +2,11 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.testng.Assert;
+import org.testng.AssertJUnit;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import static org.testng.AssertJUnit.*;
 
 /**
  * Unit test for {@link ObjectProcessing} utilities.
@@ -28,6 +31,6 @@ public class ObjectProcessingTest {
 
 	@Test
 	public void testSelector_valid() {
-		Assert.assertEquals("$select=foo,bar,baz", ObjectProcessing.selector("foo", "bar", "baz"));
+		assertEquals("$select=foo,bar,baz", ObjectProcessing.selector("foo", "bar", "baz"));
 	}
 }

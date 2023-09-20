@@ -2,10 +2,11 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
+
+import static org.testng.AssertJUnit.*;
 
 @Test(groups = "unit")
 public class SchemaTranslatorFilterTest {
@@ -16,8 +17,8 @@ public class SchemaTranslatorFilterTest {
         OperationOptions options = new OperationOptions(Collections.singletonMap(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{"attr1"}));
         String[] attrs = schemaTranslator.filter(ObjectClass.ACCOUNT_NAME, options, "attr1", "attr2");
 
-        Assert.assertEquals(1, attrs.length);
-        Assert.assertEquals("attr1", attrs[0]);
+        assertEquals(1, attrs.length);
+        assertEquals("attr1", attrs[0]);
     }
 
     @Test
@@ -26,7 +27,7 @@ public class SchemaTranslatorFilterTest {
         String[] attrs = schemaTranslator.filter(ObjectClass.ACCOUNT_NAME, options, "attr");
 
         // no attributes are define in schema
-        Assert.assertEquals(0, attrs.length);
+        assertEquals(0, attrs.length);
     }
 
     @Test
@@ -34,7 +35,7 @@ public class SchemaTranslatorFilterTest {
         OperationOptions options = new OperationOptions(Collections.emptyMap());
         String[] attrs = schemaTranslator.filter(ObjectClass.ACCOUNT_NAME, options, "attr");
 
-        Assert.assertEquals(1, attrs.length);
-        Assert.assertEquals("attr", attrs[0]);
+        assertEquals(1, attrs.length);
+        assertEquals("attr", attrs[0]);
     }
 }

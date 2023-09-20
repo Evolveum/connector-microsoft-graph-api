@@ -49,10 +49,15 @@ public class RoleProcessing extends ObjectProcessing {
     }
 
     @Override
+    protected String type() {
+        return ROLE_NAME;
+    }
+
+    @Override
     protected ObjectClassInfo objectClassInfo() {
         ObjectClassInfoBuilder roleObjClassBuilder = new ObjectClassInfoBuilder();
 
-        roleObjClassBuilder.setType(RoleProcessing.ROLE_NAME);
+        roleObjClassBuilder.setType(type());
 
         // required attribute is icfs:name and icfs:uid
 
