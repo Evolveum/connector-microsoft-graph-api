@@ -401,7 +401,7 @@ public class UserProcessing extends ObjectProcessing {
         attrMail.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrMail.build());
 
-        // UPDATE Extension ATTRIBUTES
+        // Extension ATTRIBUTES
         for (int i = 1; i <= NUMBER_OF_EXTENSIONS; i++) {
             String attributeName = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + EXTENSION_ATTRIBUTE + i;
             AttributeInfoBuilder attrExtensionAttribute = new AttributeInfoBuilder(attributeName);
