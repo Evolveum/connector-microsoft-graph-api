@@ -34,3 +34,4 @@ target
 /src/test/resources/testProperties/propertiesForTestInternal.properties
 /.github/
 /.run/
+/CHANGELOG.md

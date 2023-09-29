@@ -388,7 +388,7 @@ public class UserProcessing extends ObjectProcessing {
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
         AttributeInfoBuilder userPhoto = new AttributeInfoBuilder(ATTR_USERPHOTO);
-        userPhoto.setRequired(false).setType(byte[].class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userPhoto.setRequired(false).setType(byte[].class).setCreateable(true).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
         userObjClassBuilder.addAttributeInfo(userPhoto.build());
 
         //supports $filter
@@ -405,7 +405,7 @@ public class UserProcessing extends ObjectProcessing {
         for (int i = 1; i <= NUMBER_OF_EXTENSIONS; i++) {
             String attributeName = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + EXTENSION_ATTRIBUTE + i;
             AttributeInfoBuilder attrExtensionAttribute = new AttributeInfoBuilder(attributeName);
-            attrExtensionAttribute.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(false);
+            attrExtensionAttribute.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(false).setReturnedByDefault(false);
             userObjClassBuilder.addAttributeInfo(attrExtensionAttribute.build());
         }
 
@@ -1162,7 +1162,7 @@ public class UserProcessing extends ObjectProcessing {
             user = saturateRoleMembership(user);
         }
 
-        if (!Boolean.TRUE.equals(options.getAllowPartialAttributeValues())) {
+        if (shouldSaturate(options, ObjectClass.ACCOUNT_NAME, ATTR_USERPHOTO)) {
             user = saturatePhoto(options, user);
         }
 
