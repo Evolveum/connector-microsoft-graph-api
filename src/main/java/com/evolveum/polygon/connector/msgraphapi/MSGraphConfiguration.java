@@ -38,6 +38,8 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private boolean certificateBasedAuthentication;
     private String certificatePath;
     private String privateKeyPath;
+
+    private boolean treatNetIdAsAlreadyExists;
     private boolean validateWithFailoverTrust = true;
     private GraphConfigurationHandler configHandler = new GraphConfigurationHandler();
 
@@ -212,6 +214,11 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
     public void setPrivateKeyPath(String privateKeyPath) { this.privateKeyPath = privateKeyPath; }
 
+    @ConfigurationProperty(order = 150, displayMessageKey = "TreatNetIdErrorAsAlreadyExists.display", helpMessageKey = "TreatNetIdErrorAsAlreadyExists.help")
+
+    public boolean getTreatNetIdAsAlreadyExists() { return treatNetIdAsAlreadyExists; }
+
+    public void setTreatNetIdAsAlreadyExists(boolean treatNetIdAsAlreadyExists) { this.treatNetIdAsAlreadyExists = treatNetIdAsAlreadyExists; }
 
     @Override
     public void validate() {

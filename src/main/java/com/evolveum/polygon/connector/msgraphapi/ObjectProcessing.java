@@ -58,6 +58,8 @@ abstract class ObjectProcessing {
         if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
             if (type.equals(String.class)) {
                 addAttr(builder, attrName, String.valueOf(object.get(attrName)));
+            } else if (type.equals(byte[].class)) {
+                addAttr(builder, attrName, java.util.Base64.getDecoder().decode(String.valueOf(object.get(attrName))));
             } else {
                 addAttr(builder, attrName, object.get(attrName));
             }
@@ -412,7 +414,6 @@ abstract class ObjectProcessing {
 
     protected List<Object> buildLayeredAtrribute(Set<Attribute> multiLayerAttribute) {
         LinkedList<Object> list = new LinkedList<>();
-        String json = "";
         for (Attribute attribute : multiLayerAttribute) {
             final String[] attributePath = resolveAttributePath(attribute);
             if (attributePath == null) continue;
@@ -449,23 +450,25 @@ abstract class ObjectProcessing {
 
             currentNode.keyValueMap.put(attributePath[attributePath.length - 1], leaf);
             JSONObject jsonObject = new JSONObject(root.toString());
-            //empty json
-            if (json.isEmpty()) {
-                json = jsonObject.toString();
-                list.add(json);
-            } else {
-                String key = jsonObject.keys().next();
-                Object value = jsonObject.get(key);
 
-                //JSON Object no.1
-                JSONObject newJSONObject = new JSONObject();
-                newJSONObject.put(key, value);
-                list.add(newJSONObject);
-
-            }
+            // merge same nodes together
+            updateJsonList(list, jsonObject);
         }
 
         return list;
+    }
+
+    private void updateJsonList(LinkedList<Object> list, JSONObject jsonObject) {
+        boolean match = list.stream().map(it -> (JSONObject) it).anyMatch(it -> it.has(jsonObject.keys().next()));
+        if(match) {
+            list.stream()
+                    .map(it -> (JSONObject) it)
+                    .filter(it -> it.has(jsonObject.keys().next()))
+                    .findAny()
+                    .ifPresent(it -> deepMerge(jsonObject, it));
+        } else {
+            list.add(jsonObject);
+        }
     }
 
     private String[] resolveAttributePath(Attribute attribute) {

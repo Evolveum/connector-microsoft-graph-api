@@ -5,6 +5,7 @@ import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.ByteArrayEntity;
 import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
@@ -59,6 +60,7 @@ public class UserProcessing extends ObjectProcessing {
 
     //optional
     private static final String ATTR_ABOUTME = "aboutMe"; // Need SPO license
+    private static final String ATTR_USERPHOTO = "photo";
 
     //Sign in, auxiliary computed attribute representing the last sign in
     private static final String ATTR_SIGN_IN = "lastSignIn";
@@ -130,6 +132,11 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_SURNAME = "surname";
     private static final String ATTR_USAGELOCATION = "usageLocation";
     private static final String ATTR_USERTYPE = "userType";
+    private static final String ATTR_EMPLOYEE_HIRE_DATE = "employeeHireDate";
+    private static final String ATTR_EMPLOYEE_LEAVE_DATE_TIME = "employeeLeaveDateTime";
+    private static final String ATTR_EMPLOYEE_TYPE = "employeeType";
+    private static final String ATTR_FAX_NUMBER = "faxNumber";
+    private static final String ATTR_EMPLOYEE_ID = "employeeId";
 
     // INVITES
     private static final String ATTR_INVITED_USER = "invitedUser";
@@ -154,6 +161,10 @@ public class UserProcessing extends ObjectProcessing {
 
     private static final String O_REMOVED = "@removed";
 
+    // extend
+    private static final String ATTR_ONPREMISESEXTENSIONATTRIBUTES = "onPremisesExtensionAttributes";
+    private  static final String EXTENSION_ATTRIBUTE = "extensionAttribute";
+    private static final int NUMBER_OF_EXTENSIONS = 15;
     // technical constants
     private static final String TYPE = "@odata.type";
     private static final String TYPE_GROUP = "#microsoft.graph.group";
@@ -376,6 +387,9 @@ public class UserProcessing extends ObjectProcessing {
         ;
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
+        AttributeInfoBuilder userPhoto = new AttributeInfoBuilder(ATTR_USERPHOTO);
+        userPhoto.setRequired(false).setType(byte[].class).setCreateable(true).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
+        userObjClassBuilder.addAttributeInfo(userPhoto.build());
 
         //supports $filter
         AttributeInfoBuilder attrJobTitle = new AttributeInfoBuilder(ATTR_JOBTITLE);
@@ -386,6 +400,14 @@ public class UserProcessing extends ObjectProcessing {
         AttributeInfoBuilder attrMail = new AttributeInfoBuilder(ATTR_MAIL);
         attrMail.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrMail.build());
+
+        // Extension ATTRIBUTES
+        for (int i = 1; i <= NUMBER_OF_EXTENSIONS; i++) {
+            String attributeName = ATTR_ONPREMISESEXTENSIONATTRIBUTES + "." + EXTENSION_ATTRIBUTE + i;
+            AttributeInfoBuilder attrExtensionAttribute = new AttributeInfoBuilder(attributeName);
+            attrExtensionAttribute.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(false).setReturnedByDefault(false);
+            userObjClassBuilder.addAttributeInfo(attrExtensionAttribute.build());
+        }
 
         //get or update
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
@@ -560,6 +582,26 @@ public class UserProcessing extends ObjectProcessing {
         attrUserType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrUserType.build());
 
+        AttributeInfoBuilder attrEmployeeHireDate = new AttributeInfoBuilder(ATTR_EMPLOYEE_HIRE_DATE);
+        attrEmployeeHireDate.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeHireDate.build());
+
+        AttributeInfoBuilder attrEmployeeLeaveDateTime = new AttributeInfoBuilder(ATTR_EMPLOYEE_LEAVE_DATE_TIME);
+        attrEmployeeLeaveDateTime.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeLeaveDateTime.build());
+
+        AttributeInfoBuilder attrEmployeeType = new AttributeInfoBuilder(ATTR_EMPLOYEE_TYPE);
+        attrEmployeeType.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeType.build());
+
+        AttributeInfoBuilder attrFaxNumber = new AttributeInfoBuilder(ATTR_FAX_NUMBER);
+        attrFaxNumber.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrFaxNumber.build());
+
+        AttributeInfoBuilder attrEmployeeId = new AttributeInfoBuilder(ATTR_EMPLOYEE_ID);
+        attrEmployeeId.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrEmployeeId.build());
+
         AttributeInfoBuilder attrManager = new AttributeInfoBuilder(ATTR_MANAGER_ID);
         attrManager.setRequired(false)
                 .setType(String.class)
@@ -588,9 +630,13 @@ public class UserProcessing extends ObjectProcessing {
         List<Object> addLicenses = new ArrayList<>();
 
         AtomicBoolean isLicenceAttrNull = new AtomicBoolean(true);
-        // filter out the assignedLicense.skuId attribute, which must be handled separately
+        // filter out the assignedLicense.skuId & ATTR_USERPHOTO attribute, which must be handled separately
         Set<Attribute> preparedAttributes = replaceAttributes.stream()
                 .filter(it -> {
+                    String attributeName = it.getName();
+                    if (attributeName.contains(ATTR_USERPHOTO)) {
+                        return false;
+                    }
                     if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
                         if (it.getValue() != null) {
                             isLicenceAttrNull.set(false);
@@ -797,11 +843,36 @@ public class UserProcessing extends ObjectProcessing {
         final Attribute manager = attributes.stream()
                 .filter(a -> a.is(ATTR_MANAGER_ID))
                 .findFirst().orElse(null);
-
+        final Attribute userPhoto = attributes.stream()
+                .filter(a -> a.is(ATTR_USERPHOTO))
+                .findFirst().orElse(null);
         List<Object> jsonObjectaccount = buildLayeredAtrribute(updateAttributes);
         endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
         assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
         assignManager(uid, manager);
+        if (userPhoto != null) {
+            assignPhoto(uid, userPhoto);
+        }
+    }
+
+    private void assignPhoto(Uid uid, Attribute attribute) {
+        if (attribute == null) {
+            return;
+        }
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final URIBuilder uriBuilder = endpoint.createURIBuilder()
+                .setPath(USERS + "/" + uid.getUidValue() + "/" + ATTR_USERPHOTO + "/$value");
+        HttpEntityEnclosingRequestBase request = null;
+        URI uri = endpoint.getUri(uriBuilder);
+        request = new HttpPut(uri);
+        byte[] photoData = (byte[]) attribute.getValue().get(0);
+        try {
+            request.setHeader("Content-Type", "image/jpeg");
+            request.setEntity(new ByteArrayEntity(photoData));
+            endpoint.callRequest(request, false);
+        } catch (IllegalArgumentException e) {
+            LOG.error("Invalid Base64 encoded photo data");
+        }
     }
 
     public Uid createUser(Uid uid, Set<Attribute> attributes) {
@@ -922,12 +993,15 @@ public class UserProcessing extends ObjectProcessing {
         }
     }
 
-
-    public void executeQueryForUser(ResourceQuery translatedQuery, Boolean fetchSpecific, ResultsHandler handler,
+    // TODO: refactor rewrite to method executeQueryForUser
+    public void executeQueryForUser(ResourceQuery translatedQuery,
+                                    Boolean fetchSpecific,
+                                    ResultsHandler handler,
                                     OperationOptions options) {
         LOG.info("executeQueryForUser()");
         final GraphEndpoint endpoint = getGraphEndpoint();
         final String selectorSingle = getSelectorSingle(options);
+
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                 ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
@@ -940,7 +1014,9 @@ public class UserProcessing extends ObjectProcessing {
                 ATTR_PROXYADDRESSES,
                 ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
                 ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
+                ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
+                ATTR_ONPREMISESEXTENSIONATTRIBUTES
+        );
 
         String query = null;
         Boolean fetchAll = false;
@@ -984,8 +1060,7 @@ public class UserProcessing extends ObjectProcessing {
 
                     filter = "$" + EXPAND + "=" + ATTR_MANAGER;
                 }
-                LOG.ok("The constructed additional filter clause: {0}", filter.isEmpty() ? "Empty filter clause."
-                        : filter);
+                LOG.ok("The constructed additional filter clause: {0}", filter.isEmpty() ? "Empty filter clause." : filter);
 
                 //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
                 // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
@@ -1087,6 +1162,10 @@ public class UserProcessing extends ObjectProcessing {
             user = saturateRoleMembership(user);
         }
 
+        if (shouldSaturate(options, ObjectClass.ACCOUNT_NAME, ATTR_USERPHOTO)) {
+            user = saturatePhoto(options, user);
+        }
+
         ConnectorObjectBuilder builder = convertUserJSONObjectToConnectorObject(user);
 
         incompleteIfNecessary(options, ObjectClass.ACCOUNT_NAME, ATTR_MEMBER_OF_GROUP, builder);
@@ -1183,6 +1262,20 @@ public class UserProcessing extends ObjectProcessing {
         return user;
     }
 
+    private JSONObject saturatePhoto(OperationOptions options, JSONObject user) {
+        final GraphEndpoint endpoint = getGraphEndpoint();
+        final String uid = user.getString(ATTR_ID);
+
+        if (getSchemaTranslator().containsToGet(ObjectClass.ACCOUNT_NAME, options, ATTR_USERPHOTO)) {
+            LOG.info("[GET] - /photo/$value, for user with UID: {0}", uid);
+            String photoPath = USERS + "/" + uid + "/" + ATTR_USERPHOTO + "/$value";
+            final JSONObject userPhoto = endpoint.executeGetRequest(photoPath, null, options);
+            if (userPhoto.length() != 0)
+                user.put(ATTR_USERPHOTO, userPhoto.get("data"));
+        }
+        return user;
+    }
+
     public ConnectorObjectBuilder convertUserJSONObjectToConnectorObject(JSONObject user) {
         LOG.info("convertUserJSONObjectToConnectorObject");
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
@@ -1238,6 +1331,16 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_SIGN_IN, String.class, builder);
         getIfExists(user, ATTR_EXTERNALUSERSTATE, String.class, builder);
         getIfExists(user, ATTR_EXTERNALUSERSTATECHANGEDATETIME, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_HIRE_DATE, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_LEAVE_DATE_TIME, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_TYPE, String.class, builder);
+        getIfExists(user, ATTR_FAX_NUMBER, String.class, builder);
+        getIfExists(user, ATTR_EMPLOYEE_ID, String.class, builder);
+        getIfExists(user, ATTR_USERPHOTO, byte[].class, builder);
+
+        for (int i = 1; i <= NUMBER_OF_EXTENSIONS; i++) {
+            getFromItemIfExists(user, ATTR_ONPREMISESEXTENSIONATTRIBUTES, EXTENSION_ATTRIBUTE + i, String.class, builder);
+        }
 
         getMultiIfExists(user, ATTR_PROXYADDRESSES, builder);
         getFromArrayIfExists(user, ATTR_ASSIGNEDLICENSES, ATTR_SKUID, String.class, builder);
@@ -1281,10 +1384,14 @@ public class UserProcessing extends ObjectProcessing {
                     ATTR_PROXYADDRESSES, ATTR_RESPONSIBILITIES, ATTR_SCHOOLS,
                     ATTR_SKILLS, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
                     ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER));
+                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
+                    ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
+                    ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID, ATTR_ONPREMISESEXTENSIONATTRIBUTES
+            ));
         } else {
 
-            return selector(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+            return selector(
+                    ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                     ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
                     ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                     ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
@@ -1294,8 +1401,10 @@ public class UserProcessing extends ObjectProcessing {
                     ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
                     ATTR_PROXYADDRESSES, ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
                     ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES,
-                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER);
-
+                    ATTR_EXTERNALUSERSTATE, ATTR_EXTERNALUSERSTATECHANGEDATETIME, ATTR_MANAGER,
+                    ATTR_EMPLOYEE_HIRE_DATE, ATTR_EMPLOYEE_LEAVE_DATE_TIME, ATTR_EMPLOYEE_TYPE,
+                    ATTR_FAX_NUMBER, ATTR_EMPLOYEE_ID, ATTR_ONPREMISESEXTENSIONATTRIBUTES
+            );
         }
 
     }

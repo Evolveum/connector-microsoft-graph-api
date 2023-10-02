@@ -15,6 +15,7 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
+
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.HttpContext;
@@ -41,6 +42,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -328,7 +330,13 @@ public class GraphEndpoint {
             throw new InvalidAttributeValueException("Request not provided");
         }
         request.setHeader("Authorization", getAccessToken().getAccessToken());
-        request.setHeader("Content-Type", "application/json");
+        if (request.getURI().toString().contains("photo")) {
+            request.setHeader("Content-Type", "image/jpg");
+        }
+        else {
+            request.setHeader("Content-Type", "application/json");
+        }
+
         request.setHeader("ConsistencyLevel", "eventual");
         LOG.ok("Request execution -> HttpUriRequest: {0}", request);
         CloseableHttpResponse response;
@@ -416,6 +424,11 @@ public class GraphEndpoint {
         if (statusCode == 400 && message.contains("Another object with the same value for property userPrincipalName already exists.")) {
             throw new AlreadyExistsException(message);
         }
+
+        if ((statusCode == 400 || statusCode == 404) && message.contains("Property netId is invalid") && this.configuration.getTreatNetIdAsAlreadyExists()){
+            LOG.info("Treating 'Property netId is invalid' as alreadyExists");
+            throw new AlreadyExistsException(message);
+        }
         if (statusCode == 400 && message.contains("The specified password does not comply with password complexity requirements.")) {
             throw new InvalidPasswordException(message);
         }
@@ -432,8 +445,12 @@ public class GraphEndpoint {
             throw new PermissionDeniedException(message);
         }
         if (statusCode == 404 || statusCode == 410) {
-            LOG.info("Status code 404 or 410 caught in processResponseErrors {0}", message);
-            throw new UnknownUidException(message);
+            if (message.contains("ImageNotFound"))
+                return;
+            else {
+                LOG.info("Status code 404 or 410 caught in processResponseErrors {0}", message);
+                throw new UnknownUidException(message);
+            }
         }
         if (statusCode == 408) {
             throw new OperationTimeoutException(message);
@@ -472,7 +489,10 @@ public class GraphEndpoint {
                 LOG.info("Headers.. name,value:{0},{1}", header.getName(), header.getValue());
             }
         }
-
+        if (request.getURI().toString().contains("photo")){
+            // this uri check is necessary otherwise inspecting of shadow w/o photo returns 404
+            return callRequestPhoto(request);
+        }
         try (CloseableHttpResponse response = executeRequest(request)) {
             processResponseErrors(response);
             if (response.getStatusLine().getStatusCode() == 204) {
@@ -496,6 +516,22 @@ public class GraphEndpoint {
 
     }
 
+    private JSONObject callRequestPhoto(HttpRequestBase request) {
+        String result;
+
+        try (CloseableHttpResponse response = executeRequest(request)) {
+            if (response.getStatusLine().getStatusCode() == 404){
+                return new JSONObject(Collections.singletonMap("data", null));
+            }
+            else {
+                processResponseErrors(response);
+                result = java.util.Base64.getEncoder().encodeToString(EntityUtils.toByteArray(response.getEntity()));
+                return new JSONObject(Collections.singletonMap("data", result));
+            }
+        } catch (IOException e) {
+            throw new ConnectorIOException();
+        }
+    }
 
     public JSONObject callRequest(HttpEntityEnclosingRequestBase request, JSONObject json, Boolean parseResult) {
         LOG.info("request URI: {0}", request.getURI());

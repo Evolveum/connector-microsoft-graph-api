@@ -15,7 +15,6 @@ import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
 import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.ResultsHandler;
 import org.identityconnectors.framework.common.objects.SchemaBuilder;
-import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.json.JSONArray;
@@ -150,7 +149,8 @@ public class LicenseProcessing extends ObjectProcessing {
             final Attribute attr = equalsFilter.getAttribute();
             final String attrName = attr.getName();
             LOG.info("query instanceof EqualsFilter");
-            if (attrName.equals(Uid.NAME) || attrName.equals(ATTR_ID)) {
+
+            if (attrName.equals(ATTR_ID)) {
                 String value = AttributeUtil.getAsStringValue(attr);
                 if (value == null)
                     invalidAttributeValue("Uid", query);
@@ -167,7 +167,7 @@ public class LicenseProcessing extends ObjectProcessing {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(OBJECT_CLASS);
 
-        getUIDIfExists(json, ATTR_ID, builder);
+        getUIDIfExists(json, ATTR_SKUID, builder);
         getNAMEIfExists(json, ATTR_SKUPAATNUMBER, builder);
 
         getIfExists(json, ATTR_ID, String.class, builder);

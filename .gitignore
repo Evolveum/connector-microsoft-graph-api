@@ -1,3 +1,6 @@
+# OS X file
+*.DS_Store
+
 # Compiled class file
 *.class
 
@@ -28,3 +31,7 @@ hs_err_pid*
 
 # Apache Maven
 target
+/src/test/resources/testProperties/propertiesForTestInternal.properties
+/.github/
+/.run/
+/CHANGELOG.md
