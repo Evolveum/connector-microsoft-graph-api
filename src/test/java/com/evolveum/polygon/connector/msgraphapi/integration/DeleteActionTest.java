@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class DeleteActionTest extends BasicConfigurationForTests {
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 24)
-    public void deleteUserTest() throws InterruptedException {
+    public void deleteUserTest() throws Exception {
 
         MSGraphConfiguration conf = getConfiguration();
         msGraphConnector.init(conf);
@@ -41,7 +41,7 @@ public class DeleteActionTest extends BasicConfigurationForTests {
 
 
         Uid testUserUid = msGraphConnector.create(objectClassAccount, attributesAccount, options);
-        msGraphConnector.delete(objectClassAccount, testUserUid, options);
+        deleteWaitAndRetry(objectClassAccount, testUserUid, options);
 
 
         ArrayList<ConnectorObject> resultsAccount = new ArrayList<>();
@@ -49,8 +49,6 @@ public class DeleteActionTest extends BasicConfigurationForTests {
 
         AttributeFilter equalsFilter;
         equalsFilter = (EqualsFilter) FilterBuilder.equalTo(testUserUid);
-
-        TimeUnit.SECONDS.sleep(_WAIT_INTERVAL);
 
         msGraphConnector.executeQuery(objectClassAccount, equalsFilter, handlerAccount, options);
 
@@ -66,7 +64,7 @@ public class DeleteActionTest extends BasicConfigurationForTests {
     }
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 25)
-    public void deleteGroupTest() throws InterruptedException {
+    public void deleteGroupTest() throws Exception {
 
         MSGraphConfiguration conf = getConfiguration();
         msGraphConnector.init(conf);
@@ -82,7 +80,7 @@ public class DeleteActionTest extends BasicConfigurationForTests {
 
 
         Uid testGroupUid = msGraphConnector.create(groupObject, groupAttributes, options);
-        msGraphConnector.delete(groupObject, testGroupUid, options);
+        deleteWaitAndRetry(groupObject, testGroupUid, options);
 
 
         ArrayList<ConnectorObject> resultsGroup = new ArrayList<>();
@@ -91,7 +89,6 @@ public class DeleteActionTest extends BasicConfigurationForTests {
         AttributeFilter equalsFilter;
         equalsFilter = (EqualsFilter) FilterBuilder.equalTo(testGroupUid);
 
-        TimeUnit.SECONDS.sleep(_WAIT_INTERVAL);
         msGraphConnector.executeQuery(groupObject, equalsFilter, handlergroup, options);
 
         resultsGroup = handlergroup.getResult();

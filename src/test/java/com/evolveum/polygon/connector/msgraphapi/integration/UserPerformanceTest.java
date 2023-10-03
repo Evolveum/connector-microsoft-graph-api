@@ -19,7 +19,7 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
 
 
     @Test(priority = 15)
-    public void CreateGroupAnd500UsersTest() {
+    public void CreateGroupAnd30UsersTest() {
         MSGraphConnector msGraphConnector = new MSGraphConnector();
 
         MSGraphConfiguration conf = getConfiguration();
@@ -60,12 +60,12 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
     }
 
     @Test(priority = 16)
-    public void Search100GroupsTest() {
+    public void Search30UsersTest() throws InterruptedException {
         MSGraphConnector msGraphConnector = new MSGraphConnector();
 
         MSGraphConfiguration conf = getConfiguration();
         msGraphConnector.init(conf);
-        ObjectClass objectClassAccout = ObjectClass.ACCOUNT;
+        ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
         Map<String, Object> operationOptions = new HashMap<>();
         operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
@@ -87,7 +87,9 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
             }
         };
 
-        msGraphConnector.executeQuery(objectClassAccout, null, handlerGroup, options);
+        Thread.sleep(_WAIT_INTERVAL);
+
+        msGraphConnector.executeQuery(objectClassAccount, null, handlerGroup, options);
 
         msGraphConnector.dispose();
 
@@ -97,7 +99,7 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
     }
 
     @Test(priority = 17)
-    public void Update500UsersTest() {
+    public void Update30UsersTest() {
         MSGraphConnector msGraphConnector = new MSGraphConnector();
 
         MSGraphConfiguration conf = getConfiguration();
@@ -121,7 +123,7 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
     }
 
     @Test(priority = 18)
-    public void Delete500UserTest() {
+    public void Delete30UserTest() {
         MSGraphConnector msGraphConnector = new MSGraphConnector();
         MSGraphConfiguration conf = getConfiguration();
         ObjectClass objectClassGroup = ObjectClass.GROUP;

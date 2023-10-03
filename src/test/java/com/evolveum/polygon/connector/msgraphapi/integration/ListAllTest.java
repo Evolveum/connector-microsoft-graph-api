@@ -37,6 +37,7 @@ public class ListAllTest extends BasicConfigurationForTests {
         ArrayList<ConnectorObject> resultsGroup = new ArrayList<>();
         TestSearchResultsHandler handlerGroup = new TestSearchResultsHandler();
 
+        Thread.sleep(_WAIT_INTERVAL);
 
         msGraphConnector.executeQuery(objectClassGroup, null, handlerGroup, options);
 

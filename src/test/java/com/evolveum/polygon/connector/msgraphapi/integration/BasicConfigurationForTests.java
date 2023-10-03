@@ -25,7 +25,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
     protected Set<String> licenses, licenses2;
     protected String roleWhichExistsInTenantDisplayName;
 
-    protected static int _WAIT_INTERVAL = 3;
+    protected static int _WAIT_INTERVAL = 30000;
     protected static int _REPEAT_COUNT = 10;
     protected static long _REPEAT_INTERVAL = 10000;
 
@@ -124,7 +124,8 @@ public class BasicConfigurationForTests implements ObjectConstants {
             }
 
             if (!notFound) {
-
+                // Wait until the deletion is complete
+                Thread.sleep(_WAIT_INTERVAL);
                 return;
             }
             iterator++;
