@@ -3,6 +3,7 @@ package com.evolveum.polygon.connector.msgraphapi;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.Attribute;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,11 +26,28 @@ public class AttributesValidator {
     }
 
     public void validate(Set<Attribute> attributes) throws InvalidAttributeValueException  {
-        for (Attribute a: attributes) {
+        Set<String> remains = validationRules.keySet();
+
+        for (Attribute a : attributes) {
             final Predicate<List<Object>> rule = validationRules.get(a.getName());
-            if (rule != null && !rule.test(a.getValue())) throw new InvalidAttributeValueException(String.format(
-                    "Value of attribute %s did not match validation criteria", a.getName()
-            ));
+            if (rule != null && !rule.test(a.getValue())) {
+                throw new InvalidAttributeValueException(String.format(
+                        "Value of attribute %s did not match validation criteria", a.getName()
+                ));
+            }
+            remains.remove(a.getName());
+        }
+
+        if (!remains.isEmpty()) {
+            // Validate empty value
+            for (String name : remains) {
+                final Predicate<List<Object>> rule = validationRules.get(name);
+                if (rule != null && !rule.test(Collections.emptyList())) {
+                    throw new InvalidAttributeValueException(String.format(
+                            "Value of attribute %s did not match validation criteria", name
+                    ));
+                }
+            }
         }
     }
 
