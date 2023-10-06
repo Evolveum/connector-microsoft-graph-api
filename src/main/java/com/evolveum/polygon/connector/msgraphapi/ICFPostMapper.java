@@ -2,6 +2,9 @@ package com.evolveum.polygon.connector.msgraphapi;
 
 import org.identityconnectors.framework.common.exceptions.ConfigurationException;
 import org.identityconnectors.framework.common.objects.Attribute;
+import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeDeltaUtil;
+import org.identityconnectors.framework.common.objects.AttributeUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -19,11 +22,11 @@ public class ICFPostMapper {
     protected static final Pattern ICF_ATTRIBUTE_NAME_PATTERN = Pattern.compile("__[A-Z]+__");
 
     private final Map<String, String> icfAttributeMapping;
-    private final Map<String, Function<Attribute, List<Object>>> postMapping;
+    private final Map<String, Function<UnionAttribute, List<Object>>> postMapping;
 
     private ICFPostMapper(
             Map<String, String> icfAttributeMapping,
-            Map<String, Function<Attribute, List<Object>>> postMapping
+            Map<String, Function<UnionAttribute, List<Object>>> postMapping
     ) {
         this.icfAttributeMapping = icfAttributeMapping;
         this.postMapping = postMapping;
@@ -45,11 +48,11 @@ public class ICFPostMapper {
      *
      * @return Target name for the attribute (remapped) or <code>null</code> if attribute is ICF-native and has no remap
      */
-    public String getTarget(Attribute attribute) {
-        if (ICF_ATTRIBUTE_NAME_PATTERN.matcher(attribute.getName()).matches())
-            return icfAttributeMapping.get(attribute.getName());
+    public String getTarget(String attribute) {
+        if (ICF_ATTRIBUTE_NAME_PATTERN.matcher(attribute).matches())
+            return icfAttributeMapping.get(attribute);
         else {
-            return attribute.getName();
+            return attribute;
         }
     }
 
@@ -61,7 +64,15 @@ public class ICFPostMapper {
      * @return Attribute single value
      */
     public Object getSingleValue(Attribute attribute) {
-        final Function<Attribute, List<Object>> postProcessFn = postMapping.get(attribute.getName());
+        return getSingleValue(new UnionAttribute(attribute));
+    }
+
+    public Object getSingleValue(AttributeDelta attributeDelta) {
+        return getSingleValue(new UnionAttribute(attributeDelta));
+    }
+
+    private Object getSingleValue(UnionAttribute attribute) {
+        final Function<UnionAttribute, List<Object>> postProcessFn = postMapping.get(attribute.getName());
         if (postProcessFn != null) {
             final List<Object> value = postProcessFn.apply(attribute);
             return value.isEmpty() ? null : value.get(0);
@@ -78,11 +89,29 @@ public class ICFPostMapper {
      * @return Attribute multivalue
      */
     public List<Object> getMultiValue(Attribute attribute) {
-        final Function<Attribute, List<Object>> postProcessFn = postMapping.get(attribute.getName());
+        final Function<UnionAttribute, List<Object>> postProcessFn = postMapping.get(attribute.getName());
         if (postProcessFn != null) {
-            return postProcessFn.apply(attribute);
+            return postProcessFn.apply(new UnionAttribute(attribute));
         } else {
             return attribute.getValue();
+        }
+    }
+
+    public List<Object> getMultiValueToAdd(AttributeDelta attributeDelta) {
+        final Function<UnionAttribute, List<Object>> postProcessFn = postMapping.get(attributeDelta.getName());
+        if (postProcessFn != null) {
+            return postProcessFn.apply(new UnionAttribute(attributeDelta));
+        } else {
+            return attributeDelta.getValuesToAdd();
+        }
+    }
+
+    public List<Object> getMultiValueToRemove(AttributeDelta attributeDelta) {
+        final Function<UnionAttribute, List<Object>> postProcessFn = postMapping.get(attributeDelta.getName());
+        if (postProcessFn != null) {
+            return postProcessFn.apply(new UnionAttribute(attributeDelta));
+        } else {
+            return attributeDelta.getValuesToRemove();
         }
     }
 
@@ -91,7 +120,7 @@ public class ICFPostMapper {
      */
     static class ICFPostMapperBuilder {
         private final Map<String, String> icfAttributeMapping = new TreeMap<>();
-        private final Map<String, Function<Attribute, List<Object>>> postMapping = new TreeMap<>();
+        private final Map<String, Function<UnionAttribute, List<Object>>> postMapping = new TreeMap<>();
 
         public ICFPostMapperBuilder remap(String icfAttributeName, String endpointAttributeName) {
             if (icfAttributeName != null && endpointAttributeName != null)
@@ -99,7 +128,7 @@ public class ICFPostMapper {
             return this;
         }
 
-        public ICFPostMapperBuilder postProcess(String icfAttributeName, Function<Attribute, List<Object>> mapping) {
+        public ICFPostMapperBuilder postProcess(String icfAttributeName, Function<UnionAttribute, List<Object>> mapping) {
             if (icfAttributeName == null || mapping == null) return this;
             if (postMapping.put(icfAttributeName, mapping) != null) throw new ConfigurationException(String.format(
                     "Multiple post-processing directives for ICF attribute [%s]", icfAttributeName
@@ -118,5 +147,57 @@ public class ICFPostMapper {
                     Collections.unmodifiableMap(postMapping)
             );
         }
+    }
+
+    static class UnionAttribute {
+        final Attribute attribute;
+        final AttributeDelta attributeDelta;
+
+        public UnionAttribute(Attribute attribute) {
+            this.attribute = attribute;
+            this.attributeDelta = null;
+        }
+
+        public UnionAttribute(AttributeDelta attributeDelta) {
+            this.attribute = null;
+            this.attributeDelta = attributeDelta;
+        }
+
+        public String getName() {
+            if (attribute != null) {
+                return attribute.getName();
+            }
+            return attributeDelta.getName();
+        }
+
+        public List<Object> getValue() {
+            if (attribute != null) {
+                return attribute.getValue();
+            }
+            return attributeDelta.getValuesToReplace();
+        }
+        public Object getSingleValue() {
+            if (attribute != null) {
+                return AttributeUtil.getSingleValue(attribute);
+            }
+            return AttributeDeltaUtil.getSingleValue(attributeDelta);
+        }
+
+        public boolean isCreate() {
+            return attribute != null;
+        }
+
+        public boolean isUpdate() {
+            return attributeDelta != null;
+        }
+
+        public List<Object> getValuesToAdd() {
+            return attributeDelta.getValuesToAdd();
+        }
+
+        public List<Object> getValuesToRemove() {
+            return attributeDelta.getValuesToRemove();
+        }
+
     }
 }

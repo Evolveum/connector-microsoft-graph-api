@@ -69,7 +69,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_ASSIGNEDLICENSES = "assignedLicenses";
     private static final String ATTR_SKUID = "skuId";
     private static final String ATTR_DISABLEDPLANS = "disabledPlans";
-    private static final String ATTR_ASSIGNEDLICENSES__SKUID = ATTR_ASSIGNEDLICENSES + "." + ATTR_SKUID;
+    private static final String ATTR_ASSIGNEDLICENSES_SKUID = ATTR_ASSIGNEDLICENSES + "." + ATTR_SKUID;
 
     //ASSIGNEDPLAN
     private static final String ATTR_ASSIGNEDPLANS = "assignedPlans";
@@ -183,11 +183,26 @@ public class UserProcessing extends ObjectProcessing {
             ATTR_SKILLS
     ).collect(Collectors.toSet());
 
+    protected static final Set<String> EXCLUDE_ATTRS_OF_USER = Stream.of(
+            ATTR_MANAGER_ID,
+            ATTR_ASSIGNEDLICENSES_SKUID,
+            ATTR_USERPHOTO
+    ).collect(Collectors.toSet());
+
+    protected static final Set<String> UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_USER = Stream.of(
+            ATTR_BUSINESSPHONES,
+            ATTR_INTERESTS,
+            ATTR_PASTPROJECTS,
+            ATTR_RESPONSIBILITIES,
+            ATTR_SCHOOLS,
+            ATTR_SKILLS
+    ).collect(Collectors.toSet());
+
     public UserProcessing(GraphEndpoint graphEndpoint, SchemaTranslator schemaTranslator) {
         super(graphEndpoint, ICFPostMapper.builder()
                 .remap(ATTR_ICF_PASSWORD, "passwordProfile.password")
                 .postProcess(ATTR_ICF_PASSWORD, pwAttr -> {
-                    GuardedString guardedString = (GuardedString) AttributeUtil.getSingleValue(pwAttr);
+                    GuardedString guardedString = (GuardedString) pwAttr.getSingleValue();
                     GuardedStringAccessor accessor = new GuardedStringAccessor();
                     guardedString.access(accessor);
                     final List<Object> rv = new LinkedList<>();
@@ -198,7 +213,6 @@ public class UserProcessing extends ObjectProcessing {
                 .build()
         );
     }
-
 
     public void buildUserObjectClass(SchemaBuilder schemaBuilder) {
         schemaBuilder.defineObjectClass(objectClassInfo());
@@ -301,7 +315,7 @@ public class UserProcessing extends ObjectProcessing {
                 .build());
 
         userObjClassBuilder.addAttributeInfo(AttributeInfoBuilder.define(
-                        ATTR_ASSIGNEDLICENSES__SKUID)
+                        ATTR_ASSIGNEDLICENSES_SKUID)
                 .setRequired(false)
                 //.setType(GUID.class)
                 .setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).build());
@@ -380,7 +394,6 @@ public class UserProcessing extends ObjectProcessing {
 
         AttributeInfoBuilder attrHireDate = new AttributeInfoBuilder(ATTR_HIREDATE);
         attrHireDate.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrHireDate.build());
 
         //Read-only, not nullable
@@ -391,7 +404,6 @@ public class UserProcessing extends ObjectProcessing {
         //multivalued
         AttributeInfoBuilder attrInterests = new AttributeInfoBuilder(ATTR_INTERESTS);
         attrInterests.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrInterests.build());
 
         AttributeInfoBuilder userPhoto = new AttributeInfoBuilder(ATTR_USERPHOTO);
@@ -509,7 +521,6 @@ public class UserProcessing extends ObjectProcessing {
         //multivalued
         AttributeInfoBuilder attrPastProjects = new AttributeInfoBuilder(ATTR_PASTPROJECTS);
         attrPastProjects.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrPastProjects.build());
 
         AttributeInfoBuilder attrPostalCode = new AttributeInfoBuilder(ATTR_POSTALCODE);
@@ -522,7 +533,6 @@ public class UserProcessing extends ObjectProcessing {
 
         AttributeInfoBuilder attrPreferredName = new AttributeInfoBuilder(ATTR_PREFERREDNAME);
         attrPreferredName.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrPreferredName.build());
 
 
@@ -550,19 +560,16 @@ public class UserProcessing extends ObjectProcessing {
         //multivalued
         AttributeInfoBuilder attrResponsibilities = new AttributeInfoBuilder(ATTR_RESPONSIBILITIES);
         attrResponsibilities.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrResponsibilities.build());
 
         //multivalued
         AttributeInfoBuilder attrSchools = new AttributeInfoBuilder(ATTR_SCHOOLS);
         attrSchools.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrSchools.build());
 
         //multivalued
         AttributeInfoBuilder attrSkills = new AttributeInfoBuilder(ATTR_SKILLS);
         attrSkills.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(false).setUpdateable(true).setReadable(true).setReturnedByDefault(false);
-        ;
         userObjClassBuilder.addAttributeInfo(attrSkills.build());
 
         //supports $filter
@@ -629,56 +636,6 @@ public class UserProcessing extends ObjectProcessing {
 
         LOG.ok("Delta for processed object is {0}", SyncDeltaType.CREATE_OR_UPDATE);
         return false;
-    }
-
-    private Set<Attribute> prepareAttributes(Uid uid, Set<Attribute> replaceAttributes, Set<AttributeDelta> deltas, boolean create) {
-        AttributeDeltaBuilder delta = new AttributeDeltaBuilder();
-        delta.setName(ATTR_ASSIGNEDLICENSES__SKUID);
-        List<Object> addLicenses = new ArrayList<>();
-
-        AtomicBoolean isLicenceAttrNull = new AtomicBoolean(true);
-        // filter out the assignedLicense.skuId & ATTR_USERPHOTO attribute, which must be handled separately
-        Set<Attribute> preparedAttributes = replaceAttributes.stream()
-                .filter(it -> {
-                    String attributeName = it.getName();
-                    if (attributeName.contains(ATTR_USERPHOTO)) {
-                        return false;
-                    }
-                    if (it.getName().equals(ATTR_ASSIGNEDLICENSES__SKUID)) {
-                        if (it.getValue() != null) {
-                            isLicenceAttrNull.set(false);
-                            addLicenses.addAll(it.getValue());
-                        }
-                        return false;
-                    } else return !it.getName().equals(ATTR_MANAGER_ID);
-                }).collect(Collectors.toSet());
-
-        // in case assignedLicences attribute is null we don't want to do anything with licences
-        if (isLicenceAttrNull.get()) {
-            return preparedAttributes;
-        }
-
-        delta.addValueToAdd(addLicenses);
-        // read and fill-out the old values
-        if (!create) {
-            LOG.info("Read old licenses, Uid {0}", uid);
-            final GraphEndpoint endpoint = getGraphEndpoint();
-            final String selectorLicenses = selector(ATTR_ID, ATTR_USERPRINCIPALNAME, ATTR_ASSIGNEDLICENSES);
-            final OperationOptions options = new OperationOptions(new HashMap<>());
-
-            JSONObject user = endpoint.executeGetRequest(USERS + "/" + uid.getUidValue() + "/", selectorLicenses, options);
-            ConnectorObject co = convertUserJSONObjectToConnectorObject(user).build();
-            //LOG.info("License: fetched user {0}", co);
-            Attribute attrLicense = co.getAttributeByName(ATTR_ASSIGNEDLICENSES__SKUID);
-            if (attrLicense != null && attrLicense.getValue() != null) {
-                // the assigned licenses (=added or replaced value) should not be removed
-                List<Object> removeLicenses = CollectionUtil.newList(attrLicense.getValue());
-                removeLicenses.removeAll(addLicenses);
-                delta.addValueToRemove(removeLicenses);
-            }
-        }
-        deltas.add(delta.build());
-        return preparedAttributes;
     }
 
     private JSONArray buildLicensesJSON(Collection<Object> licenses) {
@@ -806,10 +763,21 @@ public class UserProcessing extends ObjectProcessing {
         if (attribute == null) {
             return;
         }
+        String managerId = attribute.getValue().stream().map(Object::toString).findFirst().orElse(null);
+        assignManager(uid, managerId);
+    }
 
+    private void assignManager(Uid uid, AttributeDelta attributeDelta) {
+        if (attributeDelta == null) {
+            return;
+        }
+        String managerId = attributeDelta.getValuesToReplace().stream().map(Object::toString).findFirst().orElse(null);
+        assignManager(uid, managerId);
+    }
+
+    private void assignManager(Uid uid, String managerId) {
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + MANAGER);
-        String managerId = attribute.getValue().stream().map(Object::toString).findFirst().orElse(null);
 
         if (managerId != null) {
             HttpEntityEnclosingRequestBase request = null;
@@ -830,68 +798,95 @@ public class UserProcessing extends ObjectProcessing {
             URI uri = endpoint.getUri(uriBuilder);
             request = new HttpDelete(uri);
 
-            LOG.info("Assign Manager Path: {0}", uri);
+            LOG.info("UnAssign Manager Path: {0}", uri);
 
             endpoint.callRequest(request, false);
         }
     }
 
-    public void updateUser(Uid uid, Set<Attribute> attributes) {
+    public Set<AttributeDelta> updateUser(Uid uid, Set<AttributeDelta> attrsDelta, OperationOptions options) {
+        LOG.info("Start updateUser, Uid: {0}, attrsDelta: {1}", uid, attrsDelta);
         final GraphEndpoint endpoint = getGraphEndpoint();
+
+        // When updating multiple value of the user entity, we need to fetch the current JSON array and merge it with requested delta
+        // since Microsoft Graph API doesn't provide a way to patch the JSON array
+        List<String> selectors = new ArrayList<>();
+        for (AttributeDelta delta : attrsDelta) {
+            if (UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_USER.contains(delta.getName())) {
+                selectors.add(delta.getName());
+            }
+        }
+        JSONObject oldJson = null;
+        if (!selectors.isEmpty()) {
+            final String select = "$select=" + String.join(",", selectors);
+
+            oldJson = endpoint.executeGetRequest(USERS + "/" + uid.getUidValue() + "/", select, options);
+
+            // Remove unrelated keys
+            for (String key : oldJson.keySet()) {
+                if (!UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_USER.contains(key)) {
+                    oldJson.remove(key);
+                }
+            }
+        }
+
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
-        HttpEntityEnclosingRequestBase request = null;
         URI uri = endpoint.getUri(uriBuilder);
         LOG.info("update user, PATCH");
         LOG.info("Path: {0}", uri);
-        request = new HttpPatch(uri);
-        final Set<AttributeDelta> deltas = new HashSet<>();
-        Set<Attribute> updateAttributes = prepareAttributes(uid, attributes, deltas, false);
 
-        final Attribute manager = attributes.stream()
-                .filter(a -> a.is(ATTR_MANAGER_ID))
-                .findFirst().orElse(null);
-        final Attribute userPhoto = attributes.stream()
-                .filter(a -> a.is(ATTR_USERPHOTO))
-                .findFirst().orElse(null);
+        HttpEntityEnclosingRequestBase request = new HttpPatch(uri);
 
-        List<JSONObject> jsonObjectaccount = buildLayeredAttribute(updateAttributes, SPO_ATTRS);
-        endpoint.callRequestNoContentNoJson(request, jsonObjectaccount);
-        assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
-        assignManager(uid, manager);
-        if (userPhoto != null) {
-            assignPhoto(uid, userPhoto);
-        }
+        List<JSONObject> jsonObjectAccount = buildLayeredAttribute(oldJson, attrsDelta, EXCLUDE_ATTRS_OF_USER, SPO_ATTRS);
+
+        endpoint.callRequestNoContentNoJson(request, jsonObjectAccount);
+
+        assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES_SKUID, attrsDelta));
+        assignManager(uid, AttributeDeltaUtil.find(ATTR_MANAGER_ID, attrsDelta));
+        assignPhoto(uid, AttributeDeltaUtil.find(ATTR_USERPHOTO, attrsDelta));
+
+        return null;
     }
 
     private void assignPhoto(Uid uid, Attribute attribute) {
         if (attribute == null) {
             return;
         }
+        byte[] photoData = (byte[]) attribute.getValue().get(0);
+        assignPhoto(uid, photoData);
+    }
+
+    private void assignPhoto(Uid uid, AttributeDelta attributeDelta) {
+        if (attributeDelta == null) {
+            return;
+        }
+        byte[] photoData = (byte[]) attributeDelta.getValuesToReplace().stream().findFirst().orElse(null);
+        assignPhoto(uid, photoData);
+    }
+
+    private void assignPhoto(Uid uid, byte[] photoData) {
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder()
                 .setPath(USERS + "/" + uid.getUidValue() + "/" + ATTR_USERPHOTO + "/$value");
-        HttpEntityEnclosingRequestBase request = null;
         URI uri = endpoint.getUri(uriBuilder);
-        request = new HttpPut(uri);
-        byte[] photoData = (byte[]) attribute.getValue().get(0);
-        try {
-            request.setHeader("Content-Type", "image/jpeg");
-            request.setEntity(new ByteArrayEntity(photoData));
-            endpoint.callRequest(request, false);
-        } catch (IllegalArgumentException e) {
-            LOG.error("Invalid Base64 encoded photo data");
+
+        if (photoData != null) {
+            HttpEntityEnclosingRequestBase request = new HttpPut(uri);
+            try {
+                request.setHeader("Content-Type", "image/jpeg");
+                request.setEntity(new ByteArrayEntity(photoData));
+                endpoint.callRequest(request, false);
+            } catch (IllegalArgumentException e) {
+                LOG.error("Invalid Base64 encoded photo data");
+            }
+        } else {
+            // Microsoft Graph API doesn't support delete photo
+            // Reference: https://learn.microsoft.com/en-us/graph/api/profilephoto-update?view=graph-rest-1.0&tabs=http
         }
     }
 
-    public Uid createUser(Uid uid, Set<Attribute> attributes) {
-        LOG.info("Start createUser, Uid: {0}, attributes: {1}", uid, attributes);
-
-        if (attributes == null || attributes.isEmpty()) {
-            throw new InvalidAttributeValueException("attributes not provided or empty");
-        }
-
-        if (uid != null) return uid;
-
+    public Uid createUser(Set<Attribute> attributes) {
+        LOG.info("Start createUser, attributes: {0}", attributes);
         final GraphEndpoint endpoint = getGraphEndpoint();
 
         final Attribute manager = attributes.stream()
@@ -913,42 +908,42 @@ public class UserProcessing extends ObjectProcessing {
                 !hasUPN;
 
         final Set<AttributeDelta> deltas = new HashSet<>();
-        Set<Attribute> createAttributes = prepareAttributes(uid, attributes, deltas, true);
 
-        final String newUid;
+        final Uid newUid;
         if (invite) {
             AttributesValidator.builder()
                     .withNonEmpty()
                     .withExactlyOne(ATTR_MAIL)
                     .build()
-                    .validate(createAttributes);
+                    .validate(attributes);
 
             final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(INVITATIONS);
             final URI uri = endpoint.getUri(uriBuilder);
             final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
-            final JSONObject payload = buildInvitation(createAttributes);
+            final JSONObject payload = buildInvitation(attributes);
             final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
-            newUid = jsonRequest.getJSONObject(ATTR_INVITED_USER).getString(ATTR_ID);
+            newUid = new Uid(jsonRequest.getJSONObject(ATTR_INVITED_USER).getString(ATTR_ID));
         } else {
             AttributesValidator.builder()
                     .withNonEmpty(ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME, ATTR_ICF_PASSWORD)
                     .withExactlyOne(ATTR_USERPRINCIPALNAME)
                     .withRegex(ATTR_USERPRINCIPALNAME, "[^@]+@[^@]+")
                     .build()
-                    .validate(createAttributes);
+                    .validate(attributes);
 
             final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS);
             final URI uri = endpoint.getUri(uriBuilder);
             final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
-            final JSONObject payload = buildLayeredAttributeJSON(createAttributes);
+            final JSONObject payload = buildLayeredAttributeJSON(attributes, EXCLUDE_ATTRS_OF_USER);
             final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
-            newUid = jsonRequest.getString(ATTR_ID);
+            newUid = new Uid(jsonRequest.getString(ATTR_ID));
         }
 
-        assignLicenses(new Uid(newUid), AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES__SKUID, deltas));
-        assignManager(new Uid(newUid), manager);
+        assignLicenses(newUid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES_SKUID, deltas));
+        assignManager(newUid, manager);
+        assignPhoto(newUid, AttributeUtil.find(ATTR_USERPHOTO, attributes));
 
-        return new Uid(newUid);
+        return newUid;
     }
 
     public void delete(Uid uid) {
@@ -964,40 +959,6 @@ public class UserProcessing extends ObjectProcessing {
         request = new HttpDelete(uri);
         if (endpoint.callRequest(request, false) == null) {
             LOG.info("Deleted user with Uid {0}", uid.getUidValue());
-        }
-    }
-
-
-    public void updateDeltaMultiValues(Uid uid, Set<AttributeDelta> attributesDelta, OperationOptions options) {
-        LOG.info("updateDeltaMultiValues uid: {0} , attributesDelta {1} , options {2}", uid, attributesDelta, options);
-
-
-        for (AttributeDelta attrDelta : attributesDelta) {
-            List<Object> addValues = attrDelta.getValuesToAdd();
-            List<Object> removeValues = attrDelta.getValuesToRemove();
-
-            switch (attrDelta.getName()) {
-                case ATTR_BUSINESSPHONES:
-                    if (removeValues != null && !removeValues.isEmpty()) {
-                        for (Object removeValue : removeValues) {
-                            Set<Attribute> attributeReplace = new HashSet<>();
-                            attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), removeValue));
-                            updateUser(uid, attributeReplace);
-                        }
-                    }
-                    if (addValues != null && !addValues.isEmpty()) {
-                        for (Object addValue : addValues) {
-                            LOG.info("addValue {0}", addValue);
-                            Set<Attribute> attributeReplace = new HashSet<>();
-                            attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), addValue));
-                            updateUser(uid, attributeReplace);
-                        }
-                    }
-                    break;
-                case ATTR_ASSIGNEDLICENSES__SKUID:
-                    assignLicenses(uid, attrDelta);
-                    break;
-            }
         }
     }
 

@@ -22,12 +22,12 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         OperationOptions options = new OperationOptions(new HashMap<String, Object>());
 
-        Set<Attribute> attributesUpdateGroup = new HashSet<Attribute>();
-        attributesUpdateGroup.add(AttributeBuilder.build("description", "The blue one"));
+        Set<AttributeDelta> attributesUpdateGroup = new HashSet<>();
+        attributesUpdateGroup.add(AttributeDeltaBuilder.build("description", "The blue one"));
 
         ObjectClass objectClassAccount = ObjectClass.GROUP;
 
-            msGraphConnector.update(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateGroup, options);
+        msGraphConnector.updateDelta(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateGroup, options);
     }
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 13)
@@ -39,13 +39,12 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         OperationOptions options = new OperationOptions(new HashMap<String, Object>());
 
-        Set<Attribute> attributesUpdateUser = new HashSet<Attribute>();
-        attributesUpdateUser.add(AttributeBuilder.build("city", "Las Vegas"));
+        Set<AttributeDelta> attributesUpdateUser = new HashSet<>();
+        attributesUpdateUser.add(AttributeDeltaBuilder.build("city", "Las Vegas"));
 
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-            msGraphConnector.update(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateUser, options);
-
+        msGraphConnector.updateDelta(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateUser, options);
     }
 
     @Test(priority = 12)
@@ -70,22 +69,14 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         Uid testUid = msGraphConnector.create(objectClassAccount, attributesAccount, options);
 
+        Set<AttributeDelta> updateAccount = new HashSet<>();
+        updateAccount.add(AttributeDeltaBuilder.build("jobTitle", "it"));
+        updateAccount.add(AttributeDeltaBuilder.build("surName", "Peter"));
+        updateAccount.add(AttributeDeltaBuilder.build("givenName", "Jackie"));
 
-        Set<Attribute> updateAccount = new HashSet<>();
-        updateAccount.add(AttributeBuilder.build("jobTitle", "it"));
-        updateAccount.add(AttributeBuilder.build("surName", "Peter"));
-        updateAccount.add(AttributeBuilder.build("givenName", "Jackie"));
-
-
-          Uid uid =  msGraphConnector.update(objectClassAccount, testUid, updateAccount, options);
-          deleteWaitAndRetry(objectClassAccount,testUid,options);
-          Assert.assertNotNull(uid);
-
-
+        Set<AttributeDelta> uid = msGraphConnector.updateDelta(objectClassAccount, testUid, updateAccount, options);
+        deleteWaitAndRetry(objectClassAccount, testUid, options);
+        Assert.assertNull(uid);
     }
-
-
-
-
 }
 

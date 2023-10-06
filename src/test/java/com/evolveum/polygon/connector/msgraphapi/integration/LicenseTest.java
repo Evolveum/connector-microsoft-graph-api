@@ -246,16 +246,16 @@ public class LicenseTest extends BasicConfigurationForTests {
         for (String skuId : licenses)
             check(co, skuId, false);
 
-        Set<Attribute> attributes = new HashSet<>();
-        attributes.add(AttributeBuilder.build(ATTR_LICENSES, licenses));
-        msGraphConnector.update(ObjectClass.ACCOUNT, uid, attributes, options);
+        Set<AttributeDelta> attributes = new HashSet<>();
+        attributes.add(AttributeDeltaBuilder.build(ATTR_LICENSES, licenses, null));
+        msGraphConnector.updateDelta(ObjectClass.ACCOUNT, uid, attributes, options);
         co = getUser(uid);
         for (String skuId : licenses)
             check(co, skuId, true);
 
         attributes.clear();
-        attributes.add(AttributeBuilder.build(ATTR_LICENSES, licenses2));
-        msGraphConnector.update(ObjectClass.ACCOUNT, uid, attributes, options);
+        attributes.add(AttributeDeltaBuilder.build(ATTR_LICENSES, licenses2, licenses));
+        msGraphConnector.updateDelta(ObjectClass.ACCOUNT, uid, attributes, options);
         co = getUser(uid);
         Set<String> removedLicenses = CollectionUtil.newSet(licenses);
         removedLicenses.removeAll(licenses2);

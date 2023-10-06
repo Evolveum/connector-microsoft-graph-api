@@ -10,9 +10,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class GroupProcessing extends ObjectProcessing {
 
@@ -26,6 +29,8 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_DESCRIPTION = "description";
     private static final String ATTR_DISPLAYNAME = "displayName";
     private static final String ATTR_GROUPTYPES = "groupTypes";
+    private static final String ATTR_MEMBERSHIPRULE = "membershipRule"; // Need Azure Active Directory Premium license for setting
+    private static final String ATTR_MEMBERSHIPRULEPROCESSINGSTATE = "membershipRuleProcessingState"; // Need Azure Active Directory Premium license for update for setting
     private static final String ATTR_ID = "id";
     private static final String ATTR_ISSUBSCRIBEDBYMAIL = "isSubscribedByMail";
     private static final String ATTR_MAIL = "mail";
@@ -40,6 +45,15 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_VISIBILITY = "visibility";
     private static final String ATTR_MEMBERS = "members";
     private static final String ATTR_OWNERS = "owners";
+
+    protected static final Set<String> EXCLUDE_ATTRS_OF_GROUP = Stream.of(
+            ATTR_MEMBERS,
+            ATTR_OWNERS
+    ).collect(Collectors.toSet());
+
+    protected static final Set<String> UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_GROUP = Stream.of(
+            ATTR_GROUPTYPES
+    ).collect(Collectors.toSet());
 
     public GroupProcessing(GraphEndpoint graphEndpoint) {
         super(graphEndpoint, ICFPostMapper.builder().build());
@@ -112,6 +126,14 @@ public class GroupProcessing extends ObjectProcessing {
         attrGroupTypes.setRequired(false).setType(String.class).setMultiValued(true).setCreateable(true).setUpdateable(true).setReadable(true);
         groupObjClassBuilder.addAttributeInfo(attrGroupTypes.build());
 
+        AttributeInfoBuilder attrMembershipRule = new AttributeInfoBuilder(ATTR_MEMBERSHIPRULE);
+        attrGroupTypes.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        groupObjClassBuilder.addAttributeInfo(attrMembershipRule.build());
+
+        AttributeInfoBuilder attrMembershipRuleProcessingState = new AttributeInfoBuilder(ATTR_MEMBERSHIPRULEPROCESSINGSTATE);
+        attrGroupTypes.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        groupObjClassBuilder.addAttributeInfo(attrMembershipRuleProcessingState.build());
+
         // Not nullable, Read-only.
         AttributeInfoBuilder attrId = new AttributeInfoBuilder(ATTR_ID);
         attrId.setRequired(false).setType(String.class).setCreateable(false).setUpdateable(false).setReadable(true);
@@ -168,70 +190,80 @@ public class GroupProcessing extends ObjectProcessing {
         return groupObjClassBuilder.build();
     }
 
-    protected Uid createOrUpdateGroup(Uid uid, Set<Attribute> attributes) {
-        LOG.info("Start createOrUpdateGroup, Uid: {0}, attributes: {1}", uid, attributes);
-        if (attributes == null || attributes.isEmpty()) {
-            throw new InvalidAttributeValueException("attributes not provided or empty");
-        }
-
-        Boolean create = uid == null;
+    protected Uid createGroup(Set<Attribute> attributes) {
+        LOG.info("Start createGroup, attributes: {0}", attributes);
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
 
-        HttpEntityEnclosingRequestBase request = null;
-        URI uri = null;
-        JSONObject jsonAnswer = new JSONObject();
+        AttributesValidator.builder()
+                .withNonEmpty(ATTR_DISPLAYNAME, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_SECURITYENABLED)
+                .build().validate(attributes);
 
-        if (create) {
-            AttributesValidator.builder()
-                    .withNonEmpty(ATTR_DISPLAYNAME, ATTR_MAILENABLED, ATTR_MAILNICKNAME, ATTR_SECURITYENABLED)
-                    .build().validate(attributes);
+        uriBuilder.setPath(GROUPS);
+        URI uri = endpoint.getUri(uriBuilder);
+        LOG.info("Path: {0}", uri);
+        HttpEntityEnclosingRequestBase request = new HttpPost(uri);
+        JSONObject jsonObject = buildLayeredAttributeJSON(attributes, EXCLUDE_ATTRS_OF_GROUP);
 
-            uriBuilder.setPath(GROUPS);
-            uri = endpoint.getUri(uriBuilder);
-            LOG.info("Uid == null -> create group");
-            LOG.info("Path: {0}", uri);
-            request = new HttpPost(uri);
-            JSONObject jsonObject1 = buildLayeredAttributeJSON(attributes);
-
-            // For historical reason, Groups are allowed to duplicate displayName (Reference: https://morgansimonsen.com/2016/06/28/azure-ad-allows-duplicate-group-names/).
-            // However, Microsoft strives to avoid group created with duplicated names. For example, duplicate Group creation from the UI will result in an error.
-            // Unfortunately, Microsoft Graph v1.0 does not perform duplicate name checking, so we have to implement here.
-            //
-            // Note: As Group creation is eventual consistency, the existence check here does not work well for
-            // freshly created Groups and will result in the creation of duplicate Groups.
-            // This is unavoidable due to the system design of Azure AD.
-            // (Reference: https://github.com/MicrosoftDocs/azure-docs/issues/94121#issuecomment-1191792188)
-            if (isExist(jsonObject1.getString(getNameAttribute()))) {
-                throw new AlreadyExistsException("Another object with the same value for property displayName already exists");
-            }
-
-            jsonAnswer = endpoint.callRequest(request, jsonObject1, true);
-
-
-        } else {
-            // update
-            uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
-            uri = endpoint.getUri(uriBuilder);
-            LOG.info("Uid != null -> update group");
-            LOG.info("Path: {0}", uri);
-            request = new HttpPatch(uri);
-            List<JSONObject> attributeList = buildLayeredAttribute(attributes, Collections.emptySet());
-            endpoint.callRequestNoContentNoJson(request, attributeList);
+        // For historical reason, Groups are allowed to duplicate displayName (Reference: https://morgansimonsen.com/2016/06/28/azure-ad-allows-duplicate-group-names/).
+        // However, Microsoft strives to avoid group created with duplicated names. For example, duplicate Group creation from the UI will result in an error.
+        // Unfortunately, Microsoft Graph v1.0 does not perform duplicate name checking, so we have to implement here.
+        //
+        // Note: As Group creation is eventual consistency, the existence check here does not work well for
+        // freshly created Groups and will result in the creation of duplicate Groups.
+        // This is unavoidable due to the system design of Azure AD.
+        // (Reference: https://github.com/MicrosoftDocs/azure-docs/issues/94121#issuecomment-1191792188)
+        if (isExist(jsonObject.getString(getNameAttribute()))) {
+            throw new AlreadyExistsException("Another object with the same value for property displayName already exists");
         }
 
+        JSONObject jsonAnswer = endpoint.callRequest(request, jsonObject, true);
 
-        // JSONObject jsonRequest = callRequest(request, attributes);
-
-        if (!create) {
-            LOG.info("Returning original Uid: {0} ", uid);
-            return uid;
-        }
         String newUid = jsonAnswer.getString("id");
         LOG.info("The new Uid is {0} ", newUid);
 
-
         return new Uid(newUid);
+    }
+
+    protected Set<AttributeDelta> updateGroup(Uid uid, Set<AttributeDelta> attrsDelta, OperationOptions options) {
+        LOG.info("Start updateGroup, Uid: {0}, attrsDelta: {1}", uid, attrsDelta);
+        final GraphEndpoint endpoint = getGraphEndpoint();
+
+        // When updating multiple value of the group entity, we need to fetch the current JSON array and merge it with requested delta
+        // since Microsoft Graph API doesn't provide a way to patch the JSON array
+        List<String> selectors = new ArrayList<>();
+        for (AttributeDelta delta : attrsDelta) {
+            if (UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_GROUP.contains(delta.getName())) {
+                selectors.add(delta.getName());
+            }
+        }
+        JSONObject oldJson = null;
+        if (!selectors.isEmpty()) {
+            final String select = "$select=" + String.join(",", selectors);
+
+            oldJson = endpoint.executeGetRequest(GROUPS + "/" + uid.getUidValue() + "/", select, options);
+
+            // Remove unrelated keys
+            for (String key : oldJson.keySet()) {
+                if (!UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_GROUP.contains(key)) {
+                    oldJson.remove(key);
+                }
+            }
+        }
+
+        final URIBuilder uriBuilder = endpoint.createURIBuilder();
+
+        uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
+        URI uri = endpoint.getUri(uriBuilder);
+        LOG.info("Path: {0}", uri);
+        HttpEntityEnclosingRequestBase request = new HttpPatch(uri);
+        List<JSONObject> attributeList = buildLayeredAttribute(oldJson, attrsDelta, EXCLUDE_ATTRS_OF_GROUP, Collections.emptySet());
+        endpoint.callRequestNoContentNoJson(request, attributeList);
+
+        addOrRemoveMember(uid, AttributeDeltaUtil.find(ATTR_MEMBERS, attrsDelta), GROUPS);
+        addOrRemoveOwner(uid, AttributeDeltaUtil.find(ATTR_OWNERS, attrsDelta), GROUPS);
+
+        return null;
     }
 
     protected boolean isExist(String displayName) {
@@ -275,26 +307,11 @@ public class GroupProcessing extends ObjectProcessing {
 
     }
 
-
-    protected void updateDeltaMultiValuesForGroup(Uid uid, Set<AttributeDelta> attributesDelta, OperationOptions options) {
-        LOG.info("updateDeltaMultiValuesForGroup on uid: {0}, attrDelta: {1}, options: {2}", uid.getValue(), attributesDelta, options);
-        for (AttributeDelta attrDelta : attributesDelta) {
-            LOG.info("attrDelta: {0}", attrDelta);
-            //add or remove owners to/from group
-            if (attrDelta.getName().equalsIgnoreCase(ATTR_OWNERS)) {
-                LOG.info("addOwnersToGroup");
-                addOrRemoveOwner(uid, attrDelta, GROUPS);
-            }//add or remove members to/from group
-            else if (attrDelta.getName().equalsIgnoreCase(ATTR_MEMBERS)) {
-                LOG.info("addMembersToGroup");
-                addOrRemoveMember(uid, attrDelta, GROUPS);
-            }
+    protected void addOrRemoveMember(Uid uid, AttributeDelta attrDelta, String path) {
+        if (attrDelta == null) {
+            return;
         }
 
-    }
-
-
-    protected void addOrRemoveMember(Uid uid, AttributeDelta attrDelta, String path) {
         LOG.info("addOrRemoveMember {0} , {1} , {2}", uid, attrDelta, path);
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(path).append("/").append(uid.getUidValue()).append("/" + ATTR_MEMBERS);
@@ -324,89 +341,11 @@ public class GroupProcessing extends ObjectProcessing {
         }
     }
 
-    protected void addToGroup(Uid uid, Set<Attribute> attributes) {
-        LOG.info("addToGroup {0} , {1}", uid, attributes);
-
-        for (Attribute attribute : attributes) {
-            if (attribute.getName().equalsIgnoreCase("member") ||
-                    attribute.getName().equalsIgnoreCase("members")) {
-                addMembersToGroup(uid, attribute);
-            } else if (attribute.getName().equalsIgnoreCase("owner") ||
-                    attribute.getName().equalsIgnoreCase("owners")) {
-                addOwnerToGroup(uid, attribute);
-            }
-        }
-    }
-
-
-    private void addMembersToGroup(Uid uid, Attribute attribute) {
-        LOG.info("addMembersToGroup {0} , {1}", uid, attribute);
-
-        StringBuilder sbPath = new StringBuilder();
-        sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_MEMBERS);
-        sbPath.append("/").append("$ref");
-        LOG.info("path: {0}", sbPath);
-
-        JSONObject json = new JSONObject();
-        String addToJson = "https://graph.microsoft.com/v1.0/directoryObjects/" + AttributeUtil.getAsStringValue(attribute);
-        json.put("@odata.id", addToJson);
-        LOG.ok("json: {0}", json);
-        postRequestNoContent(sbPath.toString(), json);
-    }
-
-    private void addOwnerToGroup(Uid uid, Attribute attribute) {
-        LOG.info("addOwnerToGroup {0} , {1}", uid, attribute);
-
-        StringBuilder sbPath = new StringBuilder();
-        sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_OWNERS);
-        sbPath.append("/").append("$ref");
-        LOG.info("path: {0}", sbPath);
-
-        JSONObject json = new JSONObject();
-        String addToJson = "https://graph.microsoft.com/v1.0/users/" + AttributeUtil.getAsStringValue(attribute);
-        json.put("@odata.id", addToJson);
-        LOG.ok("json: {0}", json);
-        postRequestNoContent(sbPath.toString(), json);
-    }
-
-    protected void removeFromGroup(Uid uid, Set<Attribute> attributes) {
-        LOG.info("removeFromGroup {0}, {1}", uid, attributes);
-        for (Attribute attribute : attributes) {
-            if (attribute.getName().equalsIgnoreCase("member") ||
-                    attribute.getName().equalsIgnoreCase("members")) {
-                removeMemberFromGroup(uid, attribute);
-            } else if (attribute.getName().equalsIgnoreCase("owner") ||
-                    attribute.getName().equalsIgnoreCase("owners")) {
-                removeOwnerFromGroup(uid, attribute);
-            }
-        }
-    }
-
-    private void removeOwnerFromGroup(Uid uid, Attribute attribute) {
-        LOG.info("addOrRemoveMember {0} , {1} ", uid, attribute);
-        StringBuilder sbPath = new StringBuilder();
-        sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_OWNERS);
-        if (LOG.isInfo()) {
-            LOG.info("executeDeleteOperation userId: {0} , sbPath: {1} ", AttributeUtil.getAsStringValue(attribute), sbPath);
-        }
-        executeDeleteOperation(new Uid(AttributeUtil.getAsStringValue(attribute)), sbPath.toString());
-        if (LOG.isInfo()) {
-            LOG.info("path: {0}", sbPath);
-        }
-    }
-
-    private void removeMemberFromGroup(Uid uid, Attribute attribute) {
-        LOG.info("addOrRemoveMember {0} , {1} ", uid, attribute);
-        StringBuilder sbPath = new StringBuilder();
-        sbPath.append(GROUPS).append("/").append(uid.getUidValue()).append("/" + ATTR_MEMBERS);
-        if (LOG.isInfo()) {
-            LOG.info("executeDeleteOperation userId: {0} , sbPath: {1} ", AttributeUtil.getAsStringValue(attribute), sbPath);
-        }
-        executeDeleteOperation(new Uid(AttributeUtil.getAsStringValue(attribute)), sbPath.toString());
-        LOG.info("path: {0}", sbPath);
-    }
-
     public void addOrRemoveOwner(Uid uid, AttributeDelta attrDelta, String path) {
+        if (attrDelta == null) {
+            return;
+        }
+
         LOG.info("add owner to group or remove ");
         StringBuilder sbPath = new StringBuilder();
         sbPath.append(path).append("/").append(uid.getUidValue()).append("/" + ATTR_OWNERS);
@@ -614,7 +553,9 @@ public class GroupProcessing extends ObjectProcessing {
 
         getIfExists(group, ATTR_DISPLAYNAME, String.class, builder);
         getIfExists(group, ATTR_DESCRIPTION, String.class, builder);
-        getMultiIfExists(group, ATTR_GROUPTYPES, builder); //?
+        getMultiIfExists(group, ATTR_GROUPTYPES, builder);
+        getIfExists(group, ATTR_MEMBERSHIPRULE, String.class, builder);
+        getIfExists(group, ATTR_MEMBERSHIPRULEPROCESSINGSTATE, String.class, builder);
         getIfExists(group, ATTR_MAIL, String.class, builder);
         getIfExists(group, ATTR_MAILENABLED, Boolean.class, builder);
         getIfExists(group, ATTR_MAILNICKNAME, String.class, builder);

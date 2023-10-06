@@ -59,14 +59,14 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         int i = 0;
         for (Uid groupUid : groupsUid) {
 
-            Set<Attribute> attributesUpdateGroup = new HashSet<>();
+            Set<AttributeDelta> attributesUpdateGroup = new HashSet<>();
 
-            AttributeBuilder attr = new AttributeBuilder();
+            AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
             attr.setName("description");
-            attr.addValue("this is the " + i + " description update");
+            attr.addValueToReplace("this is the " + i + " description update");
             attributesUpdateGroup.add(attr.build());
             msGraphConnector.init(conf);
-            msGraphConnector.update(objectClassGroup, groupUid, attributesUpdateGroup, options);
+            msGraphConnector.updateDelta(objectClassGroup, groupUid, attributesUpdateGroup, options);
             msGraphConnector.dispose();
             i++;
         }
@@ -100,13 +100,13 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         msGraphConnector.dispose();
 
         for (Uid groupUid : groupsUid) {
-            Set<Attribute> attrAdd = new HashSet<>();
-            AttributeBuilder attr = new AttributeBuilder();
-            attr.setName("member");
-            attr.addValue(groupTestUser.getUidValue());
+            Set<AttributeDelta> attrAdd = new HashSet<>();
+            AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
+            attr.setName("members");
+            attr.addValueToAdd(groupTestUser.getUidValue());
             attrAdd.add(attr.build());
             msGraphConnector.init(conf);
-            msGraphConnector.addAttributeValues(objectClassGroup, groupUid, attrAdd, options);
+            msGraphConnector.updateDelta(objectClassGroup, groupUid, attrAdd, options);
             msGraphConnector.dispose();
         }
     }
@@ -166,44 +166,44 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         msGraphConnector.dispose();
 
         for (Uid groupUid : groupsUid) {
-            Set<Attribute> attrAdd = new HashSet<>();
-            AttributeBuilder attr = new AttributeBuilder();
-            attr.setName("owner");
-            attr.addValue(groupTestUser.getUidValue());
+            Set<AttributeDelta> attrAdd = new HashSet<>();
+            AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
+            attr.setName("owners");
+            attr.addValueToAdd(groupTestUser.getUidValue());
 
-            Set<Attribute> attrAdd1 = new HashSet<>();
-            AttributeBuilder attr1 = new AttributeBuilder();
-            attr1.setName("owner");
-            attr1.addValue(groupTestUser1.getUidValue());
+            Set<AttributeDelta> attrAdd1 = new HashSet<>();
+            AttributeDeltaBuilder attr1 = new AttributeDeltaBuilder();
+            attr1.setName("owners");
+            attr1.addValueToAdd(groupTestUser1.getUidValue());
 
-            Set<Attribute> attrAdd2 = new HashSet<>();
-            AttributeBuilder attr2 = new AttributeBuilder();
-            attr2.setName("owner");
-            attr2.addValue(groupTestUser2.getUidValue());
+            Set<AttributeDelta> attrAdd2 = new HashSet<>();
+            AttributeDeltaBuilder attr2 = new AttributeDeltaBuilder();
+            attr2.setName("owners");
+            attr2.addValueToAdd(groupTestUser2.getUidValue());
 
-            Set<Attribute> attrAdd3 = new HashSet<>();
-            AttributeBuilder attr3 = new AttributeBuilder();
-            attr3.setName("owner");
-            attr3.addValue(groupTestUser3.getUidValue());
+            Set<AttributeDelta> attrAdd3 = new HashSet<>();
+            AttributeDeltaBuilder attr3 = new AttributeDeltaBuilder();
+            attr3.setName("owners");
+            attr3.addValueToAdd(groupTestUser3.getUidValue());
 
             attrAdd.add(attr.build());
             msGraphConnector.init(conf);
-            msGraphConnector.addAttributeValues(objectClassGroup, groupUid, attrAdd, options);
+            msGraphConnector.updateDelta(objectClassGroup, groupUid, attrAdd, options);
             msGraphConnector.dispose();
 
             attrAdd1.add(attr1.build());
             msGraphConnector.init(conf);
-            msGraphConnector.addAttributeValues(objectClassGroup, groupUid, attrAdd1, options);
+            msGraphConnector.updateDelta(objectClassGroup, groupUid, attrAdd1, options);
             msGraphConnector.dispose();
 
             attrAdd2.add(attr2.build());
             msGraphConnector.init(conf);
-            msGraphConnector.addAttributeValues(objectClassGroup, groupUid, attrAdd2, options);
+            msGraphConnector.updateDelta(objectClassGroup, groupUid, attrAdd2, options);
             msGraphConnector.dispose();
 
             attrAdd3.add(attr3.build());
             msGraphConnector.init(conf);
-            msGraphConnector.addAttributeValues(objectClassGroup, groupUid, attrAdd3, options);
+            msGraphConnector.updateDelta(objectClassGroup, groupUid, attrAdd3, options);
             msGraphConnector.dispose();
         }
     }
@@ -220,23 +220,23 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         ObjectClass objectClassGroup = ObjectClass.GROUP;
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-        Set<Attribute> attrAdd = new HashSet<>();
-        AttributeBuilder attr = new AttributeBuilder();
-        attr.setName("owner");
-        attr.addValue(groupTestUser.getUidValue());
+        Set<AttributeDelta> attrAdd = new HashSet<>();
+        AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
+        attr.setName("owners");
+        attr.addValueToRemove(groupTestUser.getUidValue());
         attrAdd.add(attr.build());
 
 
-        Set<Attribute> attrAdd1 = new HashSet<>();
-        AttributeBuilder attr1 = new AttributeBuilder();
-        attr1.setName("owner");
-        attr1.addValue(groupTestUser1.getUidValue());
+        Set<AttributeDelta> attrAdd1 = new HashSet<>();
+        AttributeDeltaBuilder attr1 = new AttributeDeltaBuilder();
+        attr1.setName("owners");
+        attr1.addValueToRemove(groupTestUser1.getUidValue());
         attrAdd1.add(attr1.build());
 
-        Set<Attribute> attrAdd2 = new HashSet<>();
-        AttributeBuilder attr2 = new AttributeBuilder();
-        attr2.setName("owner");
-        attr2.addValue(groupTestUser2.getUidValue());
+        Set<AttributeDelta> attrAdd2 = new HashSet<>();
+        AttributeDeltaBuilder attr2 = new AttributeDeltaBuilder();
+        attr2.setName("owners");
+        attr2.addValueToRemove(groupTestUser2.getUidValue());
         attrAdd2.add(attr2.build());
 
 
@@ -244,15 +244,15 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
 
 
             msGraphConnector.init(getConfiguration());
-            msGraphConnector.removeAttributeValues(objectClassGroup, group, attrAdd, options);
+            msGraphConnector.updateDelta(objectClassGroup, group, attrAdd, options);
             msGraphConnector.dispose();
 
             msGraphConnector.init(conf);
-            msGraphConnector.removeAttributeValues(objectClassGroup, group, attrAdd1, options);
+            msGraphConnector.updateDelta(objectClassGroup, group, attrAdd1, options);
             msGraphConnector.dispose();
 
             msGraphConnector.init(conf);
-            msGraphConnector.removeAttributeValues(objectClassGroup, group, attrAdd2, options);
+            msGraphConnector.updateDelta(objectClassGroup, group, attrAdd2, options);
             msGraphConnector.dispose();
 
         }
@@ -270,10 +270,10 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         ObjectClass objectClassGroup = ObjectClass.GROUP;
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-        Set<Attribute> attrAdd = new HashSet<>();
-        AttributeBuilder attr = new AttributeBuilder();
-        attr.setName("member");
-        attr.addValue(groupTestUser.getUidValue());
+        Set<AttributeDelta> attrAdd = new HashSet<>();
+        AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
+        attr.setName("members");
+        attr.addValueToRemove(groupTestUser.getUidValue());
         attrAdd.add(attr.build());
 
 
@@ -281,7 +281,7 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
 
 
             msGraphConnector.init(getConfiguration());
-            msGraphConnector.removeAttributeValues(objectClassGroup, group, attrAdd, options);
+            msGraphConnector.updateDelta(objectClassGroup, group, attrAdd, options);
             msGraphConnector.dispose();
 
 

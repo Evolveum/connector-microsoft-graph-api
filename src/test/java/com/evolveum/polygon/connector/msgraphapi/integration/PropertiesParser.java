@@ -23,6 +23,8 @@ public class PropertiesParser {
     private static final String TENANT_ID = "tenantID";
     private static final String LICENSES = "licenses";
     private static final String LICENSES2 = "licenses2";
+    private static final String SPO_LICENSE_REQUIRED = "spoLicenseRequired";
+    private static final String AAD_PREMIUM_LICENSE_REQUIRED = "aadPremiumLicenseRequired";
     private static final String DISABLED_PLANS = "disabledPlans";
     private static final String EXISTED_ROLE_DISPLAY_NAME = "existedRoleDisplayName";
 
@@ -68,6 +70,16 @@ public class PropertiesParser {
 
     public Set<String> getLicenses2() {
         return getValues(LICENSES2);
+    }
+
+    public boolean isSPOLicenseRequired() {
+        String value = (String) PROPERTIES.get(SPO_LICENSE_REQUIRED);
+        return Boolean.valueOf(value);
+    }
+
+    public boolean isAADPremiumLicenseRequired() {
+         String value = (String) PROPERTIES.get(AAD_PREMIUM_LICENSE_REQUIRED);
+         return Boolean.valueOf(value);
     }
 
     public String[] getDisabledPlans() {
