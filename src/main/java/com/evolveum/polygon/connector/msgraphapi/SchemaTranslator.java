@@ -48,6 +48,10 @@ public class SchemaTranslator {
         return rawConnIdSchema;
     }
 
+    public Map<String, Map<String, AttributeInfo>> getConnIdSchemaMap() {
+        return connIdSchema;
+    }
+
     public String[] filter(String type, OperationOptions options, String... attrs) {
         Set<String> returnedAttributes = getAttributesToGet(type, options);
 

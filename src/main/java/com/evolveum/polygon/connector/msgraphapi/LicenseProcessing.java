@@ -73,6 +73,11 @@ public class LicenseProcessing extends ObjectProcessing {
     }
 
     @Override
+    protected String type() {
+        return OBJECT_CLASS_NAME;
+    }
+
+    @Override
     protected ObjectClassInfo objectClassInfo() {
         Set<AttributeInfo> attributes = new HashSet<>();
 
@@ -112,7 +117,7 @@ public class LicenseProcessing extends ObjectProcessing {
                 .setMultiValued(true)
                 .build());
         return new ObjectClassInfoBuilder()
-                .setType(OBJECT_CLASS_NAME)
+                .setType(type())
                 .addAllAttributeInfo(attributes)
                 .build();
     }

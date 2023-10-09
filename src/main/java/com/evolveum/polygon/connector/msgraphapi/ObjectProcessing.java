@@ -38,6 +38,8 @@ abstract class ObjectProcessing {
         this.postMapper = postMapper;
     }
 
+    protected abstract String type();
+
     protected abstract ObjectClassInfo objectClassInfo();
 
     protected static final Log LOG = Log.getLog(MSGraphConnector.class);
@@ -324,151 +326,103 @@ abstract class ObjectProcessing {
         throw new InvalidAttributeValueException(sb.toString());
     }
 
-    static abstract class Node {
-    }
-
-    static class IntermediateNode extends Node {
-        public Map<String, Node> keyValueMap = new LinkedHashMap<>();
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("{ \"");
-            sb.append(keyValueMap.entrySet().stream().map(entry -> entry.getKey() + "\" : " + entry.getValue())
-                    .collect(Collectors.joining(", ")));
-
-            sb.append("}");
-            return sb.toString();
-        }
-    }
-
-
-    static class LeafNode extends Node {
-        public String value;
-        public boolean isMultiValue;
-
-        @Override
-        public String toString() {
-            if (isMultiValue) return value;
-            else return value == null ? null : "\"" + value + "\"";
-        }
-    }
-
     protected JSONObject buildLayeredAttributeJSON(Set<Attribute> multiLayerAttribute) {
         JSONObject json = new JSONObject();
         for (Attribute attribute : multiLayerAttribute) {
             final String[] attributePath = resolveAttributePath(attribute);
-            if (attributePath == null) continue;
-            IntermediateNode root = new IntermediateNode();
-            IntermediateNode currentNode = root;
+            if (attributePath == null) {
+                continue;
+            }
+
+            JSONObject current = json;
             for (int i = 0; i < attributePath.length - 1; i++) {
-                Node node = currentNode.keyValueMap.get(attributePath[i]);
-                if (node == null) {
-                    IntermediateNode child = new IntermediateNode();
-                    currentNode.keyValueMap.put(attributePath[i].trim(), child);
-                    currentNode = child;
+                if (!current.has(attributePath[i])) {
+                    JSONObject child = new JSONObject();
+                    current.put(attributePath[i], child);
+                    current = child;
                 } else {
-                    currentNode = (IntermediateNode) node;
+                    current = current.getJSONObject(attributePath[i]);
                 }
             }
-            LeafNode leaf = new LeafNode();
+
             boolean isMultiValue = isAttributeMultiValues(attribute.getName());
             LOG.info("attribute {0} isMultiValue {1}", attribute, isMultiValue);
 
-            leaf.isMultiValue = isMultiValue;
+            String key = attributePath[attributePath.length - 1];
+
             if (isMultiValue) {
-                //multi value with []
-                StringBuilder multiValue = new StringBuilder("[");
-                List<Object> attributes = attribute.getValue();
-                Iterator itr = attributes.iterator();
-                LOG.info("multi");
-                for (Object attribute1 : attributes) {
-                    multiValue.append("\"").append(attribute1.toString()).append("\"");
+                List<Object> attributes = postMapper.getMultiValue(attribute);
+                for (Object value : attributes) {
+                    current.append(key, value);
                 }
-                multiValue.append("]");
-                leaf.value = multiValue.toString().replace("\"\"", "\",\"");
             } else {
                 Object value = postMapper.getSingleValue(attribute);
-                leaf.value = value == null ? null : value.toString();
-            }
-
-
-            currentNode.keyValueMap.put(attributePath[attributePath.length - 1], leaf);
-            JSONObject jsonObject = new JSONObject(root.toString());
-            //empty json
-            if (jsonObject.length() == 0) {
-                json = jsonObject;
-            } else {
-
-                String key = jsonObject.keys().next();
-                Object value = jsonObject.get(key);
-                JSONObject newJSONObject = new JSONObject();
-                newJSONObject.put(key, value);
-                deepMerge(jsonObject, json);
-
+                if (value == null) {
+                    current.put(key, JSONObject.NULL);
+                } else {
+                    current.put(key, value);
+                }
             }
         }
 
         return json;
     }
 
-    protected List<Object> buildLayeredAtrribute(Set<Attribute> multiLayerAttribute) {
-        LinkedList<Object> list = new LinkedList<>();
+    protected List<JSONObject> buildLayeredAttribute(Set<Attribute> multiLayerAttribute, Set<String> separatedAttrs) {
+        JSONObject json = new JSONObject();
+        JSONObject separatedJson = new JSONObject();
         for (Attribute attribute : multiLayerAttribute) {
             final String[] attributePath = resolveAttributePath(attribute);
-            if (attributePath == null) continue;
-            IntermediateNode root = new IntermediateNode();
-            IntermediateNode currentNode = root;
+            if (attributePath == null) {
+                continue;
+            }
+
+            JSONObject current;
+            if (separatedAttrs.contains(attribute.getName())) {
+                current = separatedJson;
+            } else {
+                current = json;
+            }
+
             for (int i = 0; i < attributePath.length - 1; i++) {
-                Node node = currentNode.keyValueMap.get(attributePath[i]);
-                if (node == null) {
-                    IntermediateNode child = new IntermediateNode();
-                    currentNode.keyValueMap.put(attributePath[i].trim(), child);
-                    currentNode = child;
+                if (!current.has(attributePath[i])) {
+                    JSONObject child = new JSONObject();
+                    current.put(attributePath[i], child);
+                    current = child;
                 } else {
-                    currentNode = (IntermediateNode) node;
+                    current = current.getJSONObject(attributePath[i]);
                 }
             }
-            LeafNode leaf = new LeafNode();
-            boolean isMultiValue = isAttributeMultiValues(attribute.getName());
-            leaf.isMultiValue = isMultiValue;
-            if (isMultiValue) {
-                //multi value with []
-                StringBuilder multiValue = new StringBuilder("[");
-                List<Object> attributes = attribute.getValue();
-                Iterator itr = attributes.iterator();
 
-                for (Object attribute1 : attributes) {
-                    multiValue.append("\"").append(attribute1.toString()).append("\"");
+            boolean isMultiValue = isAttributeMultiValues(attribute.getName());
+            LOG.info("attribute {0} isMultiValue {1}", attribute, isMultiValue);
+
+            String key = attributePath[attributePath.length - 1];
+
+            if (isMultiValue) {
+                List<Object> attributes = postMapper.getMultiValue(attribute);
+                for (Object value : attributes) {
+                    current.append(key, value);
                 }
-                multiValue.append("]");
-                leaf.value = multiValue.toString().replace("\"\"", "\",\"");
             } else {
                 Object value = postMapper.getSingleValue(attribute);
-                leaf.value = value == null ? null : value.toString();
+                if (value == null) {
+                    current.put(key, JSONObject.NULL);
+                } else {
+                    current.put(key, value);
+                }
             }
+        }
 
-            currentNode.keyValueMap.put(attributePath[attributePath.length - 1], leaf);
-            JSONObject jsonObject = new JSONObject(root.toString());
-
-            // merge same nodes together
-            updateJsonList(list, jsonObject);
+        List<JSONObject> list = new ArrayList<>();
+        if (!json.isEmpty()) {
+            list.add(json);
+        }
+        if (!separatedJson.isEmpty()) {
+            list.add(separatedJson);
         }
 
         return list;
-    }
-
-    private void updateJsonList(LinkedList<Object> list, JSONObject jsonObject) {
-        boolean match = list.stream().map(it -> (JSONObject) it).anyMatch(it -> it.has(jsonObject.keys().next()));
-        if(match) {
-            list.stream()
-                    .map(it -> (JSONObject) it)
-                    .filter(it -> it.has(jsonObject.keys().next()))
-                    .findAny()
-                    .ifPresent(it -> deepMerge(jsonObject, it));
-        } else {
-            list.add(jsonObject);
-        }
     }
 
     private String[] resolveAttributePath(Attribute attribute) {
@@ -477,34 +431,13 @@ abstract class ObjectProcessing {
         else return path.split(DELIMITER);
     }
 
-    public static JSONObject deepMerge(JSONObject source, JSONObject target) throws JSONException {
-        for (String key : JSONObject.getNames(source)) {
-            Object value = source.get(key);
-            if (!target.has(key)) {
-                // new value for "key":
-                target.put(key, value);
-            } else {
-                // existing value for "key" - recursively deep merge:
-                if (value instanceof JSONObject) {
-                    JSONObject valueJson = (JSONObject) value;
-                    deepMerge(valueJson, target.getJSONObject(key));
-                } else {
-                    target.put(key, value);
-                }
-            }
-        }
-        return target;
-    }
-
     boolean isAttributeMultiValues(String attrName) {
-        for (AttributeInfo ai : objectClassInfo().getAttributeInfo()) {
-            if (ai.getName().equals(attrName)) {
-                if (ai.isMultiValued()) {
-                    return true;
-                }
-            }
+        Map<String, Map<String, AttributeInfo>> connIdSchemaMap = getSchemaTranslator().getConnIdSchemaMap();
+        Map<String, AttributeInfo> attributeInfoMap = connIdSchemaMap.get(type());
+        AttributeInfo attributeInfo = attributeInfoMap.get(attrName);
+        if (attributeInfo != null && attributeInfo.isMultiValued()) {
+            return true;
         }
-
         return false;
     }
 

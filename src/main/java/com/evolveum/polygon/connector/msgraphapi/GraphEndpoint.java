@@ -97,7 +97,7 @@ public class GraphEndpoint {
         return schemaTranslator;
     }
 
-    private void authenticate() {
+    protected void authenticate() {
         AuthenticationResult result = null;
         ExecutorService service = null;
         LOG.ok("Processing through authenticate method");
@@ -223,7 +223,7 @@ public class GraphEndpoint {
         schemaTranslator = new SchemaTranslator(this);
     }
 
-    private void initHttpClient() {
+    protected void initHttpClient() {
         final HttpClientBuilder clientBuilder = HttpClientBuilder.create();
         clientBuilder.setRetryHandler(myRetryHandler);
         clientBuilder.setServiceUnavailableRetryStrategy(new ServiceUnavailableRetryStrategy() {
@@ -757,23 +757,23 @@ public class GraphEndpoint {
 
     }
 
-    protected void callRequestNoContentNoJson(HttpEntityEnclosingRequestBase request, List jsonObject) {
+    protected void callRequestNoContentNoJson(HttpEntityEnclosingRequestBase request, List<JSONObject> jsonObjects) {
         LOG.info("Request {0} ", request);
-        LOG.info("Attributes {0} ", jsonObject);
+        LOG.info("Attributes {0} ", jsonObjects);
 
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided or empty");
         }
 
-
-        //execute one by one because Microsoft Graph not support SharePoint and Azure AD attributes in one JSONObject
-        for (Object list : jsonObject) {
+        // Azure AD and SharePoint Online attributes cannot be updated together. Therefore, it is necessary to update them separately.
+        // Reference: https://learn.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0&tabs=http
+        for (JSONObject jsonObject : jsonObjects) {
             HttpEntity entity = null;
 
             try {
-                entity = new ByteArrayEntity(list.toString().getBytes("UTF-8"));
+                entity = new ByteArrayEntity(jsonObject.toString().getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
+                throw new ConnectorIOException(e);
             }
             request.setEntity(entity);
 
@@ -787,7 +787,7 @@ public class GraphEndpoint {
                     LOG.error("Not updated, statusCode: {0}", statusCode);
                 }
             } catch (IOException e) {
-                throw new ConnectorIOException();
+                throw new ConnectorIOException(e);
             }
 
         }

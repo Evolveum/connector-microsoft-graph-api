@@ -530,7 +530,9 @@ public class MSGraphConnector implements Connector,
         for (AttributeDelta attrDelta : attrsDelta) {
             List<Object> replaceValue = attrDelta.getValuesToReplace();
             if (replaceValue != null) {
-                LOG.info("attributeReplace.add {0} {1}", AttributeBuilder.build(attrDelta.getName(), replaceValue));
+                if (LOG.isInfo()) {
+                    LOG.info("attributeReplace.add {0} {1}", AttributeBuilder.build(attrDelta.getName(), replaceValue));
+                }
                 attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), replaceValue));
             } else {
                 LOG.info("attrsDeltaMultivalue.add {0}", attrDelta);
