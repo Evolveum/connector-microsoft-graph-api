@@ -1,15 +1,21 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
+import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
-import org.testng.Assert;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.testng.AssertJUnit.*;
 
 public class UpdateTest extends BasicConfigurationForTests {
 
@@ -73,10 +79,25 @@ public class UpdateTest extends BasicConfigurationForTests {
         updateAccount.add(AttributeDeltaBuilder.build("jobTitle", "it"));
         updateAccount.add(AttributeDeltaBuilder.build("surName", "Peter"));
         updateAccount.add(AttributeDeltaBuilder.build("givenName", "Jackie"));
+        updateAccount.add(AttributeDeltaBuilder.build("businessPhones", Stream.of("+1 425 555 0109").collect(Collectors.toList()), null));
 
-        Set<AttributeDelta> uid = msGraphConnector.updateDelta(objectClassAccount, testUid, updateAccount, options);
+        Set<AttributeDelta> sideEffects = msGraphConnector.updateDelta(objectClassAccount, testUid, updateAccount, options);
+        assertNull(sideEffects);
+
+        Thread.sleep(_WAIT_INTERVAL);
+
+        TestSearchResultsHandler resultHandler = getResultHandler();
+        msGraphConnector.executeQuery(objectClassAccount, new EqualsFilter(testUid), resultHandler, getDefaultAccountOperationOptions());
+
+        ArrayList<ConnectorObject> result = resultHandler.getResult();
+        assertEquals(1, result.size());
+        assertEquals("it", AttributeUtil.getStringValue(result.get(0).getAttributeByName("jobTitle")));
+        assertEquals("Peter", AttributeUtil.getStringValue(result.get(0).getAttributeByName("surName")));
+        assertEquals("Jackie", AttributeUtil.getStringValue(result.get(0).getAttributeByName("givenName")));
+        assertEquals(1, result.get(0).getAttributeByName("businessPhones").getValue().size());
+        assertEquals("+1 425 555 0109",result.get(0).getAttributeByName("businessPhones").getValue().get(0).toString());
+
         deleteWaitAndRetry(objectClassAccount, testUid, options);
-        Assert.assertNull(uid);
     }
 }
 

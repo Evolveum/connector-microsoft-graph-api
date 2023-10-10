@@ -1016,7 +1016,7 @@ public class UserProcessing extends ObjectProcessing {
         final String selectorList = selector(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                 ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
-                ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                 ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
                 ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
                 ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
@@ -1073,8 +1073,8 @@ public class UserProcessing extends ObjectProcessing {
                 }
                 LOG.ok("The constructed additional filter clause: {0}", filter.isEmpty() ? "Empty filter clause." : filter);
 
-                //not included : ATTR_PASSWORDPROFILE,ATTR_ASSIGNEDLICENSES,
-                // ATTR_BUSINESSPHONES,ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
+                //not included : ATTR_PASSWORDPROFILE,
+                // ATTR_MAILBOXSETTINGS,ATTR_PROVISIONEDPLANS
 
                 //TODO
                 JSONObject user = endpoint.executeGetRequest(sbPath.toString(), selectorSingle + "&" +
@@ -1305,7 +1305,7 @@ public class UserProcessing extends ObjectProcessing {
         getIfExists(user, ATTR_HIREDATE, String.class, builder);
         getMultiIfExists(user, ATTR_IMADDRESSES, builder);
         getIfExists(user, ATTR_ID, String.class, builder);
-        //getMultiIfExists(user, ATTR_BUSINESSPHONES, builder);
+        getMultiIfExists(user, ATTR_BUSINESSPHONES, builder);
         getMultiIfExists(user, ATTR_INTERESTS, builder);
         getIfExists(user, ATTR_JOBTITLE, String.class, builder);
         getIfExists(user, ATTR_MAIL, String.class, builder);
@@ -1375,7 +1375,7 @@ public class UserProcessing extends ObjectProcessing {
             return selector(getSchemaTranslator().filter(ObjectClass.ACCOUNT_NAME, options,
                     ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                     ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                    ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                    ATTR_BIRTHDAY, ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                     ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
                     ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
                     ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
@@ -1393,7 +1393,7 @@ public class UserProcessing extends ObjectProcessing {
             return selector(
                     ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                     ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
-                    ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                    ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                     ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
                     ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
                     ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
