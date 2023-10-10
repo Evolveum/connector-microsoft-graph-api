@@ -229,17 +229,29 @@ public class GroupProcessing extends ObjectProcessing {
         LOG.info("Start updateGroup, Uid: {0}, attrsDelta: {1}", uid, attrsDelta);
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        // When updating multiple value of the group entity, we need to fetch the current JSON array and merge it with requested delta
-        // since Microsoft Graph API doesn't provide a way to patch the JSON array
-        List<String> selectors = new ArrayList<>();
+        List<String> oldSelectors = new ArrayList<>();
+        AttributeDelta members = null;
+        AttributeDelta owners = null;
         for (AttributeDelta delta : attrsDelta) {
             if (UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_GROUP.contains(delta.getName())) {
-                selectors.add(delta.getName());
+                oldSelectors.add(delta.getName());
+                continue;
+            }
+            switch (delta.getName()) {
+                case ATTR_MEMBERS:
+                    members = delta;
+                    break;
+                case ATTR_OWNERS:
+                    owners = delta;
+                    break;
             }
         }
+
+        // When updating multiple value of the group entity, we need to fetch the current JSON array and merge it with requested delta
+        // since Microsoft Graph API doesn't provide a way to patch the JSON array
         JSONObject oldJson = null;
-        if (!selectors.isEmpty()) {
-            final String select = "$select=" + String.join(",", selectors);
+        if (!oldSelectors.isEmpty()) {
+            final String select = "$select=" + String.join(",", oldSelectors);
 
             oldJson = endpoint.executeGetRequest(GROUPS + "/" + uid.getUidValue() + "/", select, options);
 
@@ -251,8 +263,8 @@ public class GroupProcessing extends ObjectProcessing {
             }
         }
 
+        // Update group resource
         final URIBuilder uriBuilder = endpoint.createURIBuilder();
-
         uriBuilder.setPath(GROUPS + "/" + uid.getUidValue());
         URI uri = endpoint.getUri(uriBuilder);
         LOG.info("Path: {0}", uri);
@@ -260,8 +272,9 @@ public class GroupProcessing extends ObjectProcessing {
         List<JSONObject> attributeList = buildLayeredAttribute(oldJson, attrsDelta, EXCLUDE_ATTRS_OF_GROUP, Collections.emptySet());
         endpoint.callRequestNoContentNoJson(request, attributeList);
 
-        addOrRemoveMember(uid, AttributeDeltaUtil.find(ATTR_MEMBERS, attrsDelta), GROUPS);
-        addOrRemoveOwner(uid, AttributeDeltaUtil.find(ATTR_OWNERS, attrsDelta), GROUPS);
+        // Update other resources if necessary
+        addOrRemoveMember(uid, members, GROUPS);
+        addOrRemoveOwner(uid, owners, GROUPS);
 
         return null;
     }

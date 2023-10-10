@@ -6,7 +6,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
-import org.identityconnectors.common.CollectionUtil;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
@@ -15,7 +14,6 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -723,15 +721,24 @@ public class UserProcessing extends ObjectProcessing {
         return list.toArray(new String[0]);
     }
 
-    private void assignLicenses(Uid uid, AttributeDelta deltaLicense) {
-        if (deltaLicense == null) {
+    private void assignLicenses(Uid uid, Attribute licenseAttribute) {
+        if (licenseAttribute == null) {
             return;
         }
+        assignLicenses(uid, licenseAttribute.getValue(), null);
+    }
 
-        final List<Object> addLicenses = deltaLicense.getValuesToAdd();
-        final List<Object> removeLicenses = deltaLicense.getValuesToRemove();
-        if ((addLicenses == null || addLicenses.isEmpty()) && (removeLicenses == null || removeLicenses.isEmpty()))
+    private void assignLicenses(Uid uid, AttributeDelta licenseDelta) {
+        if (licenseDelta == null) {
             return;
+        }
+        assignLicenses(uid, licenseDelta.getValuesToAdd(), licenseDelta.getValuesToRemove());
+    }
+
+    private void assignLicenses(Uid uid, List<Object> addLicenses, List<Object> removeLicenses) {
+        if ((addLicenses == null || addLicenses.isEmpty()) && (removeLicenses == null || removeLicenses.isEmpty())) {
+            return;
+        }
 
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue() + ASSIGN_LICENSES);
@@ -748,7 +755,7 @@ public class UserProcessing extends ObjectProcessing {
             try {
                 endpoint.callRequestNoContent(request, null, jsonObject);
             } catch (InvalidAttributeValueException ex) {
-                LOG.warn(ex, "Problem when unassiging licenses {0}, ignoring", removeLicenses);
+                LOG.warn(ex, "Problem when unassigning licenses {0}, ignoring", removeLicenses);
             }
         }
         if (addLicenses != null && !addLicenses.isEmpty()) {
@@ -798,7 +805,7 @@ public class UserProcessing extends ObjectProcessing {
             URI uri = endpoint.getUri(uriBuilder);
             request = new HttpDelete(uri);
 
-            LOG.info("UnAssign Manager Path: {0}", uri);
+            LOG.info("Unassign Manager Path: {0}", uri);
 
             endpoint.callRequest(request, false);
         }
@@ -808,17 +815,33 @@ public class UserProcessing extends ObjectProcessing {
         LOG.info("Start updateUser, Uid: {0}, attrsDelta: {1}", uid, attrsDelta);
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        // When updating multiple value of the user entity, we need to fetch the current JSON array and merge it with requested delta
-        // since Microsoft Graph API doesn't provide a way to patch the JSON array
-        List<String> selectors = new ArrayList<>();
+        AttributeDelta assignedLicensesDelta = null;
+        AttributeDelta managerIdDelta = null;
+        AttributeDelta photoDelta = null;
+        List<String> oldSelectors = new ArrayList<>();
         for (AttributeDelta delta : attrsDelta) {
             if (UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_USER.contains(delta.getName())) {
-                selectors.add(delta.getName());
+                oldSelectors.add(delta.getName());
+                continue;
+            }
+            switch (delta.getName()) {
+                case ATTR_ASSIGNEDLICENSES_SKUID:
+                    assignedLicensesDelta = delta;
+                    break;
+                case ATTR_MANAGER_ID:
+                    managerIdDelta = delta;
+                    break;
+                case ATTR_USERPHOTO:
+                    photoDelta = delta;
+                    break;
             }
         }
+
+        // When updating multiple value of the user resource, we need to fetch the current JSON array and merge it with requested delta
+        // since Microsoft Graph API doesn't provide a way to patch the JSON array
         JSONObject oldJson = null;
-        if (!selectors.isEmpty()) {
-            final String select = "$select=" + String.join(",", selectors);
+        if (!oldSelectors.isEmpty()) {
+            final String select = "$select=" + String.join(",", oldSelectors);
 
             oldJson = endpoint.executeGetRequest(USERS + "/" + uid.getUidValue() + "/", select, options);
 
@@ -830,20 +853,19 @@ public class UserProcessing extends ObjectProcessing {
             }
         }
 
+        // Update user resource
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(USERS + "/" + uid.getUidValue());
         URI uri = endpoint.getUri(uriBuilder);
         LOG.info("update user, PATCH");
         LOG.info("Path: {0}", uri);
-
         HttpEntityEnclosingRequestBase request = new HttpPatch(uri);
-
         List<JSONObject> jsonObjectAccount = buildLayeredAttribute(oldJson, attrsDelta, EXCLUDE_ATTRS_OF_USER, SPO_ATTRS);
-
         endpoint.callRequestNoContentNoJson(request, jsonObjectAccount);
 
-        assignLicenses(uid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES_SKUID, attrsDelta));
-        assignManager(uid, AttributeDeltaUtil.find(ATTR_MANAGER_ID, attrsDelta));
-        assignPhoto(uid, AttributeDeltaUtil.find(ATTR_USERPHOTO, attrsDelta));
+        // Update other resources if necessary
+        assignLicenses(uid, assignedLicensesDelta);
+        assignManager(uid, managerIdDelta);
+        assignPhoto(uid, photoDelta);
 
         return null;
     }
@@ -880,8 +902,9 @@ public class UserProcessing extends ObjectProcessing {
                 LOG.error("Invalid Base64 encoded photo data");
             }
         } else {
-            // Microsoft Graph API doesn't support delete photo
+            // Microsoft Graph API doesn't support photo deletion
             // Reference: https://learn.microsoft.com/en-us/graph/api/profilephoto-update?view=graph-rest-1.0&tabs=http
+            LOG.warn("Photo deletion was ignored because Microsoft Graph API does not support it. uid: {0}", uid);
         }
     }
 
@@ -889,25 +912,44 @@ public class UserProcessing extends ObjectProcessing {
         LOG.info("Start createUser, attributes: {0}", attributes);
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        final Attribute manager = attributes.stream()
-                .filter(a -> a.is(ATTR_MANAGER_ID))
-                .findFirst().orElse(null);
+        String mail = null;
+        String upn = null;
+        String displayName = null;
+        String userType = null;
+        Attribute managerId = null;
+        Attribute assignedLicenses = null;
+        Attribute photo = null;
+        for (Attribute attribute : attributes) {
+            switch (attribute.getName()) {
+                case ATTR_MAIL:
+                    mail = AttributeUtil.getStringValue(attribute);
+                    break;
+                case ATTR_USERPRINCIPALNAME:
+                    upn = AttributeUtil.getStringValue(attribute);
+                    break;
+                case ATTR_DISPLAYNAME:
+                    displayName = AttributeUtil.getStringValue(attribute);
+                    break;
+                case ATTR_USERTYPE:
+                    userType = AttributeUtil.getStringValue(attribute);
+                    break;
+                case ATTR_MANAGER_ID:
+                    managerId = attribute;
+                    break;
+                case ATTR_ASSIGNEDLICENSES_SKUID:
+                    assignedLicenses = attribute;
+                    break;
+                case ATTR_USERPHOTO:
+                    photo = attribute;
+                    break;
+            }
+        }
 
-        final Optional<String> emailAddress = attributes.stream()
-                .filter(a -> a.is(ATTR_MAIL))
-                .map(a -> a.getValue().get(0).toString())
-                .findFirst();
-
-        final boolean hasUPN = attributes.stream()
-                .filter(a -> a.is(ATTR_USERPRINCIPALNAME))
-                .anyMatch(a -> !a.getValue().isEmpty());
-
-
-        final boolean invite = emailAddress.isPresent() && !emailAddress.get().split("@")[1].equals(getConfiguration().getTenantId()) &&
+        final boolean hasUPN = upn != null;
+        final boolean invite = mail != null &&
+                !mail.split("@")[1].equals(getConfiguration().getTenantId()) &&
                 getConfiguration().isInviteGuests() &&
                 !hasUPN;
-
-        final Set<AttributeDelta> deltas = new HashSet<>();
 
         final Uid newUid;
         if (invite) {
@@ -920,7 +962,7 @@ public class UserProcessing extends ObjectProcessing {
             final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(INVITATIONS);
             final URI uri = endpoint.getUri(uriBuilder);
             final HttpEntityEnclosingRequestBase request = new HttpPost(uri);
-            final JSONObject payload = buildInvitation(attributes);
+            final JSONObject payload = buildInvitation(displayName, mail, userType);
             final JSONObject jsonRequest = endpoint.callRequest(request, payload, true);
             newUid = new Uid(jsonRequest.getJSONObject(ATTR_INVITED_USER).getString(ATTR_ID));
         } else {
@@ -939,9 +981,9 @@ public class UserProcessing extends ObjectProcessing {
             newUid = new Uid(jsonRequest.getString(ATTR_ID));
         }
 
-        assignLicenses(newUid, AttributeDeltaUtil.find(ATTR_ASSIGNEDLICENSES_SKUID, deltas));
-        assignManager(newUid, manager);
-        assignPhoto(newUid, AttributeUtil.find(ATTR_USERPHOTO, attributes));
+        assignLicenses(newUid, assignedLicenses);
+        assignManager(newUid, managerId);
+        assignPhoto(newUid, photo);
 
         return newUid;
     }
@@ -1170,11 +1212,7 @@ public class UserProcessing extends ObjectProcessing {
     }
 
 
-    private JSONObject buildInvitation(Set<Attribute> attributes) {
-        final String displayName = getStringValue(attributes, ATTR_DISPLAYNAME);
-        final String mail = getStringValue(attributes, ATTR_MAIL);
-        final String userType = getStringValue(attributes, ATTR_USERTYPE);
-
+    private JSONObject buildInvitation(String displayName, String mail, String userType) {
         final JSONObject invitation = new JSONObject()
                 .put(ATTR_INVITE_SEND_MESSAGE, getConfiguration().isSendInviteMail())
                 .put(ATTR_INVITE_MSG_INFO, getConfiguration().getInviteMessage())
@@ -1185,13 +1223,6 @@ public class UserProcessing extends ObjectProcessing {
         if (userType != null) invitation.put(ATTR_INVITED_USER_TYPE, userType);
 
         return invitation;
-    }
-
-    private String getStringValue(Set<Attribute> attributes, String attributeName) {
-        final Optional<Attribute> ao = attributes.stream().filter(a -> a.is(attributeName)).findFirst();
-        if (!ao.isPresent()) return null;
-        final Optional<String> aov = ao.get().getValue().stream().map(v -> v.toString()).findFirst();
-        return aov.isPresent() ? aov.get() : null;
     }
 
     private JSONObject saturateGroupMembership(JSONObject user) {
