@@ -1,15 +1,21 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
+import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
-import org.testng.Assert;
+import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.testng.AssertJUnit.*;
 
 public class UpdateTest extends BasicConfigurationForTests {
 
@@ -22,12 +28,12 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         OperationOptions options = new OperationOptions(new HashMap<String, Object>());
 
-        Set<Attribute> attributesUpdateGroup = new HashSet<Attribute>();
-        attributesUpdateGroup.add(AttributeBuilder.build("description", "The blue one"));
+        Set<AttributeDelta> attributesUpdateGroup = new HashSet<>();
+        attributesUpdateGroup.add(AttributeDeltaBuilder.build("description", "The blue one"));
 
         ObjectClass objectClassAccount = ObjectClass.GROUP;
 
-            msGraphConnector.update(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateGroup, options);
+        msGraphConnector.updateDelta(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateGroup, options);
     }
 
     @Test(expectedExceptions = UnknownUidException.class, priority = 13)
@@ -39,13 +45,12 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         OperationOptions options = new OperationOptions(new HashMap<String, Object>());
 
-        Set<Attribute> attributesUpdateUser = new HashSet<Attribute>();
-        attributesUpdateUser.add(AttributeBuilder.build("city", "Las Vegas"));
+        Set<AttributeDelta> attributesUpdateUser = new HashSet<>();
+        attributesUpdateUser.add(AttributeDeltaBuilder.build("city", "Las Vegas"));
 
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
 
-            msGraphConnector.update(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateUser, options);
-
+        msGraphConnector.updateDelta(objectClassAccount, new Uid("9999999999999999999999999999999999999999999"), attributesUpdateUser, options);
     }
 
     @Test(priority = 12)
@@ -70,22 +75,29 @@ public class UpdateTest extends BasicConfigurationForTests {
 
         Uid testUid = msGraphConnector.create(objectClassAccount, attributesAccount, options);
 
+        Set<AttributeDelta> updateAccount = new HashSet<>();
+        updateAccount.add(AttributeDeltaBuilder.build("jobTitle", "it"));
+        updateAccount.add(AttributeDeltaBuilder.build("surName", "Peter"));
+        updateAccount.add(AttributeDeltaBuilder.build("givenName", "Jackie"));
+        updateAccount.add(AttributeDeltaBuilder.build("businessPhones", Stream.of("+1 425 555 0109").collect(Collectors.toList()), null));
 
-        Set<Attribute> updateAccount = new HashSet<>();
-        updateAccount.add(AttributeBuilder.build("jobTitle", "it"));
-        updateAccount.add(AttributeBuilder.build("surName", "Peter"));
-        updateAccount.add(AttributeBuilder.build("givenName", "Jackie"));
+        Set<AttributeDelta> sideEffects = msGraphConnector.updateDelta(objectClassAccount, testUid, updateAccount, options);
+        assertNull(sideEffects);
 
+        Thread.sleep(_WAIT_INTERVAL);
 
-          Uid uid =  msGraphConnector.update(objectClassAccount, testUid, updateAccount, options);
-          deleteWaitAndRetry(objectClassAccount,testUid,options);
-          Assert.assertNotNull(uid);
+        TestSearchResultsHandler resultHandler = getResultHandler();
+        msGraphConnector.executeQuery(objectClassAccount, new EqualsFilter(testUid), resultHandler, getDefaultAccountOperationOptions());
 
+        ArrayList<ConnectorObject> result = resultHandler.getResult();
+        assertEquals(1, result.size());
+        assertEquals("it", AttributeUtil.getStringValue(result.get(0).getAttributeByName("jobTitle")));
+        assertEquals("Peter", AttributeUtil.getStringValue(result.get(0).getAttributeByName("surName")));
+        assertEquals("Jackie", AttributeUtil.getStringValue(result.get(0).getAttributeByName("givenName")));
+        assertEquals(1, result.get(0).getAttributeByName("businessPhones").getValue().size());
+        assertEquals("+1 425 555 0109",result.get(0).getAttributeByName("businessPhones").getValue().get(0).toString());
 
+        deleteWaitAndRetry(objectClassAccount, testUid, options);
     }
-
-
-
-
 }
 

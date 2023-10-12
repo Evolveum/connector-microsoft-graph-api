@@ -117,18 +117,13 @@ public class RoleProcessing extends ObjectProcessing {
         return roleObjClassBuilder.build();
     }
 
-    protected Uid createOrUpdateRole(Uid uid, Set<Attribute> attributes) {
-        throw new UnsupportedOperationException("Create/Update operation is not supported for Roles!");
+    protected Uid createRole(Set<Attribute> attributes) {
+        throw new UnsupportedOperationException("Create operation is not supported for Roles!");
     }
 
-    protected void delete(Uid uid) {
-        throw new UnsupportedOperationException("Delete operation is not supported for Roles!");
-    }
-
-
-    protected void updateDeltaMultiValuesForRole(Uid uid, Set<AttributeDelta> attributesDelta, OperationOptions options) {
-        LOG.info("updateDeltaMultiValuesForRole on uid: {0}, attrDelta: {1}, options: {2}", uid.getValue(), attributesDelta, options);
-        for (AttributeDelta attrDelta : attributesDelta) {
+    protected Set<AttributeDelta> updateRole(Uid uid, Set<AttributeDelta> attrsDelta, OperationOptions options) {
+        LOG.info("Start updateRole, Uid: {0}, attrsDelta: {1}", uid, attrsDelta);
+        for (AttributeDelta attrDelta : attrsDelta) {
             LOG.info("attrDelta: {0}", attrDelta);
             // add or remove members to/from role
             if (attrDelta.getName().equalsIgnoreCase(ATTR_MEMBERS)) {
@@ -136,9 +131,12 @@ public class RoleProcessing extends ObjectProcessing {
                 addOrRemoveMember(uid, attrDelta, ROLE_ASSIGNMENT, options);
             }
         }
-
+        return null;
     }
 
+    protected void delete(Uid uid) {
+        throw new UnsupportedOperationException("Delete operation is not supported for Roles!");
+    }
 
     protected void addOrRemoveMember(Uid uid, AttributeDelta attrDelta, String path, OperationOptions options) {
         LOG.info("addOrRemoveMember {0} , {1} , {2}", uid, attrDelta, path);
@@ -149,6 +147,7 @@ public class RoleProcessing extends ObjectProcessing {
         LOG.info("path: {0}", sbPath);
 
         List<Object> removeValues = attrDelta.getValuesToRemove();
+
         roleProcessRemove(sbPath, removeValues, roleDefinitionId, options);
 
         List<Object> addValues = attrDelta.getValuesToAdd();
@@ -171,66 +170,12 @@ public class RoleProcessing extends ObjectProcessing {
         }
     }
 
-    protected void addToRole(Uid uid, Set<Attribute> attributes) {
-        LOG.info("addToGroup {0} , {1}", uid, attributes);
-
-        for (Attribute attribute : attributes) {
-            if (attribute.getName().equalsIgnoreCase(ATTR_MEMBERS)) {
-                addMembersToRole(uid, attribute);
-            }
-        }
-    }
-
-    private void addMembersToRole(Uid uid, Attribute attribute) {
-        LOG.info("addMembersToRole {0} , {1}", uid, attribute);
-
-        StringBuilder sbPath = new StringBuilder();
-        sbPath.append(ROLE_ASSIGNMENT);
-        LOG.info("path: {0}", sbPath);
-
-        String roleDefinitionId = uid.getUidValue();
-
-        JSONObject json = new JSONObject();
-        String principalId = AttributeUtil.getAsStringValue(attribute);
-        String directoryScopeId = "/";
-
-        json.put("principalId", principalId);
-        json.put("directoryScopeId", directoryScopeId);
-        json.put("roleDefinitionId", roleDefinitionId);
-
-        LOG.ok("json: {0}", json);
-        postRequestNoContent(sbPath.toString(), json);
-    }
-
-
-    protected void removeFromRole(Uid uid, Set<Attribute> attributes, OperationOptions options) {
-        LOG.info("removeFromRole {0}, {1}", uid, attributes);
-        for (Attribute attribute : attributes) {
-            if (attribute.getName().equalsIgnoreCase(ATTR_MEMBERS)) {
-                removeMemberFromRole(uid, attribute, options);
-            }
-        }
-    }
-
-    private void removeMemberFromRole(Uid uid, Attribute attribute, OperationOptions options) {
-        LOG.info("addOrRemoveMember {0} , {1}", uid, attribute);
-        StringBuilder sbPath = new StringBuilder();
-        sbPath.append(ROLE_ASSIGNMENT);
-
-        String roleDefinitionId = uid.getUidValue();
-        String principalId = AttributeUtil.getAsStringValue(attribute);
-        String roleAssignmentId = getRoleAssignmentId(options, roleDefinitionId, principalId);
-        LOG.info("executeDeleteOperation principalId: {0} , sbPath: {1}", principalId, sbPath);
-        executeDeleteOperation(roleAssignmentId, sbPath.toString());
-    }
-
     private void postRequestNoContent(String path, JSONObject json) {
         LOG.info("path: {0} , json: {1}", path, json);
         final GraphEndpoint endpoint = getGraphEndpoint();
         final URIBuilder uriBuilder = endpoint.createURIBuilder().setPath(path);
         final URI uri = endpoint.getUri(uriBuilder);
         LOG.info("uri {0}", uri);
-
 
         HttpEntityEnclosingRequestBase request;
         LOG.info("HttpEntityEnclosingRequestBase request");
@@ -239,7 +184,6 @@ public class RoleProcessing extends ObjectProcessing {
         LOG.info("create true - HTTP POST {0}", uri);
         endpoint.callRequestNoContent(request, null, json);
     }
-
 
     private void roleProcessRemove(StringBuilder sbPath, List<Object> removeValues, String roleDefinitionId, OperationOptions options) {
         if (removeValues != null && !removeValues.isEmpty()) {
@@ -268,7 +212,6 @@ public class RoleProcessing extends ObjectProcessing {
         final HttpRequestBase request = new HttpDelete(uri);
         endpoint.callRequest(request, false);
     }
-
 
     public void executeQueryForRole(Filter query, ResultsHandler handler, OperationOptions options) {
         LOG.info("executeQueryForRole() Query: {0}", query);

@@ -109,13 +109,13 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
         ObjectClass objectClassAccount = ObjectClass.ACCOUNT;
         int i = 0;
         for (Uid user : usersUid) {
-            Set<Attribute> attributesUpdateGroup = new HashSet<>();
-            AttributeBuilder attr = new AttributeBuilder();
+            Set<AttributeDelta> attributesUpdateGroup = new HashSet<>();
+            AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
             attr.setName("city");
-            attr.addValue("Kosice" + i);
+            attr.addValueToReplace("Kosice" + i);
             attributesUpdateGroup.add(attr.build());
             msGraphConnector.init(conf);
-            msGraphConnector.update(objectClassAccount, user, attributesUpdateGroup, options);
+            msGraphConnector.updateDelta(objectClassAccount, user, attributesUpdateGroup, options);
             msGraphConnector.dispose();
             i++;
         }

@@ -326,9 +326,13 @@ abstract class ObjectProcessing {
         throw new InvalidAttributeValueException(sb.toString());
     }
 
-    protected JSONObject buildLayeredAttributeJSON(Set<Attribute> multiLayerAttribute) {
+    protected JSONObject buildLayeredAttributeJSON(Set<Attribute> multiLayerAttribute, Set<String> excludeAttrs) {
         JSONObject json = new JSONObject();
         for (Attribute attribute : multiLayerAttribute) {
+            if (excludeAttrs.contains(attribute.getName())) {
+                continue;
+            }
+
             final String[] attributePath = resolveAttributePath(attribute);
             if (attributePath == null) {
                 continue;
@@ -368,17 +372,32 @@ abstract class ObjectProcessing {
         return json;
     }
 
-    protected List<JSONObject> buildLayeredAttribute(Set<Attribute> multiLayerAttribute, Set<String> separatedAttrs) {
-        JSONObject json = new JSONObject();
-        JSONObject separatedJson = new JSONObject();
-        for (Attribute attribute : multiLayerAttribute) {
-            final String[] attributePath = resolveAttributePath(attribute);
+    protected List<JSONObject> buildLayeredAttribute(JSONObject oldJson, Set<AttributeDelta> modifications, Set<String> excludeAttrs, Set<String> separatedAttrs) {
+        final JSONObject json = new JSONObject();
+        final JSONObject separatedJson = new JSONObject();
+
+        if (oldJson != null) {
+            for(String key : oldJson.keySet()) {
+                if (separatedAttrs.contains(key)) {
+                    separatedJson.put(key, oldJson.get(key));
+                } else {
+                    json.put(key, oldJson.get(key));
+                }
+            }
+        }
+
+        for (AttributeDelta attributeDelta : modifications) {
+            if (excludeAttrs.contains(attributeDelta.getName())) {
+                continue;
+            }
+
+            final String[] attributePath = resolveAttributePath(attributeDelta);
             if (attributePath == null) {
                 continue;
             }
 
             JSONObject current;
-            if (separatedAttrs.contains(attribute.getName())) {
+            if (separatedAttrs.contains(attributeDelta.getName())) {
                 current = separatedJson;
             } else {
                 current = json;
@@ -394,18 +413,47 @@ abstract class ObjectProcessing {
                 }
             }
 
-            boolean isMultiValue = isAttributeMultiValues(attribute.getName());
-            LOG.info("attribute {0} isMultiValue {1}", attribute, isMultiValue);
+            boolean isMultiValue = isAttributeMultiValues(attributeDelta.getName());
+            LOG.info("attributeDelta {0} isMultiValue {1}", attributeDelta, isMultiValue);
 
             String key = attributePath[attributePath.length - 1];
 
             if (isMultiValue) {
-                List<Object> attributes = postMapper.getMultiValue(attribute);
-                for (Object value : attributes) {
-                    current.append(key, value);
+                final Set<String> currentValues;
+                if (!current.has(key)) {
+                    currentValues = Collections.emptySet();
+                } else {
+                    currentValues = new LinkedHashSet(current.getJSONArray(key).toList());
                 }
+
+                final Set<Object> removeValues;
+                if (attributeDelta.getValuesToRemove() != null) {
+                    removeValues = new LinkedHashSet(postMapper.getMultiValueToRemove(attributeDelta));
+                } else {
+                    removeValues = Collections.emptySet();
+                }
+
+                JSONArray mergedValues = new JSONArray();
+                for (Object value : currentValues) {
+                    if (!removeValues.contains(value)) {
+                        mergedValues.put(value);
+                    }
+                }
+
+                if (attributeDelta.getValuesToAdd() != null) {
+                    List<Object> addValues = postMapper.getMultiValueToAdd(attributeDelta);
+                    for (Object value : addValues) {
+                        // Avoid duplicate values
+                        if (!currentValues.contains(value)) {
+                            mergedValues.put(value);
+                        }
+                    }
+                }
+
+                // When removing all values, Microsoft Graph API expects empty JSON array (Don't set null for empty)
+                current.put(key, mergedValues);
             } else {
-                Object value = postMapper.getSingleValue(attribute);
+                Object value = postMapper.getSingleValue(attributeDelta);
                 if (value == null) {
                     current.put(key, JSONObject.NULL);
                 } else {
@@ -426,6 +474,14 @@ abstract class ObjectProcessing {
     }
 
     private String[] resolveAttributePath(Attribute attribute) {
+        return resolveAttributePath(attribute.getName());
+    }
+
+    private String[] resolveAttributePath(AttributeDelta attributeDelta) {
+        return resolveAttributePath(attributeDelta.getName());
+    }
+
+    private String[] resolveAttributePath(String attribute) {
         final String path = postMapper.getTarget(attribute);
         if (path == null) return null;
         else return path.split(DELIMITER);

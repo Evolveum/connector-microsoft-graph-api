@@ -4,6 +4,8 @@ import com.evolveum.polygon.connector.msgraphapi.integration.BasicConfigurationF
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeDeltaBuilder;
 import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.OperationOptionsBuilder;
 import org.json.JSONArray;
@@ -15,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.evolveum.polygon.connector.msgraphapi.UserProcessing.EXCLUDE_ATTRS_OF_USER;
 import static com.evolveum.polygon.connector.msgraphapi.UserProcessing.SPO_ATTRS;
 import static org.testng.AssertJUnit.*;
 
@@ -52,8 +55,12 @@ public class UserProcessingTest extends BasicConfigurationForTests {
         attrs.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         attrs.add(AttributeBuilder.build(ATTR_ICF_PASSWORD, new GuardedString("xWwvJ]6NMw+bWH-d".toCharArray())));
         attrs.add(AttributeBuilder.build(ATTR_ICF_ENABLED, true));
+        // Excluded
+        attrs.add(AttributeBuilder.build("manager.id", "08fa38e4-cbfa-4488-94ed-c834da6539df"));
+        attrs.add(AttributeBuilder.build("assignedLicenses.skuId", "dummySkuId"));
+        attrs.add(AttributeBuilder.build("photo", new byte[]{0, 1, 2}));
 
-        JSONObject jsonObject = userProcessing.buildLayeredAttributeJSON(attrs);
+        JSONObject jsonObject = userProcessing.buildLayeredAttributeJSON(attrs, EXCLUDE_ATTRS_OF_USER);
 
         assertEquals(6, jsonObject.length());
         assertEquals("foo@example.com", jsonObject.getString("userPrincipalName"));
@@ -74,17 +81,21 @@ public class UserProcessingTest extends BasicConfigurationForTests {
         SchemaTranslator schemaTranslator = mockGraphEndpoint.getSchemaTranslator();
         UserProcessing userProcessing = new UserProcessing(mockGraphEndpoint, schemaTranslator);
 
-        Set<Attribute> attrs = new HashSet<>();
-        attrs.add(AttributeBuilder.build("businessPhones", "+1 425 555 0109"));
-        attrs.add(AttributeBuilder.build("officeLocation", "18/2111"));
-        attrs.add(AttributeBuilder.build("givenName", Collections.emptyList())); // Case of value removal
-        attrs.add(AttributeBuilder.build("onPremisesExtensionAttributes.extensionAttribute1", "ext1"));
-        attrs.add(AttributeBuilder.build("onPremisesExtensionAttributes.extensionAttribute15", "ext15"));
-        attrs.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
-        attrs.add(AttributeBuilder.build(ATTR_ICF_PASSWORD, new GuardedString("xWwvJ]6NMw+bWH-d".toCharArray())));
-        attrs.add(AttributeBuilder.build(ATTR_ICF_ENABLED, false));
+        Set<AttributeDelta> attrs = new HashSet<>();
+        attrs.add(AttributeDeltaBuilder.build("businessPhones", list("+1 425 555 0109"), null));
+        attrs.add(AttributeDeltaBuilder.build("officeLocation", "18/2111"));
+        attrs.add(AttributeDeltaBuilder.build("givenName", Collections.emptyList())); // Case of value removal
+        attrs.add(AttributeDeltaBuilder.build("onPremisesExtensionAttributes.extensionAttribute1", "ext1"));
+        attrs.add(AttributeDeltaBuilder.build("onPremisesExtensionAttributes.extensionAttribute15", "ext15"));
+        attrs.add(AttributeDeltaBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        attrs.add(AttributeDeltaBuilder.build(ATTR_ICF_PASSWORD, new GuardedString("xWwvJ]6NMw+bWH-d".toCharArray())));
+        attrs.add(AttributeDeltaBuilder.build(ATTR_ICF_ENABLED, false));
+        // Excluded
+        attrs.add(AttributeDeltaBuilder.build("manager.id", "08fa38e4-cbfa-4488-94ed-c834da6539df"));
+        attrs.add(AttributeDeltaBuilder.build("assignedLicenses.skuId", list("dummySkuId"), null));
+        attrs.add(AttributeDeltaBuilder.build("photo", new byte[]{0, 1, 2}));
 
-        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(attrs, SPO_ATTRS);
+        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(null, attrs, EXCLUDE_ATTRS_OF_USER, SPO_ATTRS);
 
         assertEquals(1, jsonObjects.size());
         JSONObject jsonObject = jsonObjects.get(0);
@@ -112,16 +123,20 @@ public class UserProcessingTest extends BasicConfigurationForTests {
         SchemaTranslator schemaTranslator = mockGraphEndpoint.getSchemaTranslator();
         UserProcessing userProcessing = new UserProcessing(mockGraphEndpoint, schemaTranslator);
 
-        Set<Attribute> attrs = new HashSet<>();
-        attrs.add(AttributeBuilder.build("businessPhones", "+1 425 555 0109"));
-        attrs.add(AttributeBuilder.build("officeLocation", "18/2111"));
-        attrs.add(AttributeBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        Set<AttributeDelta> attrs = new HashSet<>();
+        attrs.add(AttributeDeltaBuilder.build("businessPhones", list("+1 425 555 0109"), null));
+        attrs.add(AttributeDeltaBuilder.build("officeLocation", "18/2111"));
+        attrs.add(AttributeDeltaBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
         // SPO
-        attrs.add(AttributeBuilder.build("aboutMe", "About me"));
-        attrs.add(AttributeBuilder.build("mySite", "https://example.com"));
-        attrs.add(AttributeBuilder.build("schools", "A", "B"));
+        attrs.add(AttributeDeltaBuilder.build("aboutMe", "About me"));
+        attrs.add(AttributeDeltaBuilder.build("mySite", "https://example.com"));
+        attrs.add(AttributeDeltaBuilder.build("schools", list("A", "B"), null));
+        // Excluded
+        attrs.add(AttributeDeltaBuilder.build("manager.id", "08fa38e4-cbfa-4488-94ed-c834da6539df"));
+        attrs.add(AttributeDeltaBuilder.build("assignedLicenses.skuId", list("dummySkuId"), null));
+        attrs.add(AttributeDeltaBuilder.build("photo", new byte[]{0, 1, 2}));
 
-        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(attrs, SPO_ATTRS);
+        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(null, attrs, EXCLUDE_ATTRS_OF_USER, SPO_ATTRS);
 
         assertEquals(2, jsonObjects.size());
         JSONObject jsonObject = jsonObjects.get(0);
@@ -151,16 +166,65 @@ public class UserProcessingTest extends BasicConfigurationForTests {
         SchemaTranslator schemaTranslator = mockGraphEndpoint.getSchemaTranslator();
         UserProcessing userProcessing = new UserProcessing(mockGraphEndpoint, schemaTranslator);
 
-        Set<Attribute> attrs = new HashSet<>();
-        attrs.add(AttributeBuilder.build("aboutMe", "About me"));
-        attrs.add(AttributeBuilder.build("mySite", "https://example.com"));
+        Set<AttributeDelta> attrs = new HashSet<>();
+        attrs.add(AttributeDeltaBuilder.build("aboutMe", "About me"));
+        attrs.add(AttributeDeltaBuilder.build("mySite", "https://example.com"));
 
-        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(attrs, SPO_ATTRS);
+        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(null, attrs, EXCLUDE_ATTRS_OF_USER, SPO_ATTRS);
 
         assertEquals(1, jsonObjects.size());
         JSONObject spoJsonObject = jsonObjects.get(0);
         assertEquals(2, spoJsonObject.length());
         assertEquals("About me", spoJsonObject.getString("aboutMe"));
         assertEquals("https://example.com", spoJsonObject.getString("mySite"));
+    }
+
+    @Test
+    public void testBuildLayeredAttributeWithOld() {
+        MockGraphEndpoint mockGraphEndpoint = new MockGraphEndpoint(null);
+        SchemaTranslator schemaTranslator = mockGraphEndpoint.getSchemaTranslator();
+        UserProcessing userProcessing = new UserProcessing(mockGraphEndpoint, schemaTranslator);
+
+        Set<AttributeDelta> attrs = new HashSet<>();
+        attrs.add(AttributeDeltaBuilder.build("businessPhones", list("+1 425 555 0109"), list("+1 858 555 0110")));
+        attrs.add(AttributeDeltaBuilder.build("officeLocation", "18/2111"));
+        attrs.add(AttributeDeltaBuilder.build("passwordProfile.forceChangePasswordNextSignIn", true));
+        // SPO
+        attrs.add(AttributeDeltaBuilder.build("schools", list("A", "B"), list("C", "D")));
+        attrs.add(AttributeDeltaBuilder.build("interests", list("a"), list("c")));
+        // Old json
+        JSONObject oldJson = new JSONObject();
+        oldJson.append("businessPhones", "+1 858 555 0110");
+        oldJson.append("schools", "C");
+        oldJson.append("schools", "D");
+        oldJson.append("schools", "E");
+        oldJson.append("interests", "a");
+        oldJson.append("interests", "b");
+
+        List<JSONObject> jsonObjects = userProcessing.buildLayeredAttribute(oldJson, attrs, EXCLUDE_ATTRS_OF_USER, SPO_ATTRS);
+
+        assertEquals(2, jsonObjects.size());
+        JSONObject jsonObject = jsonObjects.get(0);
+        assertEquals(3, jsonObject.length());
+        JSONArray businessPhones = jsonObject.getJSONArray("businessPhones");
+        assertEquals(1, businessPhones.length());
+        assertEquals("+1 425 555 0109", businessPhones.getString(0));
+        assertEquals("18/2111", jsonObject.getString("officeLocation"));
+        JSONObject passwordProfile = jsonObject.getJSONObject("passwordProfile");
+        assertNotNull(passwordProfile);
+        assertEquals(1, passwordProfile.length());
+        assertTrue(passwordProfile.getBoolean("forceChangePasswordNextSignIn"));
+
+        JSONObject spoJsonObject = jsonObjects.get(1);
+        assertEquals(2, spoJsonObject.length());
+        JSONArray schools = spoJsonObject.getJSONArray("schools");
+        assertEquals(3, schools.length());
+        assertEquals("E", schools.getString(0));
+        assertEquals("A", schools.getString(1));
+        assertEquals("B", schools.getString(2));
+        JSONArray interests = spoJsonObject.getJSONArray("interests");
+        assertEquals(2, interests.length());
+        assertEquals("a", interests.getString(0));
+        assertEquals("b", interests.getString(1));
     }
 }

@@ -40,10 +40,8 @@ public class MSGraphConnector implements Connector,
         TestOp,
         UpdateDeltaOp,
         SchemaOp,
-        UpdateOp,
         SyncOp,
-        UpdateAttributeValuesOp,
-        DiscoverConfigurationOp{
+        DiscoverConfigurationOp {
 
     private static final Log LOG = Log.getLog(MSGraphConnector.class);
 
@@ -90,23 +88,22 @@ public class MSGraphConnector implements Connector,
     @Override
     public Uid create(ObjectClass objectClass, Set<Attribute> attributes, OperationOptions operationOptions) {
         validateObjectClass(objectClass);
-        if (attributes == null) {
-            LOG.error("Attribute of type Set<Attribute> not provided.");
-            throw new InvalidAttributeValueException("Attribute of type Set<Attribute> not provided.");
+        if (attributes == null || attributes.isEmpty()) {
+            LOG.error("Attribute of type Set<Attribute> not provided or empty.");
+            throw new InvalidAttributeValueException("Attribute of type Set<Attribute> not provided or empty.");
         }
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) { // __ACCOUNT__
             UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
-            return userProcessing.createUser(null, attributes);
-
+            return userProcessing.createUser( attributes);
 
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
             GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
-            return groupProcessing.createOrUpdateGroup(null, attributes);
+            return groupProcessing.createGroup(attributes);
 
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
             RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
-            return roleProcessing.createOrUpdateRole(null, attributes);
+            return roleProcessing.createRole(attributes);
 
         } else {
             throw new UnsupportedOperationException("Unsupported object class " + objectClass);
@@ -510,14 +507,13 @@ public class MSGraphConnector implements Connector,
         endpoint.callRequest(request, false);
     }
 
-
     @Override
     public Set<AttributeDelta> updateDelta(ObjectClass objectClass, Uid uid, Set<AttributeDelta> attrsDelta, OperationOptions options) {
         validateObjectClassAndUID(objectClass, uid);
 
-        if (attrsDelta == null) {
-            LOG.error("Parameter of type Set<AttributeDelta> not provided.");
-            throw new InvalidAttributeValueException("Parameter of type Set<AttributeDelta> not provided.");
+        if (attrsDelta == null || attrsDelta.isEmpty()) {
+            LOG.error("Parameter of type Set<AttributeDelta> not provided or empty.");
+            throw new InvalidAttributeValueException("Parameter of type Set<AttributeDelta> not provided or empty.");
         }
 
         if (options == null) {
@@ -525,125 +521,23 @@ public class MSGraphConnector implements Connector,
             throw new InvalidAttributeValueException("Parameter of type OperationOptions not provided.");
         }
         LOG.info("UpdateDelta with ObjectClass: {0} , uid: {1} , attrsDelta: {2} , options: {3}  ", objectClass, uid, attrsDelta, options);
-        Set<Attribute> attributeReplace = new HashSet<>();
-        Set<AttributeDelta> attrsDeltaMultivalue = new HashSet<>();
-        for (AttributeDelta attrDelta : attrsDelta) {
-            List<Object> replaceValue = attrDelta.getValuesToReplace();
-            if (replaceValue != null) {
-                if (LOG.isInfo()) {
-                    LOG.info("attributeReplace.add {0} {1}", AttributeBuilder.build(attrDelta.getName(), replaceValue));
-                }
-                attributeReplace.add(AttributeBuilder.build(attrDelta.getName(), replaceValue));
-            } else {
-                LOG.info("attrsDeltaMultivalue.add {0}", attrDelta);
-                attrsDeltaMultivalue.add(attrDelta);
-            }
-        }
 
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) { // __ACCOUNT__
-            if (!attributeReplace.isEmpty()) {
-                UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
-                userProcessing.updateUser(uid, attributeReplace);
-            }
-            if (!attrsDeltaMultivalue.isEmpty()) {
-                UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
-                userProcessing.updateDeltaMultiValues(uid, attrsDeltaMultivalue, options);
+            UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
+            return userProcessing.updateUser(uid, attrsDelta, options);
 
-            }
         } else if (objectClass.is(ObjectClass.GROUP_NAME)) { // __GROUP__
-            if (!attributeReplace.isEmpty()) {
-                new GroupProcessing(getGraphEndpoint()).createOrUpdateGroup(uid, attributeReplace);
-            }
-            if (!attrsDeltaMultivalue.isEmpty()) {
-                new GroupProcessing(getGraphEndpoint()).updateDeltaMultiValuesForGroup(uid, attrsDeltaMultivalue, options);
-            }
+            GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
+            return groupProcessing.updateGroup(uid, attrsDelta, options);
+
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) { // __ROLE__
-            if (!attributeReplace.isEmpty()) {
-                new RoleProcessing(getGraphEndpoint()).createOrUpdateRole(uid, attributeReplace);
-            }
-            if (!attrsDeltaMultivalue.isEmpty()) {
-                new RoleProcessing(getGraphEndpoint()).updateDeltaMultiValuesForRole(uid, attrsDeltaMultivalue, options);
-            }
+            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
+            return roleProcessing.updateRole(uid, attrsDelta, options);
+
         } else {
             LOG.error("The value of the ObjectClass parameter is unsupported.");
             throw new UnsupportedOperationException("The value of the ObjectClass parameter is unsupported.");
         }
-        return null;
-
-    }
-
-    @Override
-    public Uid addAttributeValues(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
-        validateObjectClassAndUID(objectClass, uid);
-        if (operationOptions == null) {
-            LOG.error("Attribute of type OperationOptions not provided.");
-        }
-
-        if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
-            groupProcessing.addToGroup(uid, attributes);
-
-        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
-            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
-            roleProcessing.addToRole(uid, attributes);
-
-        }
-
-        return uid;
-    }
-
-    @Override
-    public Uid removeAttributeValues(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
-        if (objectClass == null) {
-            LOG.error("Parameter of type ObjectClass not provided.");
-            throw new InvalidAttributeValueException("Parameter of type ObjectClass not provided.");
-        }
-
-        if (uid.getUidValue() == null || uid.getUidValue().isEmpty()) {
-            LOG.error("Parameter of type Uid not provided or is empty.");
-            throw new InvalidAttributeValueException("Parameter of type Uid not provided or is empty.");
-        }
-        if (operationOptions == null) {
-            LOG.error("Attribute of type OperationOptions not provided.");
-        }
-
-        if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
-            groupProcessing.removeFromGroup(uid, attributes);
-
-        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
-            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
-            roleProcessing.removeFromRole(uid, attributes, operationOptions);
-
-        }
-
-        return uid;
-    }
-
-    @Override
-    public Uid update(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
-        validateObjectClassAndUID(objectClass, uid);
-        if (operationOptions == null) {
-            LOG.error("Attribute of type OperationOptions not provided.");
-            throw new InvalidAttributeValueException("Attribute of type OperationOptions is not provided.");
-        }
-
-        if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
-            UserProcessing userProcessing = new UserProcessing(getGraphEndpoint(), getSchemaTranslator());
-            userProcessing.updateUser(uid, attributes);
-
-
-        } else if (objectClass.is(ObjectClass.GROUP_NAME)) {
-            GroupProcessing groupProcessing = new GroupProcessing(getGraphEndpoint());
-            groupProcessing.createOrUpdateGroup(uid, attributes);
-
-        } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
-            RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
-            roleProcessing.createOrUpdateRole(uid, attributes);
-
-        }
-
-        return uid;
     }
 
     private void validateObjectClassAndUID(ObjectClass objectClass, Uid uid) throws InvalidAttributeValueException {

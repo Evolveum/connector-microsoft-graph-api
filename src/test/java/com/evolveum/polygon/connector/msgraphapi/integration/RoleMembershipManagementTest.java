@@ -2,8 +2,7 @@ package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import static com.evolveum.polygon.connector.msgraphapi.RoleProcessing.ROLE_NAME;
 import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler;
-import static com.evolveum.polygon.connector.msgraphapi.integration.BasicConfigurationForTests._REPEAT_COUNT;
-import static com.evolveum.polygon.connector.msgraphapi.integration.BasicConfigurationForTests._REPEAT_INTERVAL;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,12 +10,7 @@ import java.util.Set;
 import org.identityconnectors.common.security.GuardedString;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
-import org.identityconnectors.framework.common.objects.Attribute;
-import org.identityconnectors.framework.common.objects.AttributeBuilder;
-import org.identityconnectors.framework.common.objects.ConnectorObject;
-import org.identityconnectors.framework.common.objects.ObjectClass;
-import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.identityconnectors.framework.common.objects.Uid;
+import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.ContainsFilter;
 import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
@@ -136,16 +130,16 @@ public class RoleMembershipManagementTest extends BasicConfigurationForTests {
         ObjectClass objectClassRole = new ObjectClass(ROLE_NAME);
         OperationOptions options = new OperationOptions(new HashMap<>());
 
-        Set<Attribute> removeUserUid = new HashSet<>();
-        AttributeBuilder attr = new AttributeBuilder();
+        Set<AttributeDelta> removeUserUid = new HashSet<>();
+        AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
         attr.setName(ATTR_MEMBERS);
-        attr.addValue(userUid.getUidValue());
+        attr.addValueToRemove(userUid.getUidValue());
         removeUserUid.add(attr.build());
         int iterator = 0;
         while (_REPEAT_COUNT > iterator) {
             try {
                 role = getAlreadyExistedRoleInTenant();
-                removeAttributeWaitAndRetry(objectClassRole, role.getUid(), removeUserUid, options);
+                updateWaitAndRetry(objectClassRole, role.getUid(), removeUserUid, options);
                 break;
             } catch (InvalidAttributeValueException e) {
                 Thread.sleep(_REPEAT_INTERVAL);
@@ -158,12 +152,12 @@ public class RoleMembershipManagementTest extends BasicConfigurationForTests {
         ObjectClass objectClassRole = new ObjectClass(ROLE_NAME);
         OperationOptions options = new OperationOptions(new HashMap<>());
 
-        Set<Attribute> addedUserUid = new HashSet<>();
-        AttributeBuilder attr = new AttributeBuilder();
+        Set<AttributeDelta> addedUserUid = new HashSet<>();
+        AttributeDeltaBuilder attr = new AttributeDeltaBuilder();
         attr.setName(ATTR_MEMBERS);
-        attr.addValue(userUid.getUidValue());
+        attr.addValueToAdd(userUid.getUidValue());
         addedUserUid.add(attr.build());
-        addAttributeWaitAndRetry(objectClassRole, role.getUid(), addedUserUid, options);
+        updateWaitAndRetry(objectClassRole, role.getUid(), addedUserUid, options);
     }
 
     protected boolean isUserMemberOfRoleWaitAndRetry(Uid userUid, boolean userShouldBeAMember) throws InterruptedException {

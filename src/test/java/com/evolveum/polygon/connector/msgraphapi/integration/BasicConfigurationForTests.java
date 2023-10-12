@@ -1,6 +1,8 @@
 package com.evolveum.polygon.connector.msgraphapi.integration;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConfiguration;
 import com.evolveum.polygon.connector.msgraphapi.MSGraphConnector;
@@ -9,7 +11,6 @@ import com.evolveum.polygon.connector.msgraphapi.common.TestSearchResultsHandler
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
-import org.identityconnectors.framework.common.objects.filter.AttributeFilter;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.testng.annotations.AfterMethod;
@@ -23,6 +24,8 @@ public class BasicConfigurationForTests implements ObjectConstants {
     protected String tenantId;
     protected String domain;
     protected Set<String> licenses, licenses2;
+    protected boolean spoLicenseRequired;
+    protected boolean aadPremiumLicenseRequired;
     protected String roleWhichExistsInTenantDisplayName;
 
     protected static int _WAIT_INTERVAL = 30000;
@@ -48,6 +51,8 @@ public class BasicConfigurationForTests implements ObjectConstants {
         this.domain = parser.getDomain();
         licenses = parser.getLicenses();
         licenses2 = parser.getLicenses2();
+        spoLicenseRequired = parser.isSPOLicenseRequired();
+        aadPremiumLicenseRequired = parser.isAADPremiumLicenseRequired();
         roleWhichExistsInTenantDisplayName = parser.getExistedRoleDisplayName();
         return msGraphConfiguration;
     }
@@ -56,8 +61,27 @@ public class BasicConfigurationForTests implements ObjectConstants {
         Map<String, Object> operationOptions = new HashMap<>();
         operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
         operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
+                ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
+                ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
+                ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
+                ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
+                ATTR_ONPREMISESSYNCENABLED, ATTR_PASSWORDPOLICIES,
+                ATTR_POSTALCODE, ATTR_PREFERREDLANGUAGE,
+                ATTR_PROXYADDRESSES,
+                ATTR_STATE, ATTR_STREETADDRESS, ATTR_SURNAME,
+                ATTR_USAGELOCATION, ATTR_USERTYPE, ATTR_ASSIGNEDLICENSES, ATTR_SIGN_IN, ATTR_SKUID, ATTR_MANAGER_ID
+        });
+        OperationOptions options = new OperationOptions(operationOptions);
+        return options;
+    }
+
+    protected OperationOptions getSPOAccountOperationOptions() {
+        Map<String, Object> operationOptions = new HashMap<>();
+        operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", true);
+        operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
             ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-            ATTR_BIRTHDAY, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+            ATTR_BIRTHDAY, ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
             ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
             ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
             ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
@@ -137,7 +161,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         }
     }
     
-    protected void addAttributeWaitAndRetry(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions oOptions) throws Exception {
+    protected void updateWaitAndRetry(ObjectClass objectClass, Uid uid, Set<AttributeDelta> attributeDeltas, OperationOptions oOptions) throws Exception {
         int iterator = 0;
         boolean notFound = true;
         Exception exp = null;
@@ -145,36 +169,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         while (_REPEAT_COUNT > iterator && notFound) {
             notFound = false;
             try {
-                msGraphConnector.addAttributeValues(objectClass, uid, attributes, oOptions);
-            } catch (UnknownUidException e) {
-
-                exp = e;
-                notFound = true;
-                Thread.sleep(_REPEAT_INTERVAL);
-            }
-
-            if (!notFound) {
-
-                return;
-            }
-            iterator++;
-        }
-
-        if (exp != null) {
-
-            throw exp;
-        }
-    }
-    
-    protected void removeAttributeWaitAndRetry(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions oOptions) throws Exception {
-        int iterator = 0;
-        boolean notFound = true;
-        Exception exp = null;
-
-        while (_REPEAT_COUNT > iterator && notFound) {
-            notFound = false;
-            try {
-                msGraphConnector.removeAttributeValues(objectClass, uid, attributes, oOptions);
+                msGraphConnector.updateDelta(objectClass, uid, attributeDeltas, oOptions);
             } catch (UnknownUidException e) {
 
                 exp = e;
@@ -249,6 +244,10 @@ public class BasicConfigurationForTests implements ObjectConstants {
             }
             iterator++;
         }
+    }
+
+    protected List<Object> list(Object... o) {
+        return Stream.of(o).collect(Collectors.toList());
     }
 
     private boolean areObjectsPresent(ArrayList<ConnectorObject> resultsAccount, List<Uid> uidToCompare) {
