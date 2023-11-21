@@ -1,6 +1,6 @@
 # Connector for Microsoft Graph API
 
-This is midPoint/ConnId connector for Microsoft Graph API. It is meant to manage users in Microsoft cloud applications, such as Azure AD and Office365.
+This is midPoint/ConnId connector for Microsoft Graph API. It is meant to manage users in Microsoft cloud applications, such as Entra ID (former Azure AD) and Office365.
 
 See https://wiki.evolveum.com/display/midPoint/Microsoft+Graph+API+Connector
 
@@ -25,13 +25,13 @@ mvn clean install -Dmaven.test.skip=true
 ```
 keytool -keystore keystore.jceks -storetype jceks -storepass changeit -import -alias nlight -trustcacerts -file {your certificate}.der
 ```
-* create your application in Azure Active Directory, for more information how to create it please see https://docs.microsoft.com/en-us/microsoft-identity-manager/microsoft-identity-manager-2016-connector-graph.
+* create your application in Entra ID (former Azure Active Directory), for more information how to create it please see https://docs.microsoft.com/en-us/microsoft-identity-manager/microsoft-identity-manager-2016-connector-graph.
 * add all DELEGATED permissions - see Permissions.
 * fill all required Configuration properties in resource (clientId, clientSecret, tenantId) - see also samples.
 
 ## Permissions
 
-This are permissions which you need to add to your Azure Active Directory application for midPoint:
+This are permissions which you need to add to your Entra ID (former Azure Active Directory) application for midPoint:
 ### Application Permission
 #### Required
 * Directory.Read.All
