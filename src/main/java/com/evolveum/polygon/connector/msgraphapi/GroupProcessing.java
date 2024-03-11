@@ -175,7 +175,7 @@ public class GroupProcessing extends ObjectProcessing {
         groupObjClassBuilder.addAttributeInfo(attrUnseenCount.build());
 
         AttributeInfoBuilder attrVisibility = new AttributeInfoBuilder(ATTR_VISIBILITY);
-        attrVisibility.setRequired(false).setType(Integer.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        attrVisibility.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         groupObjClassBuilder.addAttributeInfo(attrVisibility.build());
 
         AttributeInfoBuilder attrMembers = new AttributeInfoBuilder(ATTR_MEMBERS);
@@ -185,7 +185,6 @@ public class GroupProcessing extends ObjectProcessing {
         AttributeInfoBuilder attrOwners = new AttributeInfoBuilder(ATTR_OWNERS);
         attrOwners.setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).setReturnedByDefault(false);
         groupObjClassBuilder.addAttributeInfo(attrOwners.build());
-
 
         return groupObjClassBuilder.build();
     }
