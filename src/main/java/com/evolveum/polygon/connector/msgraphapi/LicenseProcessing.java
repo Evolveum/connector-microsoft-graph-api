@@ -109,6 +109,7 @@ public class LicenseProcessing extends ObjectProcessing {
         attributes.add(new AttributeInfoBuilder(ATTR_PREPAIDUNITS__ENABLED)
                 .setCreateable(false)
                 .setUpdateable(false)
+                .setType(Integer.class)
                 .setMultiValued(true)
                 .build());
         attributes.add(new AttributeInfoBuilder(ATTR_SERVICEPLANS__SERVICEPLANID)
