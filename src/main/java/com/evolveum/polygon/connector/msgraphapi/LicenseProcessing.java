@@ -173,7 +173,7 @@ public class LicenseProcessing extends ObjectProcessing {
         ConnectorObjectBuilder builder = new ConnectorObjectBuilder();
         builder.setObjectClass(OBJECT_CLASS);
 
-        getUIDIfExists(json, ATTR_SKUID, builder);
+        getUIDIfExists(json, ATTR_ID, builder);
         getNAMEIfExists(json, ATTR_SKUPAATNUMBER, builder);
 
         getIfExists(json, ATTR_ID, String.class, builder);
