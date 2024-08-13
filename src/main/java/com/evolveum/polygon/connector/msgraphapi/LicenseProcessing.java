@@ -4,17 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.identityconnectors.framework.common.objects.Attribute;
-import org.identityconnectors.framework.common.objects.AttributeInfo;
-import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
-import org.identityconnectors.framework.common.objects.AttributeUtil;
-import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
-import org.identityconnectors.framework.common.objects.ObjectClass;
-import org.identityconnectors.framework.common.objects.ObjectClassInfo;
-import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
-import org.identityconnectors.framework.common.objects.OperationOptions;
-import org.identityconnectors.framework.common.objects.ResultsHandler;
-import org.identityconnectors.framework.common.objects.SchemaBuilder;
+import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.json.JSONArray;
@@ -156,7 +146,7 @@ public class LicenseProcessing extends ObjectProcessing {
             final String attrName = attr.getName();
             LOG.info("query instanceof EqualsFilter");
 
-            if (attrName.equals(ATTR_ID)) {
+            if (attrName.equals(ATTR_ID) || attrName.equals(Uid.NAME)) {
                 String value = AttributeUtil.getAsStringValue(attr);
                 if (value == null)
                     invalidAttributeValue("Uid", query);
