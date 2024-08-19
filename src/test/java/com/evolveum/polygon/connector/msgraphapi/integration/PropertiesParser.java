@@ -23,6 +23,7 @@ public class PropertiesParser {
     private static final String TENANT_ID = "tenantID";
     private static final String LICENSES = "licenses";
     private static final String LICENSES2 = "licenses2";
+    private static final String LICENSE_ID = "licenseId";
     private static final String SPO_LICENSE_REQUIRED = "spoLicenseRequired";
     private static final String AAD_PREMIUM_LICENSE_REQUIRED = "aadPremiumLicenseRequired";
     private static final String DISABLED_PLANS = "disabledPlans";
@@ -70,6 +71,10 @@ public class PropertiesParser {
 
     public Set<String> getLicenses2() {
         return getValues(LICENSES2);
+    }
+
+    public String getLicenseId() {
+        return (String) PROPERTIES.get(LICENSE_ID);
     }
 
     public boolean isSPOLicenseRequired() {

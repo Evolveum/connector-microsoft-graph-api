@@ -174,6 +174,38 @@ public class LicenseTest extends BasicConfigurationForTests {
     }
 
     @Test
+    public void searchByUid() {
+        LOG.info("==== searchByUid ==== ");
+
+        ToListResultsHandler handler = new ToListResultsHandler();
+        Map<String, Object> options = new HashMap<>();
+
+        Uid uid = new Uid(licenseId);
+        msGraphConnector.executeQuery(LicenseProcessing.OBJECT_CLASS, FilterBuilder.equalTo(uid),
+                handler, new OperationOptions(options));
+
+        String idFromHandler = null;
+
+        if (handler.getObjects() != null) {
+            for (ConnectorObject co : handler.getObjects()) {
+                assertNotNull(co.getUid(), Uid.NAME);
+                assertNotNull(co.getName(), Name.NAME);
+                Attribute attrSkuId = co.getAttributeByName(LicenseProcessing.ATTR_SKUID);
+                Attribute attrId = co.getAttributeByName(LicenseProcessing.ATTR_ID);
+                String skuId = attrSkuId == null ? null : AttributeUtil.getAsStringValue(attrSkuId);
+                String id = attrId == null ? null : AttributeUtil.getAsStringValue(attrId);
+                LOG.info("License: skuId: {0}, skuPartNumber: {1}, id: {2}", skuId, co.getName().getNameValue(), id);
+
+                if (idFromHandler == null) {
+
+                    idFromHandler = id;
+                }
+            }
+        }
+        assertTrue(licenseId.equals(idFromHandler), "License found");
+    }
+
+    @Test
     public void addRemoveLicenseTest() throws Exception {
         LOG.info("==== addRemoveLicenseTest ==== ");
         if (licenses.isEmpty())

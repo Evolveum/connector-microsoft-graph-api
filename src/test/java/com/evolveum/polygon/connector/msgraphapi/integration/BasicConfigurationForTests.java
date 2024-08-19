@@ -24,6 +24,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
     protected String tenantId;
     protected String domain;
     protected Set<String> licenses, licenses2;
+    protected String licenseId;
     protected boolean spoLicenseRequired;
     protected boolean aadPremiumLicenseRequired;
     protected String roleWhichExistsInTenantDisplayName;
@@ -51,6 +52,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         this.domain = parser.getDomain();
         licenses = parser.getLicenses();
         licenses2 = parser.getLicenses2();
+        licenseId = parser.getLicenseId();
         spoLicenseRequired = parser.isSPOLicenseRequired();
         aadPremiumLicenseRequired = parser.isAADPremiumLicenseRequired();
         roleWhichExistsInTenantDisplayName = parser.getExistedRoleDisplayName();
