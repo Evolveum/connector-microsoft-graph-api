@@ -3,12 +3,17 @@ package com.evolveum.polygon.connector.msgraphapi;
 import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.util.EntityUtils;
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
+import org.identityconnectors.framework.common.exceptions.ConnectorIOException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
+import org.identityconnectors.framework.common.exceptions.OperationTimeoutException;
+import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -203,6 +208,7 @@ public class GroupProcessing extends ObjectProcessing {
         LOG.info("Path: {0}", uri);
         HttpEntityEnclosingRequestBase request = new HttpPost(uri);
         JSONObject jsonObject = buildLayeredAttributeJSON(attributes, EXCLUDE_ATTRS_OF_GROUP);
+        String groupDisplayName = jsonObject.getString(getNameAttribute());
 
         // For historical reason, Groups are allowed to duplicate displayName (Reference: https://morgansimonsen.com/2016/06/28/azure-ad-allows-duplicate-group-names/).
         // However, Microsoft strives to avoid group created with duplicated names. For example, duplicate Group creation from the UI will result in an error.
@@ -212,7 +218,7 @@ public class GroupProcessing extends ObjectProcessing {
         // freshly created Groups and will result in the creation of duplicate Groups.
         // This is unavoidable due to the system design of Azure AD.
         // (Reference: https://github.com/MicrosoftDocs/azure-docs/issues/94121#issuecomment-1191792188)
-        if (isExist(jsonObject.getString(getNameAttribute()))) {
+        if (isExist(groupDisplayName)) {
             throw new AlreadyExistsException("Another object with the same value for property displayName already exists");
         }
 
@@ -220,6 +226,12 @@ public class GroupProcessing extends ObjectProcessing {
 
         String newUid = jsonAnswer.getString("id");
         LOG.info("The new Uid is {0} ", newUid);
+
+        // It is necessary to wait until the group can be reliably found by its displayName,
+        // i.e., until the synchronization on the Entra ID is fully completed.
+        // Without this wait, there is a risk that connector will create the group multiple times
+        // with the same displayName, due to temporary inconsistency.
+        groupSyncFinishedCheck(groupDisplayName, endpoint.getConfiguration());
 
         return new Uid(newUid);
     }
@@ -276,6 +288,28 @@ public class GroupProcessing extends ObjectProcessing {
         addOrRemoveOwner(uid, owners, GROUPS);
 
         return null;
+    }
+
+    private void groupSyncFinishedCheck(String displayName, MSGraphConfiguration configuration) {
+        int getGroupByNameRetryCount = 0;
+        do {
+            if (isExist(displayName)) {
+                LOG.ok("Group with displayName {0} FOUND in createOp, retry count: {1}", displayName, getGroupByNameRetryCount);
+                return;
+            }
+            else {
+                getGroupByNameRetryCount++;
+                try {
+                    long sleepTime = configuration.getPostCreateReadRetryBaseDelayMs() * (1L << (getGroupByNameRetryCount - 1));
+                    LOG.warn("Group with displayName {0} NOT found in createOp at loop iteration: {1}. Retrying after {2} ms", displayName, getGroupByNameRetryCount - 1, sleepTime);
+                    Thread.sleep(sleepTime);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        } while (getGroupByNameRetryCount < configuration.getPostCreateReadMaxRetryCount());
+
+        throw new OperationTimeoutException("Maximum retry attempts '" + configuration.getPostCreateReadMaxRetryCount() + "' were exceeded!. Couldn't find freshly created group in createOp.");
     }
 
     protected boolean isExist(String displayName) {
