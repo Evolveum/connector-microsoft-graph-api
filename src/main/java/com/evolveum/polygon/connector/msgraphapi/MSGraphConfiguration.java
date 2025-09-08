@@ -41,6 +41,10 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
     private boolean treatNetIdAsAlreadyExists;
     private boolean validateWithFailoverTrust = true;
+
+    private Integer postCreateReadRetryBaseDelayMs = 500;
+    private Integer postCreateReadMaxRetryCount = 5;
+
     private GraphConfigurationHandler configHandler = new GraphConfigurationHandler();
 
     @ConfigurationProperty(order = 10, displayMessageKey = "ClientId.display", helpMessageKey = "ClientId.help", required = true)
@@ -220,6 +224,24 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
     public void setTreatNetIdAsAlreadyExists(boolean treatNetIdAsAlreadyExists) { this.treatNetIdAsAlreadyExists = treatNetIdAsAlreadyExists; }
 
+    @ConfigurationProperty(order = 160, displayMessageKey = "PostCreateReadRetryBaseDelayMs.display", helpMessageKey = "PostCreateReadRetryBaseDelayMs.help")
+    public Integer getPostCreateReadRetryBaseDelayMs() {
+        return postCreateReadRetryBaseDelayMs;
+    }
+
+    public void setPostCreateReadRetryBaseDelayMs(Integer postCreateReadRetryBaseDelayMs) {
+        this.postCreateReadRetryBaseDelayMs = postCreateReadRetryBaseDelayMs;
+    }
+
+    @ConfigurationProperty(order = 170, displayMessageKey = "PostCreateReadMaxRetryCount.display", helpMessageKey = "PostCreateReadMaxRetryCount.help")
+    public Integer getPostCreateReadMaxRetryCount() {
+        return postCreateReadMaxRetryCount;
+    }
+
+    public void setPostCreateReadMaxRetryCount(Integer postCreateReadMaxRetryCount) {
+        this.postCreateReadMaxRetryCount = postCreateReadMaxRetryCount;
+    }
+
     @Override
     public void validate() {
         LOG.info("Processing trough configuration validation procedure.");
@@ -276,6 +298,16 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
             throw new ConfigurationException("The specified number for the maximum throttling request retries has to be " +
                     "a non negative number!");
+        }
+
+        if (postCreateReadRetryBaseDelayMs < 0) {
+            throw new ConfigurationException("The specified number for the post create read retry base delay in ms has to be " +
+                    "greater than zero!");
+        }
+
+        if (postCreateReadMaxRetryCount < 0) {
+            throw new ConfigurationException("The specified number for the post create read max retry count has to be " +
+                    "greater than zero!");
         }
 
         LOG.info("Configuration valid");

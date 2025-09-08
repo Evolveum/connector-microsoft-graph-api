@@ -325,7 +325,7 @@ public class GraphEndpoint {
 
     };
 
-    private CloseableHttpResponse executeRequest(HttpUriRequest request) {
+    private CloseableHttpResponse executeRequest(HttpUriRequest request, boolean useDefaultErrorHandling) {
         if (request == null) {
             throw new InvalidAttributeValueException("Request not provided");
         }
@@ -345,7 +345,9 @@ public class GraphEndpoint {
             response = httpClient.execute(request);
             LOG.info("response {0}", response);
             throttling = false;
-            processResponseErrors(response);
+            if (useDefaultErrorHandling) {
+                processResponseErrors(response, false);
+            }
             while (throttling) {
                 throttling = false;
                 LOG.ok("Current retry count: {0}", retryCount);
@@ -372,7 +374,7 @@ public class GraphEndpoint {
                                 LOG.ok("Throttling retry");
 
                                 response = httpClient.execute(request);
-                                processResponseErrors(response);
+                                processResponseErrors(response, false);
                             }
                         }
                     }
@@ -396,7 +398,7 @@ public class GraphEndpoint {
     }
 
 
-    public void processResponseErrors(CloseableHttpResponse response) {
+    public void processResponseErrors(CloseableHttpResponse response, boolean maxRetriesExceeded) {
         if (response == null) {
             throw new InvalidAttributeValueException("Response not provided ");
         }
@@ -415,7 +417,12 @@ public class GraphEndpoint {
         } catch (IOException e) {
             LOG.warn("cannot read response body: " + e, e);
         }
-        String message = "HTTP error " + statusCode + " " + response.getStatusLine().getReasonPhrase() + " : "
+        String maxRetriesExceededMessage = "";
+        if (maxRetriesExceeded) {
+            maxRetriesExceededMessage = "Maximum retry attempts '" + this.configuration.getPostCreateReadMaxRetryCount() + "' were exceeded!";
+        }
+
+        String message = maxRetriesExceededMessage + "HTTP error " + statusCode + " " + response.getStatusLine().getReasonPhrase() + " : "
                 + responseBody;
         //LOG.error("{0}", message);
         if (statusCode == 400 && message.contains("The client credentials are invalid")) {
@@ -493,8 +500,12 @@ public class GraphEndpoint {
             // this uri check is necessary otherwise inspecting of shadow w/o photo returns 404
             return callRequestPhoto(request);
         }
-        try (CloseableHttpResponse response = executeRequest(request)) {
-            processResponseErrors(response);
+        if (request.getURI().toString().contains("roleAssignments")){
+            // this uri check is necessary otherwise inspecting of newly created user role assignments returns 404
+            return roleAssignments(request);
+        }
+        try (CloseableHttpResponse response = executeRequest(request, true)) {
+            processResponseErrors(response, false);
             if (response.getStatusLine().getStatusCode() == 204) {
                 LOG.ok("204 - No Content ");
                 return null;
@@ -516,15 +527,49 @@ public class GraphEndpoint {
 
     }
 
+    private JSONObject roleAssignments(HttpRequestBase request) {
+        int roleAssignmentsRetryCount = 0;
+        do {
+            try (CloseableHttpResponse response = executeRequest(request,false)) {
+                if (response.getStatusLine().getStatusCode() == 404) {
+                    roleAssignmentsRetryCount++;
+                    if (roleAssignmentsRetryCount >= this.configuration.getPostCreateReadMaxRetryCount()) {
+                        processResponseErrors(response, true);
+                        return null;
+                    }
+                } else {
+                    processResponseErrors(response, false);
+                    if (response.getStatusLine().getStatusCode() == 204) {
+                        LOG.ok("204 - No Content ");
+                        return null;
+                    }
+
+                    String result = EntityUtils.toString(response.getEntity());
+                    return new JSONObject(result);
+                }
+            } catch (IOException e) {
+                throw new ConnectorIOException();
+            }
+
+            try {
+                long sleepTime = this.configuration.getPostCreateReadRetryBaseDelayMs() * (1L << (roleAssignmentsRetryCount - 1));
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        } while (roleAssignmentsRetryCount < this.configuration.getPostCreateReadMaxRetryCount());
+        return null;
+    }
+
     private JSONObject callRequestPhoto(HttpRequestBase request) {
         String result;
 
-        try (CloseableHttpResponse response = executeRequest(request)) {
+        try (CloseableHttpResponse response = executeRequest(request, false)) {
             if (response.getStatusLine().getStatusCode() == 404){
                 return new JSONObject(Collections.singletonMap("data", null));
             }
             else {
-                processResponseErrors(response);
+                processResponseErrors(response, false);
                 result = java.util.Base64.getEncoder().encodeToString(EntityUtils.toByteArray(response.getEntity()));
                 return new JSONObject(Collections.singletonMap("data", result));
             }
@@ -552,10 +597,10 @@ public class GraphEndpoint {
         request.setEntity(entity);
         LOG.info("request {0}", request);
         // execute request
-        CloseableHttpResponse response = executeRequest(request);
+        CloseableHttpResponse response = executeRequest(request, true);
         LOG.info("response: {0}", response);
 
-        processResponseErrors(response);
+        processResponseErrors(response, false);
         int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode == 201) {
             LOG.ok("201 - Created");
@@ -741,8 +786,8 @@ public class GraphEndpoint {
         request.setEntity(entity);
         LOG.info("SetEntity  to request");
 
-        try (CloseableHttpResponse response = executeRequest(request)) {
-            processResponseErrors(response);
+        try (CloseableHttpResponse response = executeRequest(request, true)) {
+            processResponseErrors(response, false);
             LOG.info("response {0}", response);
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == 204) {
@@ -777,8 +822,8 @@ public class GraphEndpoint {
             }
             request.setEntity(entity);
 
-            try (CloseableHttpResponse response = executeRequest(request)) {
-                processResponseErrors(response);
+            try (CloseableHttpResponse response = executeRequest(request, true)) {
+                processResponseErrors(response, false);
                 LOG.info("response {0}", response);
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode == 204) {
