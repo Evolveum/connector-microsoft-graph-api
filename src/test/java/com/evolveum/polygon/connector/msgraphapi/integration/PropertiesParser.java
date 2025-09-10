@@ -30,9 +30,9 @@ public class PropertiesParser {
     private static final String EXISTED_ROLE_DISPLAY_NAME = "existedRoleDisplayName";
 
     private static final String DOMAIN = "domain";
+    private static final String GENERIC_SCHEMA_ATTR_INFO_NAME = "genericSchemaAttributeInfoName";
 
     public PropertiesParser() {
-
         try {
             PROPERTIES.load(getClass().getResourceAsStream(PROPERTIES_PATH));
         } catch (FileNotFoundException e) {
@@ -98,8 +98,7 @@ public class PropertiesParser {
       return (String) PROPERTIES.get(EXISTED_ROLE_DISPLAY_NAME);
     }
 
-    public String getDomain() {
+    public String getDomain() { return (String) PROPERTIES.get(DOMAIN); }
 
-        return (String) PROPERTIES.get(DOMAIN);
-    }
+    public String getGenericSchemaAttrInfoName() { return (String) PROPERTIES.get(GENERIC_SCHEMA_ATTR_INFO_NAME); }
 }

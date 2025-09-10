@@ -51,6 +51,32 @@ This are permissions which you need to add to your Entra ID (former Azure Active
 * EntitlementManagement.ReadWrite.All 
 * RoleManagement.Read.Directory 
 * RoleManagement.ReadWrite.Directory
+#### Optional: Sites management
+* Site.ReadWrite.All
 
 ## Resource Examples
 see [midpoint-samples - Microsoft Graph Connector](https://github.com/Evolveum/midpoint-samples/tree/master/samples/resources/msgraph)
+
+## Sharepoint - Sites Lists schema
+### Schema discovery
+Schema is provided by loading all non-personal sites from the tenant and its lists. 
+The naming convention for schema is SiteName~ListName where columns represent values in the list and its items.
+
+### Example
+**Site name:** Projects
+**List name:** Client projects
+**Columns:** Name, Key, Shortcut
+
+Schema object: 
+- **Projects/Client projects**
+  - **Name**: String
+  - **Key**: String 
+  - **Shortcut**: String
+
+### Limitations
+- Personal sites are ignored. It can be enabled by configuring the '**ignorePersonalSites**' property. By default, it is configured to true.
+- Midpoint expects __NAME__ attribute to be present in schema. This became a bit problematic during implementation
+  - By default, there is no such property within Columns definition as the definition is dynamic
+  - Connector expects any of following property names to be present - Name, Title, LinkTitle, DisplayName. These property definitions are case-insensitive.
+  - In order to define own propertyNames, alternate connector by defining it in configuration for multivalue property '**expectedPropertyNames**'. Comma separated.
+  - As a last resort of naming the item returned by schema definition to fulfill midpoint requirements connector uses ID.

@@ -56,6 +56,17 @@ abstract class ObjectProcessing {
         return graphEndpoint.getConfiguration();
     }
 
+    protected String getStringIfExistsIgnoreCase(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {
+        for (String key: object.keySet()) {
+            if (key.equalsIgnoreCase(attrName) && object.get(key) != null && !JSONObject.NULL.equals(object.get(key)) && !String.valueOf(object.get(key)).isEmpty()) {
+                if (type.equals(String.class)) {
+                    return String.valueOf(object.get(key));
+                }
+            }
+        }
+        return null;
+    }
+
     protected void getIfExists(JSONObject object, String attrName, Class<?> type, ConnectorObjectBuilder builder) {
         if (object.has(attrName) && object.get(attrName) != null && !JSONObject.NULL.equals(object.get(attrName)) && !String.valueOf(object.get(attrName)).isEmpty()) {
             if (type.equals(String.class)) {

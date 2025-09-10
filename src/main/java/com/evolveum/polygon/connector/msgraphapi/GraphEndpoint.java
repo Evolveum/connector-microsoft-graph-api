@@ -84,8 +84,8 @@ public class GraphEndpoint {
         this.validateWithCustomAndDefaultTrust = validateWithCustomAndDefaultTrust;
 
         authenticate();
-        initSchema();
         initHttpClient();
+        initSchema();
     }
 
 
@@ -259,7 +259,7 @@ public class GraphEndpoint {
     }
 
     private AuthenticationResult getAccessToken() {
-        if (authenticateResult.getExpiresOnDate().getTime() - SKEW < new Date().getTime()) {
+        if (authenticateResult == null || authenticateResult.getExpiresOnDate().getTime() - SKEW < new Date().getTime()) {
             // Expired, re-authenticate
             authenticate();
         }

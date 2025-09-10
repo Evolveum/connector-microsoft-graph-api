@@ -141,5 +141,4 @@ public class UserPerformanceTest extends BasicConfigurationForTests {
         msGraphConnector.dispose();
 
     }
-
 }

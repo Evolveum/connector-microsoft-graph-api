@@ -12,7 +12,6 @@ import org.identityconnectors.framework.spi.StatefulConfiguration;
 
 import java.net.InetSocketAddress;
 
-
 public class MSGraphConfiguration extends AbstractConfiguration
         implements StatefulConfiguration {
 
@@ -46,6 +45,10 @@ public class MSGraphConfiguration extends AbstractConfiguration
     private Integer postCreateReadMaxRetryCount = 5;
 
     private GraphConfigurationHandler configHandler = new GraphConfigurationHandler();
+
+    // Generic schema
+    private boolean ignorePersonalSites = true;
+    private String expectedPropertyNames = "Name,Title,TitleLink";
 
     @ConfigurationProperty(order = 10, displayMessageKey = "ClientId.display", helpMessageKey = "ClientId.help", required = true)
 
@@ -191,10 +194,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
     @ConfigurationProperty(order = 110, displayMessageKey = "ThrottlingMaxWait.display", helpMessageKey = "ThrottlingMaxWait.help")
 
-    public String getThrottlingRetryWait() {
-
-        return throttlingRetryWait;
-    }
+    public String getThrottlingRetryWait() { return throttlingRetryWait; }
 
     public void setThrottlingRetryWait(String throttlingRetryWait) {
         this.throttlingRetryWait = throttlingRetryWait;
@@ -240,6 +240,28 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
     public void setPostCreateReadMaxRetryCount(Integer postCreateReadMaxRetryCount) {
         this.postCreateReadMaxRetryCount = postCreateReadMaxRetryCount;
+    }
+
+    @ConfigurationProperty(order = 180, displayMessageKey = "IgnorePersonalSites.display", helpMessageKey = "IgnorePersonalSites.help")
+    public boolean getIgnorePersonalSites() {
+        return ignorePersonalSites;
+    }
+
+    public void setIgnorePersonalSites(boolean ignorePersonalSites) {
+        this.ignorePersonalSites = ignorePersonalSites;
+    }
+
+    @ConfigurationProperty(
+            order = 190,
+            displayMessageKey = "ExpectedPropertyNames.display",
+            helpMessageKey = "ExpectedPropertyNames.help"
+    )
+    public String getExpectedPropertyNames() {
+        return expectedPropertyNames;
+    }
+
+    public void setExpectedPropertyNames(String expectedPropertyNames) {
+        this.expectedPropertyNames = expectedPropertyNames;
     }
 
     @Override
