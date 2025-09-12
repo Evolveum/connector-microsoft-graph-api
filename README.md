@@ -62,6 +62,14 @@ see [midpoint-samples - Microsoft Graph Connector](https://github.com/Evolveum/m
 Schema is provided by loading all non-personal sites from the tenant and its lists. 
 The naming convention for schema is SiteName~ListName where columns represent values in the list and its items.
 
+IMPORTANT: It is off by default. It is driven by the property of **discoverSchema**.
+When the property is set to TRUE, the connector will automatically go through all the sites based on the configuration. 
+If the property **ignorePersonalSites** is set to true, it will go through only non personal sites.
+Based on it it will fetch all the lists on each site and expand its columns which will bring the connector to the schema of each list and items in it.
+It can be a very time consuming operation considering the size of your SharePoint and number of sites and lists in it.
+
+Be cautious when using the schema discovery and turning it on for large amount of sites.
+
 ### Example
 **Site name:** Projects
 **List name:** Client projects
