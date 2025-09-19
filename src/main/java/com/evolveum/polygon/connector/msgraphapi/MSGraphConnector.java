@@ -538,8 +538,10 @@ public class MSGraphConnector implements Connector,
             return roleProcessing.updateRole(uid, attrsDelta, options);
 
         } else {
-            LOG.error("The value of the ObjectClass parameter is unsupported.");
-            throw new UnsupportedOperationException("The value of the ObjectClass parameter is unsupported.");
+            LOG.warn("Provided ObjectClass is not supported, trying generic support");
+            GenericListItemProcessing genericProcessing = new GenericListItemProcessing(getGraphEndpoint());
+
+            return genericProcessing.updateItem(uid, attrsDelta, options);
         }
     }
 
@@ -642,6 +644,10 @@ public class MSGraphConnector implements Connector,
 
             suggestions.put("disabledPlans", SuggestedValuesBuilder.build(availablePlans));
         }
+
+        suggestions.put("discoverSchema", SuggestedValuesBuilder.build(configuration.isDiscoverSchema()));
+        suggestions.put("expectedPropertyNames", SuggestedValuesBuilder.buildOpen(configuration.getExpectedPropertyNames()));
+        suggestions.put("ignorePersonalSites", SuggestedValuesBuilder.build(configuration.getIgnorePersonalSites()));
 
         return suggestions;
     }

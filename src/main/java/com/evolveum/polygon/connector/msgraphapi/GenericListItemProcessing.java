@@ -1,5 +1,8 @@
 package com.evolveum.polygon.connector.msgraphapi;
 
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
+import org.apache.http.client.methods.HttpPatch;
+import org.apache.http.client.utils.URIBuilder;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.objects.*;
 import org.identityconnectors.framework.common.objects.filter.EqualsFilter;
@@ -7,8 +10,10 @@ import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class GenericListItemProcessing extends ObjectProcessing {
     private static final String SITES = "/sites";
@@ -16,10 +21,13 @@ public class GenericListItemProcessing extends ObjectProcessing {
     private static final String ITEMS = "/items";
 
     private static final String COLUMNS = "/columns";
+    private static final String FIELDS = "/fields";
 
     ///  Attributes
     private static final String ATTR_ID = "id";
     private static final String ATTR_NAME = "name";
+    private static final String ATTR_SITE_ID = "siteId";
+    private static final String ATTR_LIST_ID = "listId";
     private static final String ATTR_IS_PERSONAL = "isPersonalSite";
     private static final String ATTR_READ_ONLY = "readOnly";
     private static final String ATTR_REQUIRED = "required";
@@ -69,6 +77,10 @@ public class GenericListItemProcessing extends ObjectProcessing {
             }
         });
 
+        // List id and site id are saturated inside the master object
+        getIfExists(json, ATTR_SITE_ID, String.class, builder);
+        getIfExists(json, ATTR_LIST_ID, String.class, builder);
+
         String[] possibleAttrNames = getConfiguration().getExpectedPropertyNames().split(",");
         for(String attrName: possibleAttrNames) {
             LOG.info("Azure connector: Searching for attribute:" + attrName + " in keyset:" + fields.keySet());
@@ -89,6 +101,42 @@ public class GenericListItemProcessing extends ObjectProcessing {
         }
 
         return handler.handle(builder.build());
+    }
+
+    protected Set<AttributeDelta> updateItem(Uid uid, Set<AttributeDelta> attrsDelta, OperationOptions options) {
+        LOG.info("Start updateColumn, Uid: {0}, attrsDelta: {1}", uid, attrsDelta);
+        final GraphEndpoint endpoint = getGraphEndpoint();
+
+        String siteId = null;
+        String listId = null;
+
+        JSONObject updateValues = new JSONObject();
+        for (AttributeDelta attr: attrsDelta) {
+            String attrName = attr.getName();
+            if (attrName.equalsIgnoreCase(ATTR_SITE_ID)) {
+                siteId = attr.getValuesToReplace().get(0).toString();
+                continue;
+            }
+            if (attrName.equalsIgnoreCase(ATTR_LIST_ID)) {
+                listId = attr.getValuesToReplace().get(0).toString();
+                continue;
+            }
+            updateValues.put(attrName, attr.getValuesToReplace().get(0)); // all attributes are single valued
+        }
+
+        if (siteId == null || listId == null) {
+            throw new InvalidAttributeValueException("MSGraphConnector: Invalid attributes provided for site id or list id");
+        }
+
+        final URIBuilder uriBuilder = endpoint.createURIBuilder()
+                .setPath(SITES + "/" + siteId + LISTS + "/" + listId + ITEMS + "/" + uid.getUidValue() + FIELDS);
+        URI uri = endpoint.getUri(uriBuilder);
+        LOG.info("update column, PATCH");
+        LOG.info("Path: {0}", uri);
+        HttpEntityEnclosingRequestBase request = new HttpPatch(uri);
+
+        endpoint.callRequest(request, updateValues, false);
+        return null;
     }
 
     public void executeQueryForListRecords(ObjectClass objectClass, Filter query, ResultsHandler handler, OperationOptions options) {
@@ -144,16 +192,23 @@ public class GenericListItemProcessing extends ObjectProcessing {
     private void getField(ObjectClass objectClass, String id, ResultsHandler handler, OperationOptions options, String site, String list) {
         final String itemsQuery = SITES + "/" + site + LISTS + "/" + list + ITEMS + "/" + id;
         final GraphEndpoint endpoint = getGraphEndpoint();
-
-        handleJSONObject(objectClass, options, endpoint.executeGetRequest(itemsQuery, "expand=fields", options), handler);
+        JSONObject result = endpoint.executeGetRequest(itemsQuery, "expand=fields", options);
+        result.put(ATTR_SITE_ID, site);
+        result.put(ATTR_LIST_ID, list);
+        handleJSONObject(objectClass, options, result, handler);
     }
 
     private void listFields(ObjectClass objectClass, ResultsHandler handler, OperationOptions options, String site, String list) {
         final String itemsQuery = SITES + "/" + site + LISTS + "/" + list + ITEMS;
         final GraphEndpoint endpoint = getGraphEndpoint();
 
-        JSONObjectHandler objectHandler = (operationOptions, jsonObject) -> handleJSONObject(objectClass, operationOptions, jsonObject, handler);
-        endpoint.executeListRequest(itemsQuery, "expand=fields", options, false, objectHandler);
+        JSONArray jsonArray = endpoint.executeListRequest(itemsQuery, "expand=fields", options, false);
+        List<JSONObject> results = handleJSONArray(jsonArray);
+        for (JSONObject result: results) {
+            result.put(ATTR_SITE_ID, site);
+            result.put(ATTR_LIST_ID, list);
+            handleJSONObject(objectClass, options, result, handler);
+        }
     }
 
     private List<JSONObject> listSites() {
@@ -174,7 +229,12 @@ public class GenericListItemProcessing extends ObjectProcessing {
         final GraphEndpoint endpoint = getGraphEndpoint();
         JSONArray json = endpoint.executeListRequest(SITES + "/" + site + LISTS + "/" + list + COLUMNS, null, null, false);
         LOG.info("JSONObject columns in list {0}", json);
-        return handleJSONArray(json);
+        List<JSONObject> results = handleJSONArray(json);
+        for (JSONObject result: results) {
+            result.put(ATTR_SITE_ID, site);
+            result.put(ATTR_LIST_ID, list);
+        }
+        return results;
     }
 
     protected void buildSiteListObjectClasses(SchemaBuilder schemaBuilder) {
@@ -191,6 +251,23 @@ public class GenericListItemProcessing extends ObjectProcessing {
                                 ObjectClassInfoBuilder listRecordClassBuilder = new ObjectClassInfoBuilder();
                                 String schemaRecordName = site.name + SITE_LIST_DELIMITER + list.name;
                                 listRecordClassBuilder.setType(schemaRecordName);
+                                // Add site and list id attributes to allow column updates
+                                // Both list id and site id must be updatable in order to synchronize correctly
+                                AttributeInfoBuilder attributeSiteId = new AttributeInfoBuilder(ATTR_SITE_ID);
+                                attributeSiteId.setRequired(true)
+                                        .setType(String.class)
+                                        .setUpdateable(true)
+                                        .setReadable(true)
+                                        .setMultiValued(false);
+                                listRecordClassBuilder.addAttributeInfo(attributeSiteId.build());
+
+                                AttributeInfoBuilder attributeListId = new AttributeInfoBuilder(ATTR_LIST_ID);
+                                attributeListId.setRequired(true)
+                                        .setType(String.class)
+                                        .setUpdateable(true)
+                                        .setReadable(true)
+                                        .setMultiValued(false);
+                                listRecordClassBuilder.addAttributeInfo(attributeListId.build());
 
                                 LOG.info("Storing schema record of name: " + schemaRecordName);
 

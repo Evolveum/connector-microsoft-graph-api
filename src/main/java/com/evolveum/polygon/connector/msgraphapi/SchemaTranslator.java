@@ -26,7 +26,7 @@ public class SchemaTranslator {
         groupProcessing.buildGroupObjectClass(schemaBuilder);
         roleProcessing.buildRoleObjectClass(schemaBuilder);
         licenseProcessing.buildLicenseObjectClass(schemaBuilder);
-        if (graphEndpoint.getConfiguration().getDiscoverSchema()) {
+        if (graphEndpoint.getConfiguration().isDiscoverSchema()) {
             genericListItemProcessing.buildSiteListObjectClasses(schemaBuilder);
         }
 

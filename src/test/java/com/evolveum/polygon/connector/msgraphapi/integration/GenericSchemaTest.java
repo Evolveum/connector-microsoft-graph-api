@@ -14,6 +14,7 @@ public class GenericSchemaTest extends BasicConfigurationForTests {
     @Test(priority = 10)
     public void processSchemaTest() {
         msGraphConfiguration = getConfiguration();
+        msGraphConfiguration.setDiscoverSchema(parser.isDiscoverSchame());
         msGraphConnector.init(msGraphConfiguration);
 
         Schema schema = msGraphConnector.schema();
@@ -24,6 +25,7 @@ public class GenericSchemaTest extends BasicConfigurationForTests {
     public void genericObjectsTest() {
         String projectName = parser.getGenericSchemaAttrInfoName();
         msGraphConfiguration = getConfiguration();
+        msGraphConfiguration.setDiscoverSchema(parser.isDiscoverSchame());
         msGraphConnector.init(msGraphConfiguration);
 
         ResultsHandler resultsHandler = (object) -> {

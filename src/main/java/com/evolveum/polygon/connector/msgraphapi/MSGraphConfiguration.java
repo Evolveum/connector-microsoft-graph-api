@@ -243,21 +243,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
         this.postCreateReadMaxRetryCount = postCreateReadMaxRetryCount;
     }
 
-    @ConfigurationProperty(
-            order = 180,
-            displayMessageKey = "DiscoverSchema.display",
-            helpMessageKey = "DiscoverSchema.help",
-            required = true
-    )
-    public boolean getDiscoverSchema() {
-        return discoverSchema;
-    }
-
-    public void setDiscoverSchema(boolean discoverSchema) {
-        this.discoverSchema = discoverSchema;
-    }
-
-    @ConfigurationProperty(order = 190, displayMessageKey = "IgnorePersonalSites.display", helpMessageKey = "IgnorePersonalSites.help")
+    @ConfigurationProperty(order = 180, displayMessageKey = "IgnorePersonalSites.display", helpMessageKey = "IgnorePersonalSites.help")
     public boolean getIgnorePersonalSites() {
         return ignorePersonalSites;
     }
@@ -267,7 +253,7 @@ public class MSGraphConfiguration extends AbstractConfiguration
     }
 
     @ConfigurationProperty(
-            order = 200,
+            order = 190,
             displayMessageKey = "ExpectedPropertyNames.display",
             helpMessageKey = "ExpectedPropertyNames.help"
     )
@@ -277,6 +263,19 @@ public class MSGraphConfiguration extends AbstractConfiguration
 
     public void setExpectedPropertyNames(String expectedPropertyNames) {
         this.expectedPropertyNames = expectedPropertyNames;
+    }
+
+    @ConfigurationProperty(order = 200,
+            displayMessageKey = "DiscoverSchema.display",
+            helpMessageKey = "DiscoverSchema.help",
+            required = true
+    )
+    public boolean isDiscoverSchema() {
+        return discoverSchema;
+    }
+
+    public void setDiscoverSchema(boolean discoverSchema) {
+        this.discoverSchema = discoverSchema;
     }
 
     @Override
