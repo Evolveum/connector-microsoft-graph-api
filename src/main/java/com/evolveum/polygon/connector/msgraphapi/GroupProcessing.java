@@ -3,17 +3,13 @@ package com.evolveum.polygon.connector.msgraphapi;
 import com.evolveum.polygon.connector.msgraphapi.util.ResourceQuery;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.util.EntityUtils;
 import org.identityconnectors.framework.common.exceptions.AlreadyExistsException;
-import org.identityconnectors.framework.common.exceptions.ConnectorIOException;
 import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueException;
 import org.identityconnectors.framework.common.exceptions.OperationTimeoutException;
-import org.identityconnectors.framework.common.exceptions.UnknownUidException;
 import org.identityconnectors.framework.common.objects.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +44,7 @@ public class GroupProcessing extends ObjectProcessing {
     private static final String ATTR_SECURITYENABLED = "securityEnabled";
     private static final String ATTR_UNSEENCOUNT = "unseenCount";
     private static final String ATTR_VISIBILITY = "visibility";
+    private static final String ATTR_ISASSIGNABLETOROLE = "isAssignableToRole";
     private static final String ATTR_MEMBERS = "members";
     private static final String ATTR_OWNERS = "owners";
 
@@ -182,6 +179,10 @@ public class GroupProcessing extends ObjectProcessing {
         AttributeInfoBuilder attrVisibility = new AttributeInfoBuilder(ATTR_VISIBILITY);
         attrVisibility.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         groupObjClassBuilder.addAttributeInfo(attrVisibility.build());
+
+        AttributeInfoBuilder attrIsAssignableToRole = new AttributeInfoBuilder(ATTR_ISASSIGNABLETOROLE);
+        attrIsAssignableToRole.setRequired(false).setType(Boolean.class).setCreateable(true).setUpdateable(false).setReadable(true);
+        groupObjClassBuilder.addAttributeInfo(attrIsAssignableToRole.build());
 
         AttributeInfoBuilder attrMembers = new AttributeInfoBuilder(ATTR_MEMBERS);
         attrMembers.setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true).setMultiValued(true).setReturnedByDefault(false);
@@ -613,6 +614,7 @@ public class GroupProcessing extends ObjectProcessing {
         getIfExists(group, ATTR_VISIBILITY, String.class, builder);
         getIfExists(group, ATTR_CREATEDDATETIME, String.class, builder);
         getIfExists(group, ATTR_CLASSIFICATION, String.class, builder);
+        getIfExists(group, ATTR_ISASSIGNABLETOROLE, Boolean.class, builder);
 
         getIfExists(group, ATTR_ALLOWEXTERNALSENDERS, Boolean.class, builder);
         getIfExists(group, ATTR_AUTOSUBSCRIBENEWMEMBERS, Boolean.class, builder);
