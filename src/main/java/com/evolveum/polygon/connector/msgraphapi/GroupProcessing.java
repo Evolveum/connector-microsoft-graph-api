@@ -211,6 +211,26 @@ public class GroupProcessing extends ObjectProcessing {
         JSONObject jsonObject = buildLayeredAttributeJSON(attributes, EXCLUDE_ATTRS_OF_GROUP);
         String groupDisplayName = jsonObject.getString(getNameAttribute());
 
+        // Tentatively create group with owners or members if present
+        // When owners are not present the group is set as unmodifiable
+        // For more information refer to https://learn.microsoft.com/en-us/graph/api/group-post-groups?view=graph-rest-1.0&tabs=http
+        // This is valid for security group creation
+        Attribute members = null;
+        Attribute owners = null;
+        for (Attribute attribute: attributes) {
+            switch (attribute.getName()) {
+                case ATTR_MEMBERS:
+                    members = attribute;
+                    break;
+                case ATTR_OWNERS:
+                    owners = attribute;
+                    break;
+            }
+        }
+        jsonObject = addIfExistsGroupAccountsToGroup(jsonObject, members, true);
+        jsonObject = addIfExistsGroupAccountsToGroup(jsonObject, owners, false);
+
+
         // For historical reason, Groups are allowed to duplicate displayName (Reference: https://morgansimonsen.com/2016/06/28/azure-ad-allows-duplicate-group-names/).
         // However, Microsoft strives to avoid group created with duplicated names. For example, duplicate Group creation from the UI will result in an error.
         // Unfortunately, Microsoft Graph v1.0 does not perform duplicate name checking, so we have to implement here.
@@ -566,6 +586,34 @@ public class GroupProcessing extends ObjectProcessing {
         final JSONArray groupOwners = endpoint.executeListRequest(ownerQuery, "$select=id,userPrincipalName", null, true);
         group.put(ATTR_OWNERS, getJSONArray(groupOwners, "id"));
 
+        return group;
+    }
+
+    /**
+     * Adds group accounts to the group JSON Object. Decides upon members or owners based on @param isMembers.
+     * @param group Original group object to extend with owners or members account ids
+     * @param accounts Attribute of account ids
+     * @param isMembers Flag to determine whether to add members or owners
+     * @return JSONObject of group with respective owners or members key.
+     */
+    private JSONObject addIfExistsGroupAccountsToGroup(JSONObject group, Attribute accounts, boolean isMembers) {
+        if (accounts == null) {
+            return group;
+        }
+        final GraphEndpoint endpoint = getGraphEndpoint();
+
+        JSONArray json = new JSONArray();
+        accounts.getValue().forEach( it -> {
+            final String ownerQuery = USERS + "/" + it.toString();
+            try {
+                json.put(endpoint.createURIBuilder().setPath(ownerQuery).build().toString());
+            } catch (Exception e) {
+                // Unable to create an URI from member
+            }
+        });
+        String key = isMembers ? "members@odata.bind" : "owners@odata.bind";
+
+        group.put(key, json);
         return group;
     }
 
