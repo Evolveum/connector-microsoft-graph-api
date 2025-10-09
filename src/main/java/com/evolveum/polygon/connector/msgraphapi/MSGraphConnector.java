@@ -104,7 +104,6 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
             RoleProcessing roleProcessing = new RoleProcessing(getGraphEndpoint());
             return roleProcessing.createRole(attributes);
-
         } else {
             throw new UnsupportedOperationException("Unsupported object class " + objectClass);
         }
@@ -113,7 +112,6 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public void delete(ObjectClass objectClass, Uid uid, OperationOptions operationOptions) {
-
         if (uid.getUidValue() == null) {
             StringBuilder sb = new StringBuilder();
             sb.append("Uid not provided or empty:").append(uid.getUidValue()).append(";");
@@ -137,7 +135,8 @@ public class MSGraphConnector implements Connector,
         } else if (objectClass.is(RoleProcessing.ROLE_NAME)) {
             RoleProcessing role = new RoleProcessing(getGraphEndpoint());
             role.delete(uid);
-
+        } else {
+            throw new UnsupportedOperationException("Unsupported object class " + objectClass);
         }
     }
 
@@ -201,7 +200,6 @@ public class MSGraphConnector implements Connector,
 
     @Override
     public void sync(ObjectClass objectClass, SyncToken fromToken, SyncResultsHandler handler, OperationOptions oo) {
-
         LOG.ok("Evaluation of SYNC op method regarding the object class {0} with the following options: {1}",objectClass
                 , oo);
         if (objectClass.is(ObjectClass.ACCOUNT_NAME)) {
@@ -484,10 +482,15 @@ public class MSGraphConnector implements Connector,
             roleProcessing.executeQueryForRole(query, handler, options);
 
         } else {
-            LOG.error("Attribute of type ObjectClass is not supported.");
-            throw new UnsupportedOperationException("Attribute of type ObjectClass is not supported.");
-        }
+            LOG.warn("Provided ObjectClass is not supported, trying generic support");
+            GenericListItemProcessing genericProcessing = new GenericListItemProcessing(getGraphEndpoint());
 
+            if (query != null) {
+                LOG.ok("Query will be executed with the following filter: {0}", query.toString());
+                LOG.ok("The object class for which the filter will be executed: {0}", objectClass.getDisplayNameKey());
+            }
+            genericProcessing.executeQueryForListRecords(objectClass, query, handler, options);
+        }
     }
 
     @Override
@@ -535,8 +538,10 @@ public class MSGraphConnector implements Connector,
             return roleProcessing.updateRole(uid, attrsDelta, options);
 
         } else {
-            LOG.error("The value of the ObjectClass parameter is unsupported.");
-            throw new UnsupportedOperationException("The value of the ObjectClass parameter is unsupported.");
+            LOG.warn("Provided ObjectClass is not supported, trying generic support");
+            GenericListItemProcessing genericProcessing = new GenericListItemProcessing(getGraphEndpoint());
+
+            return genericProcessing.updateItem(uid, attrsDelta, options);
         }
     }
 
@@ -639,6 +644,10 @@ public class MSGraphConnector implements Connector,
 
             suggestions.put("disabledPlans", SuggestedValuesBuilder.build(availablePlans));
         }
+
+        suggestions.put("discoverSchema", SuggestedValuesBuilder.build(configuration.isDiscoverSchema()));
+        suggestions.put("expectedPropertyNames", SuggestedValuesBuilder.buildOpen(configuration.getExpectedPropertyNames()));
+        suggestions.put("ignorePersonalSites", SuggestedValuesBuilder.build(configuration.getIgnorePersonalSites()));
 
         return suggestions;
     }
