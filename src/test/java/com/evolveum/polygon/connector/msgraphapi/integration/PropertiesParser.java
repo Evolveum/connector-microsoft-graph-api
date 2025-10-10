@@ -32,6 +32,7 @@ public class PropertiesParser {
     private static final String DOMAIN = "domain";
     private static final String GENERIC_SCHEMA_ATTR_INFO_NAME = "genericSchemaAttributeInfoName";
     private static final String DISCOVER_SCHEMA = "discoverSchema";
+    private static final String TESTING_USER_ID = "testUserId";
 
     public PropertiesParser() {
         try {
@@ -106,5 +107,9 @@ public class PropertiesParser {
     public boolean isDiscoverSchame() {
         String value = (String) PROPERTIES.get(DISCOVER_SCHEMA);
         return Boolean.valueOf(value);
+    }
+
+    public String getTestingUserId() {
+        return (String) PROPERTIES.get(TESTING_USER_ID);
     }
 }

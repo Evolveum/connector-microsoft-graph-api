@@ -358,8 +358,25 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         msGraphConnector.init(conf);
         msGraphConnector.delete(objectClassAccount, groupTestUser3, options);
         msGraphConnector.dispose();
-
-
     }
 
+    @Test(priority = 30)
+    public void CreateSecurityGroupTest() {
+        MSGraphConnector connector = new MSGraphConnector();
+        MSGraphConfiguration conf = getConfiguration();
+        OperationOptions options = new OperationOptions(new HashMap<>());
+
+        ObjectClass objectClassGroup = ObjectClass.GROUP;
+        Set<Attribute> attributesCreatedGroup = new HashSet<>();
+        attributesCreatedGroup.add(AttributeBuilder.build("displayName", "testGroupdisplayName1"));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailEnabled", false));
+        attributesCreatedGroup.add(AttributeBuilder.build("mailNickname", "testGroupmailNickname1"));
+        attributesCreatedGroup.add(AttributeBuilder.build("securityEnabled", true));
+        attributesCreatedGroup.add(AttributeBuilder.build("owners", Collections.singletonList(testUserId)));
+
+        connector.init(conf);
+        Uid groupUid = connector.create(objectClassGroup, attributesCreatedGroup, options);
+        connector.delete(objectClassGroup, groupUid, options);
+        connector.dispose();
+    }
 }

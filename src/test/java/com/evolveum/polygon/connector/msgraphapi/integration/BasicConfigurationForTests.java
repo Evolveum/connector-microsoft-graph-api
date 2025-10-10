@@ -28,6 +28,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
     protected boolean spoLicenseRequired;
     protected boolean aadPremiumLicenseRequired;
     protected String roleWhichExistsInTenantDisplayName;
+    protected String testUserId;
 
     protected static int _WAIT_INTERVAL = 30000;
     protected static int _REPEAT_COUNT = 10;
@@ -57,6 +58,7 @@ public class BasicConfigurationForTests implements ObjectConstants {
         spoLicenseRequired = parser.isSPOLicenseRequired();
         aadPremiumLicenseRequired = parser.isAADPremiumLicenseRequired();
         roleWhichExistsInTenantDisplayName = parser.getExistedRoleDisplayName();
+        testUserId = parser.getTestingUserId();
         return msGraphConfiguration;
     }
 
