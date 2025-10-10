@@ -114,6 +114,7 @@ public interface ObjectConstants {
     String ATTR_UNSEENCOUNT = "unseenCount";
     String ATTR_VISIBILITY = "visibility";
     String ATTR_OWNERS = "owners";
+    String ATTR_MEMBER_OF_ROLE = "memberOfRole";
     
     // Role
     
@@ -128,5 +129,4 @@ public interface ObjectConstants {
     String ATTR_INHERIT_PERMISSIONS_FROM_ODATA_CONTEXT = "inheritsPermissionsFrom@odata.context";
     String ATTR_INHERIT_PERMISSIONS_FROM = "inheritsPermissionsFrom";
     String ATTR_INHERIT_PERMISSIONS_FROM_ALL = ATTR_INHERIT_PERMISSIONS_FROM + "." + ATTR_ID;
-
 }
