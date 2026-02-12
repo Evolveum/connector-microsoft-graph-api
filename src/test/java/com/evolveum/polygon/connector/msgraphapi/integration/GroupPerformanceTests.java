@@ -379,4 +379,39 @@ public class GroupPerformanceTests extends BasicConfigurationForTests {
         connector.delete(objectClassGroup, groupUid, options);
         connector.dispose();
     }
+
+    @Test(priority = 31)
+    public void GetGroupRoleMembershipTest() {
+        MSGraphConnector connector = new MSGraphConnector();
+        MSGraphConfiguration conf = getConfiguration();
+
+        Map<String, Object> operationOptions = new HashMap<>();
+        operationOptions.put("ALLOW_PARTIAL_ATTRIBUTE_VALUES", false);
+        operationOptions.put(OperationOptions.OP_ATTRIBUTES_TO_GET, new String[]{ ATTR_MEMBER_OF_ROLE });
+        operationOptions.put(OperationOptions.OP_PAGED_RESULTS_OFFSET, 1);
+        operationOptions.put(OperationOptions.OP_PAGE_SIZE, 100);
+        OperationOptions options = new OperationOptions(operationOptions);
+
+        final ArrayList<ConnectorObject> resultsGroup = new ArrayList<>();
+        SearchResultsHandler handlerGroup = new SearchResultsHandler() {
+
+            @Override
+            public boolean handle(ConnectorObject connectorObject) {
+                resultsGroup.add(connectorObject);
+                return true;
+            }
+
+            @Override
+            public void handleResult(SearchResult result) {
+            }
+        };
+        connector.init(conf);
+        connector.executeQuery(ObjectClass.GROUP, null, handlerGroup, options);
+
+        msGraphConnector.dispose();
+
+        if (resultsGroup.size() < 100) {
+            throw new InvalidAttributeValueException("Non exist 100 groups.");
+        }
+    }
 }
