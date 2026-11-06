@@ -90,6 +90,7 @@ public class UserProcessing extends ObjectProcessing {
     private static final String ATTR_INTERESTS = "interests"; // Need SPO license
     private static final String ATTR_JOBTITLE = "jobTitle";
     private static final String ATTR_MAIL = "mail";
+    private static final String ATTR_OTHERMAILS = "otherMails";
 
     //MAILBOXSETTINGS
     private static final String ATTR_MAILBOXSETTINGS = "mailboxSettings";
@@ -193,6 +194,7 @@ public class UserProcessing extends ObjectProcessing {
     protected static final Set<String> UPDATABLE_MULTIPLE_VALUE_ATTRS_OF_USER = Stream.of(
             ATTR_BUSINESSPHONES,
             ATTR_INTERESTS,
+            ATTR_OTHERMAILS,
             ATTR_PASTPROJECTS,
             ATTR_RESPONSIBILITIES,
             ATTR_SCHOOLS,
@@ -421,6 +423,10 @@ public class UserProcessing extends ObjectProcessing {
         AttributeInfoBuilder attrMail = new AttributeInfoBuilder(ATTR_MAIL);
         attrMail.setRequired(false).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
         userObjClassBuilder.addAttributeInfo(attrMail.build());
+
+        AttributeInfoBuilder attrOtherMails = new AttributeInfoBuilder(ATTR_OTHERMAILS);
+        attrOtherMails.setRequired(false).setMultiValued(true).setType(String.class).setCreateable(true).setUpdateable(true).setReadable(true);
+        userObjClassBuilder.addAttributeInfo(attrOtherMails.build());
 
         // Extension ATTRIBUTES
         for (int i = 1; i <= NUMBER_OF_EXTENSIONS; i++) {
@@ -1124,7 +1130,7 @@ public class UserProcessing extends ObjectProcessing {
         List<String> attrs = new ArrayList<>(List.of(
                 ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                 ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
-                ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                ATTR_BUSINESSPHONES, ATTR_OTHERMAILS, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                 ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
                 ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
                 ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
@@ -1463,6 +1469,7 @@ public class UserProcessing extends ObjectProcessing {
         getMultiIfExists(user, ATTR_INTERESTS, builder);
         getIfExists(user, ATTR_JOBTITLE, String.class, builder);
         getIfExists(user, ATTR_MAIL, String.class, builder);
+        getMultiIfExists(user, ATTR_OTHERMAILS, builder);
         getIfExists(user, ATTR_MOBILEPHONE, String.class, builder);
         getIfExists(user, ATTR_MYSITE, String.class, builder);
         getIfExists(user, ATTR_OFFICELOCATION, String.class, builder);
@@ -1544,7 +1551,7 @@ public class UserProcessing extends ObjectProcessing {
             List<String> attrs = new ArrayList<>(List.of(
                     ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                     ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME, ATTR_ABOUTME,
-                    ATTR_BIRTHDAY, ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                    ATTR_BIRTHDAY, ATTR_BUSINESSPHONES, ATTR_OTHERMAILS, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                     ATTR_GIVENNAME, ATTR_HIREDATE, ATTR_IMADDRESSES, ATTR_ID, ATTR_INTERESTS,
                     ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_MYSITE, ATTR_OFFICELOCATION,
                     ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
@@ -1583,7 +1590,7 @@ public class UserProcessing extends ObjectProcessing {
             return selector(
                     ATTR_ACCOUNTENABLED, ATTR_DISPLAYNAME,
                     ATTR_ONPREMISESIMMUTABLEID, ATTR_MAILNICKNAME, ATTR_USERPRINCIPALNAME,
-                    ATTR_BUSINESSPHONES, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
+                    ATTR_BUSINESSPHONES, ATTR_OTHERMAILS, ATTR_CITY, ATTR_COMPANYNAME, ATTR_COUNTRY, ATTR_DEPARTMENT,
                     ATTR_GIVENNAME, ATTR_IMADDRESSES, ATTR_ID,
                     ATTR_JOBTITLE, ATTR_MAIL, ATTR_MOBILEPHONE, ATTR_OFFICELOCATION,
                     ATTR_ONPREMISESLASTSYNCDATETIME, ATTR_ONPREMISESSECURITYIDENTIFIER,
