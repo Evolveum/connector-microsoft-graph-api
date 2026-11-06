@@ -7,6 +7,7 @@ import org.identityconnectors.framework.common.exceptions.InvalidAttributeValueE
 import org.identityconnectors.framework.common.objects.Attribute;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeDelta;
+import org.identityconnectors.framework.common.objects.AttributeInfo;
 import org.identityconnectors.framework.common.objects.AttributeDeltaBuilder;
 import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.OperationOptionsBuilder;
@@ -58,6 +59,42 @@ public class UserProcessingTest extends BasicConfigurationForTests {
 
         assertTrue(userProcessing.getAttributesToGet(options).contains("manager"));
         assertFalse(userProcessing.getAttributesToGet(options).contains("signIn"));
+    }
+
+    @Test
+    public void testOtherMailsSchemaAndSelectors() {
+        MockGraphEndpoint mockGraphEndpoint = new MockGraphEndpoint(null);
+        UserProcessing userProcessing = new UserProcessing(mockGraphEndpoint, mockGraphEndpoint.getSchemaTranslator());
+
+        AttributeInfo otherMails = userProcessing.objectClassInfo().getAttributeInfo().stream()
+                .filter(info -> "otherMails".equals(info.getName()))
+                .findFirst().orElseThrow();
+
+        assertEquals(String.class, otherMails.getType());
+        assertTrue(otherMails.isMultiValued());
+        assertTrue(userProcessing.getSelectorSingle(null).contains("otherMails"));
+        assertTrue(userProcessing.getSelectorSingle(new OperationOptionsBuilder()
+                .setAttributesToGet("otherMails").build()).contains("otherMails"));
+    }
+
+    @Test
+    public void testOtherMailsConversionAndArrayPayload() {
+        MockGraphEndpoint mockGraphEndpoint = new MockGraphEndpoint(null);
+        UserProcessing userProcessing = new UserProcessing(mockGraphEndpoint, mockGraphEndpoint.getSchemaTranslator());
+        JSONObject userJson = new JSONObject()
+                .put("id", "user-id")
+                .put("userPrincipalName", "user@example.com")
+                .put("otherMails", new JSONArray().put("first@example.com").put("second@example.com"));
+
+        Attribute otherMails = userProcessing.convertUserJSONObjectToConnectorObject(userJson)
+                .build().getAttributeByName("otherMails");
+        assertEquals(list("first@example.com", "second@example.com"), otherMails.getValue());
+
+        JSONObject payload = userProcessing.buildLayeredAttributeJSON(
+                Collections.singleton(AttributeBuilder.build("otherMails", list("first@example.com", "second@example.com"))),
+                EXCLUDE_ATTRS_OF_USER);
+        assertEquals(new JSONArray().put("first@example.com").put("second@example.com").toString(),
+                payload.getJSONArray("otherMails").toString());
     }
 
     @Test
